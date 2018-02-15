@@ -19,11 +19,11 @@ popd
 ## Building the TVM java bindings
 
 ```bash
-sudo apt install cmake maven llvm-4.0-dev
+sudo apt install cmake maven llvm-4.0-dev libblas-dev
 pushd tvm
 
 ## now edit config/config.mk to appropriate for your system; I built cuda and opencl with cublas support
-## but without ROC support.  I also added in LLVM support of course.
+## but without ROC support.  I also added in LLVM and blas support.
 make -j8
 make jvmpkg
 make jvminstall
