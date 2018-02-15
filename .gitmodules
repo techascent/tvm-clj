@@ -1,0 +1,3 @@
+[submodule "tvm"]
+	path = tvm
+	url = git@github.com:dmlc/tvm.git
