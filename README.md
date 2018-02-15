@@ -1,14 +1,6 @@
 # tvm-clj
 
-A Clojure library designed to ... well, that part is up to you.
-
-## Usage
-
-FIXME
-
-## License
-
-Copyright © 2018 FIXME
+Clojure bindings and exploration of the tvm library, part of the aws NNVM ecosystem.
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
