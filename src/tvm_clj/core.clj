@@ -1,6 +1,2 @@
-(ns tvm-clj.core)
-
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(ns tvm-clj.core
+  (:import [ml.dmlc.tvm TVMContext]))
