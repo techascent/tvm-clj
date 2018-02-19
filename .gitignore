@@ -9,3 +9,5 @@ pom.xml.asc
 /.nrepl-port
 .hgignore
 .hg/
+java/tvm_clj/tvm/runtime.java
+java/native

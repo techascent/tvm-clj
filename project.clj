@@ -6,5 +6,9 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [ml.dmlc.tvm/tvm4j-full-linux-x86_64-gpu "0.0.1-SNAPSHOT"]
                  [thinktopic/think.resource "1.2.1"]
-                 [thinktopic/think.javacpp-datatype "0.1.0"]
-                 [thinktopic/think.parallel "0.3.8"]])
+                 [techascent/tech.javacpp-datatype "0.2.0"]
+                 [thinktopic/think.parallel "0.3.8"]]
+  :java-source-paths ["java"]
+  :native-path "java/native/"
+  :aot [tvm-clj.compile]
+  :main tvm-clj.compile)
