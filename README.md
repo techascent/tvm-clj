@@ -19,23 +19,22 @@ popd
 ## Building the TVM java bindings
 
 ```bash
-sudo apt install cmake maven llvm-4.0-dev libblas-dev
+sudo apt install cmake maven llvm llvm-4.0-dev libblas-dev
 pushd tvm
 
-## now edit config/config.mk to appropriate for your system; I built cuda and opencl with cublas support
+## now edit make/config.mk to appropriate for your system; I built cuda and opencl with cublas support
 ## but without ROC support.  I also added in LLVM and blas support.
 make -j8
-make jvmpkg
-make jvminstall
+popd
+
+scripts/build-jni.sh
 ```
 
-At this point you should have a line in your output that looks like:
 
-```
-[INFO] Installing /home/chrisn/dev/tech/tvm-clj/tvm/jvm/assembly/linux-x86_64-gpu/target/tvm4j-full-linux-x86_64-gpu-0.0.1-SNAPSHOT.jar to /home/chrisn/.m2/repository/ml/dmlc/tvm/tvm4j-full-linux-x86_64-gpu/0.0.1-SNAPSHOT/tvm4j-full-linux-x86_64-gpu-0.0.1-SNAPSHOT.jar
-```
+At this point you should have the bindings under `java/tvm_clj/tvm/runtime/java` and a couple native libraries
+under the `java/native/linux/x86_64` pathway.
 
-There are jvm tests included with tvm; these tests don't test anything meaningful as of the last time I checked but YYMV.
+Building a jar or uberjar will package all of these things into a good place.
 
 
 ## License
