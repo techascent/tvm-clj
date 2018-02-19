@@ -15,4 +15,5 @@
     (.setAccessible fun-data true)
     (->> (.invoke fun-data Function (object-array 0))
          seq
+         sort
          vec)))
