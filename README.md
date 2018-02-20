@@ -7,13 +7,7 @@ Clojure bindings and exploration of the tvm library, part of the aws NNVM ecosys
 
 At top level:
 ```bash
-git submodule init
-git submodule update
-
-pushd tvm
-git submodule init
-git submodule update
-popd
+git submodule update --init --recursive
 ```
 
 ## Building the TVM java bindings
@@ -23,7 +17,7 @@ sudo apt install cmake maven llvm llvm-4.0-dev libblas-dev
 pushd tvm
 
 ## now edit make/config.mk to appropriate for your system; I built cuda and opencl with cublas support
-## but without ROC support.  I also added in LLVM and blas support.
+## but without ROC support.  I also added in LLVM (required) and blas support.
 make -j8
 popd
 
