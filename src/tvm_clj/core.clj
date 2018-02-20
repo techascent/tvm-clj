@@ -154,17 +154,18 @@
 
 (defn call-function
   [^runtime$TVMFunctionHandle tvm-fn & args]
-  (let [retval (resource/track (runtime$TVMValue. 1))
-        rettype (int-array 1)
-        [tvm-args arg-types] (arg-list->tvm-args args)]
-    (check-call
-     (runtime/TVMFuncCall tvm-fn
-                          ^runtime$TVMValue tvm-args
-                          ^ints arg-types
-                          (count arg-types)
-                          retval
-                          rettype))
-    (tvm-value->jvm retval (tvm-datatype->keyword-map (aget rettype 0)))))
+  (resource/with-resource-context
+    (let [retval (resource/track (runtime$TVMValue. 1))
+          rettype (int-array 1)
+          [tvm-args arg-types] (arg-list->tvm-args args)]
+      (check-call
+       (runtime/TVMFuncCall tvm-fn
+                            ^runtime$TVMValue tvm-args
+                            ^ints arg-types
+                            (count arg-types)
+                            retval
+                            rettype))
+      (tvm-value->jvm retval (tvm-datatype->keyword-map (aget rettype 0))))))
 
 
 (defn variable
