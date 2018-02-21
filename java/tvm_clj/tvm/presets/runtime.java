@@ -4,7 +4,7 @@ import org.bytedeco.javacpp.annotation.*;
 import org.bytedeco.javacpp.tools.*;
 
 @Properties(target="tvm_clj.tvm.runtime",
-	    value={@Platform(include={"dlpack/dlpack.h", "runtime/c_runtime_api.h"},
+	    value={@Platform(include={"dlpack/dlpack.h", "runtime/c_runtime_api.h", "c_dsl_api.h", "runtime/c_backend_api.h"},
 			     includepath={"tvm/include/tvm", "tvm/dlpack/include/"},
 			     link="tvm")})
 
