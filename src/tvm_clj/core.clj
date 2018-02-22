@@ -128,20 +128,20 @@
    "UIntImm" :uint-imm
    "StringImm" :string-imm
    "Cast" :cast
-   "Add" :add
-   "Sub" :sub
-   "Mul" :mul
-   "Div" :div
+   "Add" :+
+   "Sub" :-
+   "Mul" :*
+   "Div" :/
    "Min" :min
    "Max" :max
-   "EQ" :equal
-   "NE" :not-equal
-   "LT" :less-than
-   "LE" :less-than-or-equal
-   "GT" :greater-than
-   "GE" :greater-than-or-equal
-   "And" :and
-   "Not" :not
+   "EQ" :=
+   "NE" :!=
+   "LT" :<
+   "LE" :<=
+   "GT" :>
+   "GE" :>=
+   "And" :&&
+   "Not" :!
    "Select" :select
    "Load" :load
    "Ramp" :ramp
