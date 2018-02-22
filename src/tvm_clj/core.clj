@@ -67,17 +67,27 @@
 (declare tvm-array->jvm)
 
 
+(defn- tvm-value->long
+  ^long [^runtime$TVMValue value]
+  (let [bb (.asByteBuffer value)
+        lb (.asLongBuffer bb)]
+    (.get lb 0)))
+
+
 (defn- expand-node-field
   [^NodeHandle node-handle ^String field-name]
-  (let [field-val (runtime$TVMValue. 1)
-        field-type (int-array 1)
-        success (int-array 1)]
-    (runtime/TVMNodeGetAttr ^runtime$NodeHandle (.tvm-jcpp-handle node-handle)
-                            field-name
-                            field-val
-                            field-type
-                            success)
-    (tvm-value->jvm field-val (tvm-datatype->keyword (aget field-type 0)))))
+  (let [retval (resource/with-resource-context
+                 (let [field-val (runtime$TVMValue. 1)
+                       field-type (int-array 1)
+                       success (int-array 1)]
+                   (runtime/TVMNodeGetAttr ^runtime$NodeHandle (.tvm-jcpp-handle node-handle)
+                                           field-name
+                                           field-val
+                                           field-type
+                                           success)
+                   [(tvm-value->long field-val) (tvm-datatype->keyword (aget field-type 0))]))]
+    (tvm-value->jvm retval)))
+
 
 (defn- list-node-fields
   [^NodeHandle node]
@@ -104,7 +114,76 @@
     (aget int-data 0)))
 
 (def node-type-name->keyword-map
-  {"Array" :array})
+  {;;Container
+   "Array" :array
+   "Map" :map
+   "Range" :range
+   "LoweredFunc" :lowered-function
+   ;;Expression
+   "Expr" :expression
+   "Variable" :variable
+   "Reduce" :reduce
+   "FloatImm" :float-imm
+   "IntImm" :int-imm
+   "UIntImm" :uint-imm
+   "StringImm" :string-imm
+   "Cast" :cast
+   "Add" :add
+   "Sub" :sub
+   "Mul" :mul
+   "Div" :div
+   "Min" :min
+   "Max" :max
+   "EQ" :equal
+   "NE" :not-equal
+   "LT" :less-than
+   "LE" :less-than-or-equal
+   "GT" :greater-than
+   "GE" :greater-than-or-equal
+   "And" :and
+   "Not" :not
+   "Select" :select
+   "Load" :load
+   "Ramp" :ramp
+   "Broadcast" :broadcast
+   "Shuffle" :shuffle
+   "Call" :call
+   "Let" :let
+   ;;Schedule
+   "Buffer" :buffer
+   "Split" :split
+   "Fuse" :fuse
+   "IterVar" :iteration-variable
+   "Schedule" :schedule
+   "Stage" :stage
+   ;;Tensor
+   "Tensor" :tensor
+   "PlaceholderOp" :placeholder-operation
+   "ComputeOp" :compute-operation
+   "ScanOp" :scan-operation
+   "ExternOp" :external-operation
+   ;;Statement
+   "LetStmt" :let
+   "AssertStmt" :assert
+   "ProducerConsumer" :producer-consumer
+   "For" :for
+   "Store" :store
+   "Provide" :provide
+   "Allocate" :allocate
+   "AttrStmt" :attribute
+   "Free" :free
+   "Realize" :realize
+   "Block" :block
+   "IfThenElse" :if-then-else
+   "Evaluate" :evaluate
+   "Prefetch" :prefetch
+   ;;build-module
+   "BuildConfig" :build-config
+   ;;arith.py
+   "IntervalSet" :interval-set
+   "StrideSet" :stride-set
+   "ModularSet" :modular-set
+   })
 
 
 (def node-type-name->index
@@ -123,6 +202,8 @@
 
 
 (defn- make-node-handle
+  "Any time this is called the object should be freed eventually:
+https://github.com/dmlc/tvm/issues/918"
   ^runtime$NodeHandle [^long handle-value]
   (let [runtime-handle (runtime$NodeHandle.)
         retval (base/->NodeHandle runtime-handle)]
@@ -141,7 +222,9 @@
                    (assoc retval (keyword field-name)
                           (cond
                             (= :array (get node-field-val :tvm-type-kwd))
-                            (tvm-array->jvm node-field-val)
+                            (let [ary-data (tvm-array->jvm node-field-val)]
+                              (resource/release node-field-val)
+                              ary-data)
                             (instance? NodeHandle node-field-val)
                             (unpack-node-fields node-field-val)
                             :else
@@ -246,10 +329,8 @@ result in a returned map container a value for the key:
 
 This is in order to ensure that, for instance, deserialization of a node's fields
 allows for a sane recovery mechanism and doesn't lose those field values."
-  [^runtime$TVMValue val val-type-kwd]
-  (let [bb (.asByteBuffer val)
-        lb (.asLongBuffer bb)
-        long-val (.get lb 0)]
+  [[long-val val-type-kwd]]
+  (let [long-val (long long-val)]
     (try
       (condp = val-type-kwd
         :int
@@ -271,35 +352,34 @@ allows for a sane recovery mechanism and doesn't lose those field values."
 
 (defn call-function
   [^runtime$TVMFunctionHandle tvm-fn & args]
-  (let [retval (resource/with-resource-context
-                 (let [^runtime$TVMValue retval (resource/track (runtime$TVMValue. 1))
-                       rettype (int-array 1)
-                       [tvm-args arg-types] (arg-list->tvm-args args)]
-                   (check-call
-                    (runtime/TVMFuncCall tvm-fn
-                                         ^runtime$TVMValue tvm-args
-                                         ^ints arg-types
-                                         (count arg-types)
-                                         retval
-                                         rettype))
-                   (tvm-value->jvm retval (tvm-datatype->keyword-map (aget rettype 0)))))]
-    retval))
+  (let [fn-ret-val
+        (resource/with-resource-context
+          (let [^runtime$TVMValue retval (resource/track (runtime$TVMValue. 1))
+                rettype (int-array 1)
+                [tvm-args arg-types] (arg-list->tvm-args args)]
+            (check-call
+             (runtime/TVMFuncCall tvm-fn
+                                  ^runtime$TVMValue tvm-args
+                                  ^ints arg-types
+                                  (count arg-types)
+                                  retval
+                                  rettype))
+            [(tvm-value->long retval) (tvm-datatype->keyword-map (aget rettype 0))]))]
+    (tvm-value->jvm fn-ret-val)))
 
 
 (defn variable
   "Create a simple variable.  Returns a node handle"
   [^String name & {:keys [type-str]
                    :or {type-str "int32"}}]
-  (resource/track
-   (unpack-node-fields
-    (call-function (global-function "_Var") name type-str))))
+  (unpack-node-fields
+   (call-function (global-function "_Var") name type-str)))
 
 
 (defn- tvm-array
   "Called when something like a shape needs to be passed into a tvm function"
   [& args]
-  (resource/track
-   (apply call-function (global-function "_Array") args)))
+  (apply call-function (global-function "_Array") args))
 
 
 (defn placeholder
@@ -309,9 +389,8 @@ allows for a sane recovery mechanism and doesn't lose those field values."
   (let [shape (if-not (instance? clojure.lang.Seqable shape)
                 [shape]
                 shape)]
-    (resource/track
-     (unpack-node-fields
-      (call-function (global-function "_Placeholder") shape dtype name)))))
+    (unpack-node-fields
+     (call-function (global-function "_Placeholder") shape dtype name))))
 
 
 (defn- tvm-array->jvm
