@@ -11,3 +11,7 @@
 
 
 (defrecord NodeHandle [^runtime$NodeHandle tvm-jcpp-handle])
+
+
+(defprotocol PConvertToNode
+  (->node [item]))

@@ -100,7 +100,7 @@
       retval)))
 
 
-(defn- get-node-type
+(defn- get-node-type-index
   [^NodeHandle node]
   (let [node-type-data (int-array 1)]
     (runtime/TVMNodeGetTypeIndex ^runtime$NodeHandle (.tvm-jcpp-handle node) node-type-data)
@@ -208,7 +208,7 @@ https://github.com/dmlc/tvm/issues/918"
   (let [runtime-handle (runtime$NodeHandle.)
         retval (base/->NodeHandle runtime-handle)]
     (.set ^Field jcpp-dtype/address-field runtime-handle handle-value)
-    (let [node-type (get-node-type retval)]
+    (let [node-type (get-node-type-index retval)]
       (assoc retval
              :tvm-type-index node-type
              :tvm-type-kwd (node-type-index->keyword node-type)))))
@@ -254,6 +254,10 @@ https://github.com/dmlc/tvm/issues/918"
   (jvm->tvm-value [value] [(long value) runtime/kDLInt])
   Long
   (jvm->tvm-value [value] [(long value) runtime/kDLInt])
+  Boolean
+  (jvm->tvm-value [value] [(if value
+                             (long 1)
+                             (long 0)) runtime/kDLInt])
   String
   (jvm->tvm-value [value]
     (let [pb (BytePointer. value "ASCII")]
@@ -368,32 +372,27 @@ allows for a sane recovery mechanism and doesn't lose those field values."
     (tvm-value->jvm fn-ret-val)))
 
 
-(defn variable
-  "Create a simple variable.  Returns a node handle"
-  [^String name & {:keys [type-str]
-                   :or {type-str "int32"}}]
-  (unpack-node-fields
-   (call-function (global-function "_Var") name type-str)))
-
-
-(defn- tvm-array
-  "Called when something like a shape needs to be passed into a tvm function"
+(defn tvm-array
+  "Called when something like a shape needs to be passed into a tvm function.  Most users will not need to call this
+explicitly; it is done for you."
   [& args]
   (apply call-function (global-function "_Array") args))
-
-
-(defn placeholder
-  [shape & {:keys [dtype name]
-            :or {dtype "float32"
-                 name "placeholder"}}]
-  (let [shape (if-not (instance? clojure.lang.Seqable shape)
-                [shape]
-                shape)]
-    (unpack-node-fields
-     (call-function (global-function "_Placeholder") shape dtype name))))
 
 
 (defn- tvm-array->jvm
   [tvm-array-node]
   (->> (range (call-function (global-function "_ArraySize") tvm-array-node))
        (mapv #(call-function (global-function "_ArrayGetItem") tvm-array-node (int %1)))))
+
+
+(defn global-node-function
+  "Call a global function that returns a node."
+  [fn-name & args]
+  (-> (apply call-function (global-function fn-name) args)
+      unpack-node-fields))
+
+(def gfn global-node-function)
+
+(defn get-node-type
+  [node]
+  (get node :tvm-type-kwd))
