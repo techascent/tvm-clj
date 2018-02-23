@@ -18,9 +18,9 @@
 
 (defn variable
   "Create a scalar variable.  Returns a node handle"
-  [^String name & {:keys [type-str]
-                   :or {type-str "int32"}}]
-  (c/global-node-function "_Var" name type-str))
+  [^String name & {:keys [dtype]
+                   :or {dtype "int32"}}]
+  (c/global-node-function "_Var" name dtype))
 
 
 (defn placeholder
@@ -182,15 +182,292 @@ is calling a halide function with the tensor's generating-op and value index."
     (ex-info "Num indices must match tensor rank"
              {:tensor-range (count (:shape tensor))
               :index-count (count indices)}))
-  (resource/with-resource-context
-    (let [indices (->node indices)]
-      (call (:dtype tensor) (get-in tensor [:op :name]) indices
-            :halide (:op tensor) (:value-index tensor)))))
+  (let [indices (mapv (fn [index-val]
+                        (let [node-data (->node index-val)]
+                          (cond
+                            (= :iteration-variable (c/get-node-type node-data))
+                            (:var node-data)
+                            (c/is-expression-node? node-data)
+                            node-data
+                            :else
+                            (throw (ex-info "Index must be either iteration variable or expression"
+                                            {:node-type (c/get-node-type node-data)})))))
+                      indices)]
+    (call (:dtype tensor) (get-in tensor [:op :name]) indices
+          :halide (:op tensor) (:value_index tensor))))
 
 
 (defn add
   [lhs rhs]
   (c/global-node-function "make.Add" lhs rhs))
+
+
+(defmacro tvm-fn
+  "Like (fn) but retains the arglists.  Lambda in clojure unfortunately does not."
+  [arg-vec & body]
+  (let [retval `(fn ~arg-vec
+                  ~@body)]
+    (with-meta retval {:arglists `(quote ~arg-vec)})))
+
+
+(defn compute
+  [shape fcompute & {:keys [name tag]
+                     :or {name "compute"
+                          tag ""}}]
+
+  (let [fn-arglists (->> (meta fcompute)
+                         :arglists
+                         (mapv clojure.core/name))]
+    (when-not-error fn-arglists
+      (ex-info "Functions passed into compute must have the arglists in their metadata"
+               {}))
+    (when-not-error (= (count shape)
+                       (count fn-arglists))
+      (ex-info "fcompute must have same number of args as rank of shape"
+               {:shape-rank (count shape)
+                :num-fn-args (count fn-arglists)}))
+    (let [compute-dim (map (fn [arg-name shape-value]
+                             (iteration-variable [0 shape-value] arg-name :data-parallel))
+                           fn-arglists shape)
+          body-data (apply fcompute (map :var compute-dim))
+          body-data (if-not (instance? clojure.lang.Sequential body-data)
+                      [body-data]
+                      body-data)]
+      (c/global-node-function "_ComputeOp" name tag compute-dim body-data))))
+
+
+(defn output-tensors
+  [compute-op]
+  (->> (clojure.core/range (c/global-function "_OpNumOutputs" compute-op))
+       (mapv #(c/global-node-function "_OpGetOutput" compute-op (int %1)))))
+
+
+(defn input-tensors
+  [compute-op]
+  (->> (c/global-node-function "_OpInputTensors" compute-op)
+       c/tvm-array->jvm
+       (mapv c/unpack-node-field)))
+
+
+(defn create-schedule
+  [op-seq]
+  (let [op-seq (if-not (sequential? op-seq)
+                 [op-seq]
+                 op-seq)]
+    (c/global-node-function "_CreateSchedule" op-seq)))
+
+
+
+(def default-build-config
+  "Comments from tvm/build_module.h"
+  {;;/*! \brief Threshold of number of steps in the loop to be automatically unrolled */
+   :auto-unroll-max-step 0
+   ;;/*! \brief The maximum nested level of loops that can be automatically unrolled */
+   :auto-unroll-max-depth 8
+   ;;/*! \brief The maximum extent of loop that will be unrolled */
+   :auto-unroll-max-extent 0
+   ;; /*!
+   ;; * \brief Whether to explicitly unroll the loop. If set to false, the unroll hint will
+   ;; * be passed to the CodeGen phase. Set to true if CodeGen supports unroll pragma.
+   ;; */
+   :unroll-explicit? true
+   ;;/*! \brief Whether to detect global barrier */
+   :detect-global-barrier? false
+   ;;/*! \brief Whether to partition const loop */
+   :partition-const-loop? false
+   ;; /*!
+   ;; * \brief The offset factor to use when constructing buffers. If this is set to
+   ;; * 0, then the offset field is not used.
+   ;; */
+   :offset-factor 0
+   ;; /*!
+   ;; * \brief The data alignment to use when constructing buffers. If this is set to
+   ;; * -1, then TVM's internal default will be used
+   ;; */
+   :data-alignment -1
+   ;;/*! \brief Set to true if buffer arguments do not overlap. This enables more optimization. */
+   :restricted-func? true
+   ;; /*!
+   ;; * \brief Splitting factor for loop splitting. If this is set to zero, no splitting will be
+   ;; * done. Otherwise, a split will be done with this factor and the inner loop will be unrolled.
+   ;; */
+   :double-buffer-split-loop 1})
+
+
+(defn declare-buffer
+  "Decleare a new symbolic buffer.
+
+    Normally buffer is created automatically during lower and build.
+    This is only needed if user want to specify their own buffer layout.
+
+    See the note below for detailed discussion on usage of buffer.
+
+    Parameters
+    ----------
+    shape : tuple of Expr
+        The shape of the buffer.
+
+    dtype : str, optional
+        The data type of the buffer.
+
+    name : str, optional
+        The name of the buffer.
+
+    data : Var, optional
+        The data pointer in the buffer.
+
+    strides: array of Expr
+        The stride of the buffer.
+
+    elem_offset: Expr, optional
+        The beginning offset of the array to data.
+        In terms of number of elements of dtype.
+
+    scope: str, optional
+        The storage scope of the buffer, if not global.
+        If scope equals empty string, it means it is global memory.
+
+    data_alignment: int, optional
+        The alignment of data pointer in bytes.
+        If -1 is passed, the alignment will be set to TVM's internal default.
+
+    --CN - REMOVED - No one understands what this does.  It is only referenced in the code
+in order to perform a check during argument binding.  So the description below is accurate
+for what it is worth but it is hard to me to see how this is useful.
+
+
+    offset_factor: int, optional
+        The factor of elem_offset field, when set,
+        elem_offset is required to be multiple of offset_factor.
+        If 0 is pssed, the alignment will be set to 1.
+        if non-zero is passed, we will created a Var for elem_offset if elem_offset is not None.
+
+     --CN - END-REMOVED --
+
+    Returns
+    -------
+    buffer : Buffer
+        The created buffer
+
+    Note
+    ----
+    Buffer data structure reflects the DLTensor structure in dlpack.
+    While DLTensor data structure is very general, it is usually helpful
+    to create function that only handles specific case of data structure
+    and make compiled function benefit from it.
+
+    If user pass strides and elem_offset is passed as None
+    when constructing the function, then the function will be specialized
+    for the DLTensor that is compact and aligned.
+    If user pass a fully generic symbolic array to the strides,
+    then the resulting function becomes fully generic."
+  [shape & {:keys [dtype name data strides elem-offset scope data-alignment]
+            :or {name "buffer" dtype "float32" strides [] scope "" data-alignment -1
+                 elem-offset 0}}]
+  (let [shape (if (sequential? shape)
+                shape
+                [shape])
+        data (if data data (variable name :dtype "handle"))
+        offset-factor 0]
+    (c/global-node-function "_Buffer"
+                            data dtype shape strides elem-offset name scope
+                            data-alignment offset-factor)))
+
+
+(defn bind-arguments
+  "Given an arg-list and existing bind map, produce a new arg list
+and bind map with all arguments bound to input buffers with defined buffer layout.
+Bind map is a map of type NodeHandle->NodeHandle where the keys are tensors and the
+values are buffers"
+  [arg-list bind-map build-config]
+  (reduce (fn [[arg-list bind-map] arg]
+            (condp = (c/get-node-type arg)
+              :tensor
+              (if-let [buf (bind-map arg)]
+                [(conj arg-list buf) bind-map]
+                (let [new-buf (declare-buffer (:shape arg) :dtype (:dtype arg)
+                                              name (:name arg)
+                                              :data-alignment (:data-alignment build-config))]
+                  [(conj arg-list new-buf) (assoc bind-map arg new-buf)]))
+              :buffer
+              [(conj arg-list arg) bind-map]
+              :variable
+              [(conj arg-list arg) bind-map]))
+          [[] bind-map]
+          arg-list))
+
+
+(defn- gfnr
+  "Like global-node-function but the first argument is assumed to be the 'this' object
+and the second is the function to call.  We need this slight transposition in order to use
+the threading macro with the long set of ir pass possibilities."
+  [item fn-name & args]
+  ;;These are all nodes but don't upack fields; this causes too much unnecessary unpacking.
+  (apply c/g-fn fn-name item args))
+
+
+(defn lower
+  "Lowering step before build into target.
+
+    Parameters
+    ----------
+    schedule : tvm.Schedule
+        The schedule to be builded
+
+    args : list of Buffer or Tensor or Var
+        The argument lists to the function.
+
+    name : str, optional
+        The name of result function.
+
+    bind-map: map of {:tensor :buffer}, optional
+        mapping fuction or hash-map that maps the Tensor to Buffer which specified the data layout
+        requirement of the function. By default, a new compact buffer is created
+        for each tensor in the argument list.
+
+    simple_mode : bool, optional
+        Whether only output simple and compact statement, this will skip
+        LoopPartition, api wrapper generation and Unrolling.
+
+    Returns
+    -------
+    f : LoweredFunc or Stmt
+       The result function, if with_api_wrapper=False
+       Then the Stmt before make api is returned.
+    "
+  [schedule args build-config & {:keys [name bind-map]
+                                 :or {name "default_function"
+                                      bind-map {}}}]
+  (let [schedule (c/gfn "_ScheduleNormalize" schedule)
+        [arg-list bind-map] (bind-arguments args bind-map build-config)
+        bounds (c/gfn "schedule.InferBound" schedule)
+        cache-line-size 64]
+    (-> schedule
+        ;;Phase 0
+        (gfnr "schedule.ScheduleOps" bounds)
+        (gfnr "ir_pass.InjectPrefetch")
+        ;;Phase 1
+        (gfnr "ir_pass.StorageFlatten" bind-map cache-line-size)
+        (gfnr "ir_pass.CanonicalSimplify")
+        ;;Phase 2
+        (gfnr "ir_pass.LoopPartition" (:partition-const-loop? build-config))
+        (gfnr "ir_pass.VectorizeLoop")
+        (gfnr "ir_pass.InjectVirtualThread")
+        (gfnr "ir_pass.InjectDoubleBuffer" (:double-buffer-split-loop build-config))
+        (gfnr "ir_pass.StorageRewrite")
+        (gfnr "ir_pass.UnrollLoop"
+              (:auto-unroll-max-step build-config)
+              (:auto-unroll-max-depth build-config)
+              (:auto-unroll-max-extent build-config)
+              (:unroll-explicit? build-config))
+        ;;Phase 3
+        (gfnr "ir_pass.Simplify")
+        (gfnr "ir_pass.LowerStorageAccessInfo")
+        (gfnr "ir_pass.RemoveNoOp")
+        (gfnr "ir_pass.RewriteUnsafeSelect")
+        ;;Exit
+        (gfnr "ir_pass.MakeAPI" name arg-list 0 (:restricted-func? build-config))
+        (c/unpack-node-fields :recurse false))))
 
 
 (extend-protocol b/PConvertToNode
@@ -210,5 +487,5 @@ is calling a halide function with the tensor's generating-op and value index."
   (->node [item] (const item :dtype "float32"))
   Double
   (->node [item] (const item :dtype "float64"))
-  clojure.lang.Seqable
+  clojure.lang.Sequential
   (->node [item] (apply c/tvm-array (map ->node item))))

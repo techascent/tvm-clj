@@ -16,6 +16,18 @@
 (set! *unchecked-math* :warn-on-boxed)
 
 
+(def ^:dynamic fn-name "")
+
+
+(defmacro check-call
+  [& body]
+  `(let [ret# (int (do ~@body))]
+     (when-not (= 0 ret#)
+       (throw (ex-info "Error during TVM call:"
+                       {:error-string (variable-byte-ptr->string (runtime/TVMGetLastError))
+                        :fn-name fn-name})))))
+
+
 (defn unsafe-read-byte
   [^BytePointer byte-ary ^long idx]
   (.set ^Field jcpp-dtype/capacity-field byte-ary (inc idx))
@@ -54,12 +66,16 @@
          retval)))))
 
 
-(def global-function
+(def name->global-function
   "The function returned should not be freed"
   (memoize
    (fn [^String fn-name]
      (let [retval (runtime$TVMFunctionHandle.)]
-       (runtime/TVMFuncGetGlobal fn-name retval)
+       (check-call
+        (runtime/TVMFuncGetGlobal fn-name retval))
+       (when (= 0 (.address retval))
+         (throw (ex-info "Failed to find global function"
+                         {:fn-name fn-name})))
        retval))))
 
 (declare tvm-datatype->keyword)
@@ -140,7 +156,7 @@
    "LE" :<=
    "GT" :>
    "GE" :>=
-   "And" :&&
+   "And" :and
    "Not" :!
    "Select" :select
    "Load" :load
@@ -185,6 +201,42 @@
    "ModularSet" :modular-set
    })
 
+(def expression-set
+  #{:expression
+    :variable
+    :reduce
+    :float-imm
+    :int-imm
+    :uint-imm
+    :string-imm
+    :cast
+    :+
+    :-
+    :*
+    :/
+    :min
+    :max
+    :=
+    :!=
+    :<
+    :<=
+    :>
+    :>=
+    :and
+    :!
+    :select
+    :load
+    :ramp
+    :broadcast
+    :shuffle
+    :call
+    :let})
+
+
+(defn is-expression-node?
+  [^NodeHandle node]
+  (expression-set (:tvm-type-kwd node)))
+
 
 (def node-type-name->index
   (memoize get-type-key-for-name))
@@ -214,21 +266,35 @@ https://github.com/dmlc/tvm/issues/918"
              :tvm-type-kwd (node-type-index->keyword node-type)))))
 
 
-(defn- unpack-node-fields
-  [^NodeHandle node]
+(declare unpack-node-fields)
+
+
+(defn unpack-node-field
+  [node-field-val & {:keys [recurse]
+                     :or {recurse true}}]
+
+  (let [local-unpack (if recurse
+                       unpack-node-fields
+                       identity)]
+    (cond
+      (= :array (get node-field-val :tvm-type-kwd))
+      (let [ary-data (tvm-array->jvm node-field-val)]
+        (resource/release node-field-val)
+        (mapv local-unpack ary-data))
+      (instance? NodeHandle node-field-val)
+      (local-unpack node-field-val)
+      :else
+      node-field-val)))
+
+
+(defn unpack-node-fields
+  [^NodeHandle node & {:keys [recurse]
+                       :or {recurse true}}]
   (->> (list-node-fields node)
        (reduce (fn [retval field-name]
                  (let [node-field-val (expand-node-field retval field-name)]
                    (assoc retval (keyword field-name)
-                          (cond
-                            (= :array (get node-field-val :tvm-type-kwd))
-                            (let [ary-data (tvm-array->jvm node-field-val)]
-                              (resource/release node-field-val)
-                              ary-data)
-                            (instance? NodeHandle node-field-val)
-                            (unpack-node-fields node-field-val)
-                            :else
-                            node-field-val))))
+                          (unpack-node-field node-field-val :recurse recurse))))
                node)))
 
 
@@ -239,6 +305,7 @@ https://github.com/dmlc/tvm/issues/918"
 
 
 (declare tvm-array)
+(declare tvm-map)
 
 
 (extend-protocol base/PJVMTypeToTVMValue
@@ -263,12 +330,21 @@ https://github.com/dmlc/tvm/issues/918"
     (let [pb (BytePointer. value "ASCII")]
       (resource/track pb)
       [(.address pb) runtime/kStr]))
-  NodeHandle
+
+  Object
   (jvm->tvm-value [value]
-    [(.address ^runtime$NodeHandle (.tvm-jcpp-handle value)) runtime/kNodeHandle])
-  clojure.lang.Sequential
-  (jvm->tvm-value [value]
-    (base/jvm->tvm-value (apply tvm-array value))))
+    (cond
+      (sequential? value)
+      (base/jvm->tvm-value (apply tvm-array value))
+      (map? value)
+      (cond
+        (instance? NodeHandle value)
+        [(.address ^runtime$NodeHandle (.tvm-jcpp-handle ^NodeHandle value)) runtime/kNodeHandle]
+        :else
+        (base/jvm->tvm-value (apply tvm-map (->> (seq value)
+                                                 (apply concat)))))
+      (nil? value)
+      [0 runtime/kNull])))
 
 
 (defn arg-list->tvm-args
@@ -317,14 +393,6 @@ https://github.com/dmlc/tvm/issues/918"
 (defn keyword->tvm-datatype
   ^long [kwd]
   (long (keyword->tvm-datatype kwd)))
-
-
-(defmacro check-call
-  [& body]
-  `(let [ret# (int (do ~@body))]
-     (when-not (= 0 ret#)
-       (throw (ex-info "Error during TVM call:"
-                       {:error-string (variable-byte-ptr->string (runtime/TVMGetLastError))})))))
 
 (defn tvm-value->jvm
   "Attempts to coerce the tvm value into the jvm.  Failures
@@ -376,22 +444,40 @@ allows for a sane recovery mechanism and doesn't lose those field values."
   "Called when something like a shape needs to be passed into a tvm function.  Most users will not need to call this
 explicitly; it is done for you."
   [& args]
-  (apply call-function (global-function "_Array") args))
+  (apply call-function (name->global-function "_Array") args))
 
 
-(defn- tvm-array->jvm
+(defn tvm-map
+  "Call like hash-map except all keys must be node handles.  Most users will not need to call this explicitly"
+  [& args]
+  (when-not (= 0 (rem (count args)
+                      2))
+    (throw (ex-info "Map fn call must have even arg count"
+                    {:args args})))
+  (with-bindings {#'fn-name "_Map"}
+    (apply call-function (name->global-function "_Map") args)))
+
+
+(defn tvm-array->jvm
   [tvm-array-node]
-  (->> (range (call-function (global-function "_ArraySize") tvm-array-node))
-       (mapv #(call-function (global-function "_ArrayGetItem") tvm-array-node (int %1)))))
+  (->> (range (call-function (name->global-function "_ArraySize") tvm-array-node))
+       (mapv #(call-function (name->global-function "_ArrayGetItem") tvm-array-node (int %1)))))
 
 
 (defn global-node-function
   "Call a global function that returns a node."
   [fn-name & args]
-  (-> (apply call-function (global-function fn-name) args)
-      unpack-node-fields))
+  (with-bindings {#'fn-name fn-name}
+    (-> (apply call-function (name->global-function fn-name) args)
+        unpack-node-fields)))
 
-(def gfn global-node-function)
+(defn global-function
+  [fn-name & args]
+  (with-bindings {#'fn-name fn-name}
+    (apply call-function (name->global-function fn-name) args)))
+
+(def g-fn global-function)
+(def gn-fn global-node-function)
 
 (defn get-node-type
   [node]
