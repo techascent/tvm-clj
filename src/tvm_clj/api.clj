@@ -1,7 +1,8 @@
 (ns tvm-clj.api
   (:require [tvm-clj.core :as c]
             [tvm-clj.base :as b]
-            [think.resource.core :as resource])
+            [think.resource.core :as resource]
+            [clojure.set :as c-set])
   (:import [tvm_clj.base NodeHandle]))
 
 
@@ -406,7 +407,16 @@ the threading macro with the long set of ir pass possibilities."
   (apply c/g-fn fn-name item args))
 
 
-(defn lower
+(def lowered-function-type->int-map
+  {:mixed-function 0
+   :host-function 1
+   :device-functions 2})
+
+
+(def int->lowered-function-type-map (c-set/map-invert lowered-function-type->int-map))
+
+
+(defn schedule->lowered-function
   "Lowering step before build into target.
 
     Parameters
@@ -425,7 +435,7 @@ the threading macro with the long set of ir pass possibilities."
         requirement of the function. By default, a new compact buffer is created
         for each tensor in the argument list.
 
-    simple_mode : bool, optional
+    simple_mode : bool, optional (not currently implemented)
         Whether only output simple and compact statement, this will skip
         LoopPartition, api wrapper generation and Unrolling.
 
@@ -438,9 +448,9 @@ the threading macro with the long set of ir pass possibilities."
   [schedule args build-config & {:keys [name bind-map]
                                  :or {name "default_function"
                                       bind-map {}}}]
-  (let [schedule (c/gfn "_ScheduleNormalize" schedule)
+  (let [schedule (c/g-fn "_ScheduleNormalize" schedule)
         [arg-list bind-map] (bind-arguments args bind-map build-config)
-        bounds (c/gfn "schedule.InferBound" schedule)
+        bounds (c/g-fn "schedule.InferBound" schedule)
         cache-line-size 64]
     (-> schedule
         ;;Phase 0
@@ -467,7 +477,70 @@ the threading macro with the long set of ir pass possibilities."
         (gfnr "ir_pass.RewriteUnsafeSelect")
         ;;Exit
         (gfnr "ir_pass.MakeAPI" name arg-list 0 (:restricted-func? build-config))
-        (c/unpack-node-fields :recurse false))))
+        (c/unpack-node-fields :recurse false)
+        (update :func_type int->lowered-function-type-map))))
+
+
+(def target-name->props
+  [[#{"llvm"} {:keys #{"cpu"}}]
+   [#{"cuda" "nvptx"} (fn [target-name]
+                        {:keys #{"cuda" "gpu"}
+                         :max-num-threads 512
+                         :thread-warp-size 32})]
+   [#{"rocm" "opencl"} (fn [target-name]
+                         {:keys #{"rocm" "gpu"}
+                          :max-num-threads 256})]
+   [#{"metal" "vulkan"} (fn [target-name]
+                          {:keys #{"gpu" target-name}
+                           :max-nun-threads 256})]
+   [#{"opengl"} (fn [target-name]
+                  {:keys #{"opengl"}})]])
+
+
+(defn create-target
+  [target-name]
+  (merge {:target-name target-name
+          :thread-warp-size 1}
+         (->> target-name->props
+              (filter #((first %) target-name))
+              first
+              (#((second %) target-name)))))
+
+
+(defn lowered-functions->module
+  [lowered-function-seq build-config & {:keys [target-name]
+                                        :or {target-name "llvm"}}]
+  (let [arg-type-list (map c/get-node-type lowered-function-seq)]
+    (when-not-error (= #{:lowered-function} (set arg-type-list))
+      (ex-info "Argumentis not a sequence of lowered functions"
+               {:arg-types arg-type-list})))
+  (let [arg-name-set (->> (map :name lowered-function-seq)
+                          set)
+        target (create-target target-name)
+        _ (when-not-error (= (count lowered-function-seq)
+                             (count arg-name-set))
+            (ex-info "Arguments have duplicate names or are themselves duplicated"
+                     {:arg-names (mapv :name lowered-function-seq)}))
+        [host-fns device-fns] (reduce (fn [[host-fns device-fns] lowered-fn]
+                                        (condp = (:func_type lowered-fn)
+                                          :host-function
+                                          [(conj host-fns lowered-fn) device-fns]
+                                          :device-function
+                                          [host-fns (conj device-fns lowered-fn)]
+                                          :mixed-function
+                                          (let [warp-size (long (:thread-warp-size target))
+                                                fsplits (-> (if (:detect-global-barrier? build-config)
+                                                              (c/g-fn "ir_pass.ThreadSync" lowered-fn "global")
+                                                              lowered-fn)
+                                                            (gfnr "ir_pass.LowerThreadAllreduce" warp-size)
+                                                            (gfnr "ir_pass.SplitHostDevice")
+                                                            (c/tvm-array->jvm))]
+                                            [(conj host-fns (first fsplits))
+                                             (concat device-fns (rest fsplits))])))
+                                      [[] []]
+                                      lowered-function-seq)]
+    {:host-fns host-fns
+     :device-fns device-fns}))
 
 
 (extend-protocol b/PConvertToNode

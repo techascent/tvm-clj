@@ -14,5 +14,6 @@
                                                              (api/tget B [i])))
                                 :name "C")
         C (first (api/output-tensors compute-op))
-        schedule (api/create-schedule compute-op)]
-    (api/lower schedule [A B C] api/default-build-config :name "fadd")))
+        schedule (api/create-schedule compute-op)
+        lowered-fn (api/schedule->lowered-function schedule [A B C] api/default-build-config :name "fadd")]
+    (api/lowered-functions->module [lowered-fn] api/default-build-config)))
