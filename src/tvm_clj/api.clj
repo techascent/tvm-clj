@@ -3,7 +3,12 @@
             [tvm-clj.base :as b]
             [think.resource.core :as resource]
             [clojure.set :as c-set])
-  (:import [tvm_clj.base NodeHandle]))
+  (:import [tvm_clj.base NodeHandle]
+           [tvm_clj.tvm runtime runtime$TVMModuleHandle]))
+
+
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 
 
 (defmacro when-not-error
@@ -445,9 +450,9 @@ the threading macro with the long set of ir pass possibilities."
        The result function, if with_api_wrapper=False
        Then the Stmt before make api is returned.
     "
-  [schedule args build-config & {:keys [name bind-map]
-                                 :or {name "default_function"
-                                      bind-map {}}}]
+  ^NodeHandle [schedule args build-config & {:keys [name bind-map]
+                                             :or {name "default_function"
+                                                  bind-map {}}}]
   (let [schedule (c/g-fn "_ScheduleNormalize" schedule)
         [arg-list bind-map] (bind-arguments args bind-map build-config)
         bounds (c/g-fn "schedule.InferBound" schedule)
@@ -482,34 +487,40 @@ the threading macro with the long set of ir pass possibilities."
 
 
 (def target-name->props
-  [[#{"llvm"} {:keys #{"cpu"}}]
-   [#{"cuda" "nvptx"} (fn [target-name]
-                        {:keys #{"cuda" "gpu"}
+  [[#{:llvm} {:keys #{:cpu}}]
+   [#{:cuda :nvptx} (fn [target-name]
+                        {:keys #{:cuda :gpu}
                          :max-num-threads 512
                          :thread-warp-size 32})]
-   [#{"rocm" "opencl"} (fn [target-name]
-                         {:keys #{"rocm" "gpu"}
+   [#{:rocm :opencl} (fn [target-name]
+                         {:keys #{:rocm :gpu}
                           :max-num-threads 256})]
-   [#{"metal" "vulkan"} (fn [target-name]
-                          {:keys #{"gpu" target-name}
-                           :max-nun-threads 256})]
-   [#{"opengl"} (fn [target-name]
-                  {:keys #{"opengl"}})]])
+   [#{:metal :vulkan} (fn [target-name]
+                          {:keys #{:gpu target-name}
+                           :max-num-threads 256})]
+   [#{:opengl} (fn [target-name]
+                  {:keys #{:opengl}})]])
 
 
 (defn create-target
   [target-name]
-  (merge {:target-name target-name
-          :thread-warp-size 1}
-         (->> target-name->props
-              (filter #((first %) target-name))
-              first
-              (#((second %) target-name)))))
+  (let [target-map-fn (->> target-name->props
+                           (filter #((first %) target-name))
+                           first
+                           second)]
+    (when-not-error target-map-fn
+      (ex-info "Failed to find target properties in target"
+               {:target-name target-name}))
+    (merge {:target-name target-name
+            :thread-warp-size 1}
+           (target-map-fn target-name))))
 
 
 (defn lowered-functions->module
-  [lowered-function-seq build-config & {:keys [target-name]
-                                        :or {target-name "llvm"}}]
+  ^runtime$TVMModuleHandle
+  [lowered-function-seq build-config & {:keys [target-name target-host]
+                                        :or {target-name :llvm
+                                             target-host :llvm}}]
   (let [arg-type-list (map c/get-node-type lowered-function-seq)]
     (when-not-error (= #{:lowered-function} (set arg-type-list))
       (ex-info "Argumentis not a sequence of lowered functions"
@@ -538,9 +549,31 @@ the threading macro with the long set of ir pass possibilities."
                                             [(conj host-fns (first fsplits))
                                              (concat device-fns (rest fsplits))])))
                                       [[] []]
-                                      lowered-function-seq)]
-    {:host-fns host-fns
-     :device-fns device-fns}))
+                                      lowered-function-seq)
+        device-type (c/device-type->device-type-int target-name)
+        host-fns (mapv (fn [host-fn]
+                         (c/g-fn "ir_pass.BindDeviceType" host-fn device-type)
+                         (c/g-fn "ir_pass.LowerTVMBuiltin" host-fn))
+                       host-fns)
+        target-host (if-not target-host
+                      (if (= device-type runtime/kDLCPU)
+                        target
+                        ;;More checking here to work with stackvm
+                        :llvm)
+                      target-host)
+        target-device target
+        device-fns (mapv #(c/g-fn "ir_pass.LowerIntrin" % (name target-device)) device-fns)
+        host-fns (->> host-fns
+                      (map #(c/g-fn "ir_pass.LowerIntrin" % (name target-host)))
+                      (map #(c/g-fn "ir_pass.CombineContextCall" %))
+                      ;;Force here to avoid laziness + side-effectiness mixing
+                      doall)
+        ^runtime$TVMModuleHandle mhost (c/g-fn "codegen._Build" host-fns (name target-host))]
+    (when (seq device-fns)
+      (resource/with-resource-context
+        (->> (c/g-fn "codegen._Build" device-fns (name target-device))
+             (runtime/TVMModImport mhost))))
+    mhost))
 
 
 (extend-protocol b/PConvertToNode

@@ -3,7 +3,8 @@
   protocols in difficult-to-understand states or redefines records.  Nothing should be defined
   in this file but types; this allows repl recompilation to succeed predictably"
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
-            runtime$NodeHandle]))
+            runtime$NodeHandle runtime$TVMModuleHandle
+            runtime$DLTensor]))
 
 
 (defprotocol PJVMTypeToTVMValue
@@ -15,3 +16,6 @@
 
 (defprotocol PConvertToNode
   (->node [item]))
+
+
+(defrecord ArrayHandle [^runtime$DLTensor tvm-jcpp-handle])

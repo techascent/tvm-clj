@@ -3,13 +3,15 @@
             [tech.javacpp-datatype :as jcpp-dtype]
             [think.resource.core :as resource]
             [clojure.set :as c-set]
-            [tvm-clj.base :as base])
+            [tvm-clj.base :as base]
+            [tech.datatype.base :as dtype])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
-            runtime$NodeHandle]
+            runtime$NodeHandle runtime$TVMModuleHandle runtime$DLTensor
+            runtime$TVMStreamHandle]
            [java.util ArrayList]
-           [org.bytedeco.javacpp PointerPointer BytePointer]
+           [org.bytedeco.javacpp PointerPointer BytePointer Pointer]
            [java.lang.reflect Field]
-           [tvm_clj.base NodeHandle]))
+           [tvm_clj.base NodeHandle ArrayHandle]))
 
 
 (set! *warn-on-reflection* true)
@@ -44,6 +46,23 @@
                                    (map #(unsafe-read-byte
                                           byte-ary %)
                                         (range))))))
+
+
+(extend-protocol resource/PResource
+  NodeHandle
+  (release-resource [node]
+    (runtime/TVMNodeFree (.tvm-jcpp-handle node)))
+  runtime$TVMModuleHandle
+  (release-resource [module]
+    (runtime/TVMModFree module))
+  runtime$TVMFunctionHandle
+  (release-resource [tvm-fn]
+    (runtime/TVMFuncFree tvm-fn))
+  ArrayHandle
+  (release-resource [tvm-dev-ar]
+    (runtime/TVMArrayFree (.tvm-jcpp-handle tvm-dev-ar))))
+
+
 
 (defn- array-str-data->string-vec
   [^ints num-names ^PointerPointer name-data-ptr]
@@ -298,12 +317,6 @@ https://github.com/dmlc/tvm/issues/918"
                node)))
 
 
-(extend-type NodeHandle
-  resource/PResource
-  (release-resource [node]
-    (runtime/TVMNodeFree (.tvm-jcpp-handle node))))
-
-
 (declare tvm-array)
 (declare tvm-map)
 
@@ -331,18 +344,22 @@ https://github.com/dmlc/tvm/issues/918"
       (resource/track pb)
       [(.address pb) runtime/kStr]))
 
+  NodeHandle
+  (jvm->tvm-value [value]
+    [(.address ^runtime$NodeHandle (.tvm-jcpp-handle ^NodeHandle value)) runtime/kNodeHandle])
+
+  ArrayHandle
+  (jvm->tvm-value [value]
+    [(.address ^runtime$DLTensor (.tvm-jcpp-handle ^ArrayHandle value)) runtime/kArrayHandle])
+
   Object
   (jvm->tvm-value [value]
     (cond
       (sequential? value)
       (base/jvm->tvm-value (apply tvm-array value))
       (map? value)
-      (cond
-        (instance? NodeHandle value)
-        [(.address ^runtime$NodeHandle (.tvm-jcpp-handle ^NodeHandle value)) runtime/kNodeHandle]
-        :else
-        (base/jvm->tvm-value (apply tvm-map (->> (seq value)
-                                                 (apply concat)))))
+      (base/jvm->tvm-value (apply tvm-map (->> (seq value)
+                                               (apply concat))))
       (nil? value)
       [0 runtime/kNull])))
 
@@ -394,6 +411,10 @@ https://github.com/dmlc/tvm/issues/918"
   ^long [kwd]
   (long (keyword->tvm-datatype kwd)))
 
+
+(declare make-module-handle)
+
+
 (defn tvm-value->jvm
   "Attempts to coerce the tvm value into the jvm.  Failures
 result in a returned map container a value for the key:
@@ -416,7 +437,9 @@ allows for a sane recovery mechanism and doesn't lose those field values."
           (.set ^Field jcpp-dtype/address-field bp long-val)
           (variable-byte-ptr->string bp))
         :node-handle
-        (make-node-handle long-val))
+        (make-node-handle long-val)
+        :module-handle
+        (make-module-handle long-val))
       (catch Throwable e
         {:tvm->jvm-failure e
          :val-keyword val-type-kwd}))))
@@ -482,3 +505,142 @@ explicitly; it is done for you."
 (defn get-node-type
   [node]
   (get node :tvm-type-kwd))
+
+
+(defn make-module-handle
+  ^runtime$TVMModuleHandle [^long module-jcpp-handle]
+  (let [retval (runtime$TVMModuleHandle.)]
+    (.set ^Field jcpp-dtype/address-field retval module-jcpp-handle)
+    (resource/track retval)))
+
+
+(defn get-module-function
+  [^runtime$TVMModuleHandle module ^String fn-name & {:keys [query-imports?]}]
+  (let [retval (runtime$TVMFunctionHandle.)]
+    (check-call (runtime/TVMModGetFunction module fn-name (int (if query-imports? 1 0)) retval))
+    (when (= 0 (.address retval))
+      (throw (ex-info "Could not find module function"
+                      {:fn-name fn-name})))
+    retval))
+
+
+(def datatype->tvm-datatype-data-map
+  {:int8 {:dtype-code runtime/kDLInt
+          :dtype-bits 8
+          :dtype-lanes 1
+          :name "int8"}
+   :int16 {:dtype-code runtime/kDLInt
+           :dtype-bits 16
+           :dtype-lanes 1
+           :name "int16"}
+   :int32 {:dtype-code runtime/kDLInt
+           :dtype-bits 32
+           :dtype-lanes 1
+           :name "int32"}
+   :int64 {:dtype-code runtime/kDLInt
+           :dtype-bits 64
+           :dtype-lanes 1
+           :name "int64"}
+   :uint8 {:dtype-code runtime/kDLUInt
+           :dtype-bits 8
+           :dtype-lanes 1
+           :name "uint8"}
+   :uint16 {:dtype-code runtime/kDLUInt
+            :dtype-bits 16
+            :dtype-lanes 1
+            :name "uint16"}
+   :uint32 {:dtype-code runtime/kDLUInt
+            :dtype-bits 32
+            :dtype-lanes 1
+            :name "uint32"}
+   :uint64 {:dtype-code runtime/kDLUInt
+            :dtype-bits 64
+            :dtype-lanes 1
+            :name "uint64"}
+   :float32 {:dtype-code runtime/kDLFloat
+             :dtype-bits 32
+             :dtype-lanes 1
+             :name "float32"}
+   :float64 {:dtype-code runtime/kDLFloat
+             :dtype-bits 64
+             :dtype-lanes 1
+             :name "float64"}})
+
+
+(defn datatype->tvm-datatype-data
+  [datatype]
+  (if-let [retval (datatype->tvm-datatype-data-map datatype)]
+    retval
+    (throw (ex-info "Failed to find tvm datatype for datatype"
+                    {:datatype datatype}))))
+
+
+(def kwd->device-type-map
+  {:cpu runtime/kDLCPU
+   :llvm runtime/kDLCPU
+   :stackvm runtime/kDLCPU
+   :cuda runtime/kDLGPU
+   :cpu-pinned runtime/kDLCPUPinned
+   :opencl runtime/kDLOpenCL
+   :metal runtime/kDLMetal
+   :vpi runtime/kDLVPI
+   :rocm runtime/kDLROCM
+   :vulkan runtime/kDLVulkan
+   :opengl runtime/kOpenGL
+   ;; // Extension DRAM type, used for quickly test extension device
+   ;; // The device api can differ depending on the xpu driver registered.
+   :ext-dev runtime/kExtDev
+   ;; // AddExtraTVMType which is not in DLPack here
+   })
+
+
+(defn device-type->device-type-int
+  ^long [device-type]
+  (if-let [dev-enum (kwd->device-type-map device-type)]
+    dev-enum
+    (throw (ex-info "Failed to find device type enum"
+                    {:device-type device-type}))))
+
+
+(defn allocate-device-array
+  [shape datatype device-type ^long device-id]
+  (let [n-dims (count shape)
+        shape-data (long-array n-dims)
+        _ (dtype/copy-raw->item! shape shape-data 0)
+        retval-ptr (PointerPointer. 1)
+        {:keys [dtype-code dtype-bits dtype-lanes]}
+        (datatype->tvm-datatype-data datatype)
+        retval (runtime$DLTensor.)
+        device-type-int (device-type->device-type-int device-type)]
+    (check-call
+     (runtime/TVMArrayAlloc shape-data (int n-dims) (int dtype-code) (int dtype-bits) (int dtype-lanes)
+                            device-type-int device-id retval-ptr))
+    (.set ^Field jcpp-dtype/address-field retval (.address (.get retval-ptr 0)))
+    (resource/release retval-ptr)
+    (resource/track (merge (base/->ArrayHandle retval)
+                           {:shape shape
+                            :datatype datatype
+                            :device-type device-type
+                            :device-id device-id}))))
+
+
+(defn copy-to-array!
+  [^Pointer src ^ArrayHandle dest ^long n-bytes]
+  (check-call (runtime/TVMArrayCopyFromBytes
+               ^runtime$DLTensor (.tvm-jcpp-handle dest)
+               src n-bytes)))
+
+
+(defn copy-from-array!
+  [^ArrayHandle src ^Pointer dest ^long n-bytes]
+  (check-call (runtime/TVMArrayCopyToBytes
+               ^runtime$DLTensor (.tvm-jcpp-handle src)
+               dest n-bytes)))
+
+
+(defn copy-array-to-array!
+  [^ArrayHandle src-hdl ^ArrayHandle dst-hdl]
+  (check-call (runtime/TVMArrayCopyFromTo
+               ^runtime$DLTensor (.tvm-jcpp-handle src-hdl)
+               ^runtime$DLTensor (.tvm-jcpp-handle dst-hdl)
+               (runtime$TVMStreamHandle.))))
