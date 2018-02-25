@@ -37,3 +37,23 @@
       (dtype/copy! result-ptr 0 result-ary 0 10)
       (is (m/equals (m/add (m/array (range 10)) (m/array (range 10)))
                     (vec result-ary))))))
+
+
+(defn add-gpu
+  []
+  (let [n (api/variable "n")
+        A (api/placeholder [n] :name "A")
+        B (api/placeholder [n] :name "B")
+        compute-op (api/compute [n] (api/tvm-fn
+                                     [i]
+                                     (api/add (api/tget A [i])
+                                              (api/tget B [i])))
+                                :name "C")
+        C (first (api/output-tensors compute-op))
+        schedule (api/create-schedule compute-op)
+        compute-stage (get-in schedule [:stage_map compute-op])
+        [bx tx] (api/split-stage-by-factor compute-stage (get-in compute-op [:axis 0]) 64)]
+
+    (api/stage-bind compute-stage bx (api/name->thread-axis-iterator "blockIdx.x"))
+    (api/stage-bind compute-stage tx (api/name->thread-axis-iterator "threadIdx.x"))
+    [bx tx]))

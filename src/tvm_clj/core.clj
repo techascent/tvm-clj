@@ -4,14 +4,15 @@
             [think.resource.core :as resource]
             [clojure.set :as c-set]
             [tvm-clj.base :as base]
-            [tech.datatype.base :as dtype])
+            [tech.datatype.base :as dtype]
+            [potemkin :as p])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
             runtime$NodeHandle runtime$TVMModuleHandle runtime$DLTensor
             runtime$TVMStreamHandle]
            [java.util ArrayList]
            [org.bytedeco.javacpp PointerPointer BytePointer Pointer]
            [java.lang.reflect Field]
-           [tvm_clj.base NodeHandle ArrayHandle]))
+           [tvm_clj.base ArrayHandle]))
 
 
 (set! *warn-on-reflection* true)
@@ -46,6 +47,51 @@
                                    (map #(unsafe-read-byte
                                           byte-ary %)
                                         (range))))))
+
+
+(declare call-function)
+(declare name->global-function)
+
+
+;;Because you can't override hashcode on records and multiple nodehandles can point
+;;to the same node, we have to create our own extensible map type for node handles
+(p/def-map-type NodeHandle [^runtime$NodeHandle tvm-jcpp-handle data]
+  (get [this key default-value]
+       (if (= key :tvm-jcpp-handle)
+         tvm-jcpp-handle
+         (get data key default-value)))
+  (assoc [this key value]
+         (if (= key :tvm-jcpp-handle)
+           (NodeHandle. value data)
+           (NodeHandle. tvm-jcpp-handle (assoc data key value))))
+  (dissoc [this key]
+          (NodeHandle. tvm-jcpp-handle (dissoc data key)))
+  (keys [this]
+        (vec (concat [:tvm-jcpp-handle] (keys data))))
+  (meta [this]
+        (meta data))
+  (with-meta [this meta]
+    (NodeHandle. tvm-jcpp-handle (with-meta data meta)))
+
+
+  ;;There is no equivalence-type system.  Two node handles are equal, equivalent
+  ;;if they point to the same raw-object.  Else they aren't.  Additional data
+  ;;saved on each on can't matter for the API to work correctly.
+  (hasheq [this]
+          (.hashCode this))
+  (equiv [this other]
+         (.equals this other))
+  (equals [a b]
+          (= (.hashCode a) (.hashCode b)))
+  (hashCode [this]
+            (call-function (name->global-function "_raw_ptr") this))
+  (toString [this]
+            (assoc
+             (->> (keys this)
+                  (map (fn [k]
+                         [k (get this k)]))
+                  (into {}))
+             :raw-ptr (.hashCode this))))
 
 
 (extend-protocol resource/PResource
@@ -100,6 +146,7 @@
 (declare tvm-datatype->keyword)
 (declare tvm-value->jvm)
 (declare tvm-array->jvm)
+(declare tvm-map->jvm)
 
 
 (defn- tvm-value->long
@@ -277,7 +324,7 @@
 https://github.com/dmlc/tvm/issues/918"
   ^runtime$NodeHandle [^long handle-value]
   (let [runtime-handle (runtime$NodeHandle.)
-        retval (base/->NodeHandle runtime-handle)]
+        retval (NodeHandle. runtime-handle {})]
     (.set ^Field jcpp-dtype/address-field runtime-handle handle-value)
     (let [node-type (get-node-type-index retval)]
       (assoc retval
@@ -300,6 +347,13 @@ https://github.com/dmlc/tvm/issues/918"
       (let [ary-data (tvm-array->jvm node-field-val)]
         (resource/release node-field-val)
         (mapv local-unpack ary-data))
+      (= :map (get node-field-val :tvm-type-kwd))
+      (let [map-data (tvm-map->jvm node-field-val)]
+        (resource/release node-field-val)
+        (->> map-data
+             (map (fn [[k v]]
+                    [(local-unpack k) (local-unpack v)]))
+             (into {})))
       (instance? NodeHandle node-field-val)
       (local-unpack node-field-val)
       :else
@@ -361,7 +415,11 @@ https://github.com/dmlc/tvm/issues/918"
       (base/jvm->tvm-value (apply tvm-map (->> (seq value)
                                                (apply concat))))
       (nil? value)
-      [0 runtime/kNull])))
+      [0 runtime/kNull]))
+
+  nil
+  (jvm->tvm-value [value]
+    [0 runtime/kNull]))
 
 
 (defn arg-list->tvm-args
@@ -485,6 +543,13 @@ explicitly; it is done for you."
   [tvm-array-node]
   (->> (range (call-function (name->global-function "_ArraySize") tvm-array-node))
        (mapv #(call-function (name->global-function "_ArrayGetItem") tvm-array-node (int %1)))))
+
+
+(defn tvm-map->jvm
+  [tvm-map-node]
+  (->> (call-function (name->global-function "_MapItems") tvm-map-node)
+       tvm-array->jvm
+       (apply hash-map)))
 
 
 (defn global-node-function

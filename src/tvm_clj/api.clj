@@ -3,7 +3,7 @@
             [tvm-clj.base :as b]
             [think.resource.core :as resource]
             [clojure.set :as c-set])
-  (:import [tvm_clj.base NodeHandle]
+  (:import [tvm_clj.core NodeHandle]
            [tvm_clj.tvm runtime runtime$TVMModuleHandle]))
 
 
@@ -147,9 +147,10 @@ expressions,
              {:allowed-types iteration-variable-type-set
               :iteration-type iteration-type}))
 
-  (let [domain (if (= :range (c/get-node-type domain))
-                 domain
-                 (range (first domain) (second domain)))
+  (let [domain (when domain
+                 (if (= :range (c/get-node-type domain))
+                   domain
+                   (range (first domain) (second domain))))
         v (variable name)]
     (c/global-node-function "_IterVar" domain v (iteration-variable-types iteration-type) thread-tag)))
 
@@ -239,7 +240,8 @@ is calling a halide function with the tensor's generating-op and value index."
           body-data (if-not (instance? clojure.lang.Sequential body-data)
                       [body-data]
                       body-data)]
-      (c/global-node-function "_ComputeOp" name tag compute-dim body-data))))
+      (-> (c/g-fn "_ComputeOp" name tag compute-dim body-data)
+          (c/unpack-node-fields :recurse false)))))
 
 
 (defn output-tensors
@@ -260,7 +262,25 @@ is calling a halide function with the tensor's generating-op and value index."
   (let [op-seq (if-not (sequential? op-seq)
                  [op-seq]
                  op-seq)]
-    (c/global-node-function "_CreateSchedule" op-seq)))
+    (c/unpack-node-fields (c/g-fn "_CreateSchedule" op-seq)
+                          :recurse false)))
+
+
+(defn split-stage-by-factor
+  [stage iter-var factor]
+  (c/tvm-array->jvm (c/g-fn "_StageSplitByFactor" stage iter-var factor)))
+
+
+(defn stage-bind
+  "Bind an iter-var to a stage variable"
+  [stage iter-var thread-ivar]
+  (c/g-fn "_StageBind" stage iter-var thread-ivar))
+
+
+(defn name->thread-axis-iterator
+  "Create a thread iter-var from a thread axis name"
+  [axis-name]
+  (iteration-variable nil axis-name :thread-index :thread-tag axis-name))
 
 
 
