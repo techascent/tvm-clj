@@ -1,6 +1,6 @@
 # tvm-clj
 
-Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) library, part of the dmlc (https://github.com/dmlc) ecosystem.
+Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) library, part of the [dmlc](https://github.com/dmlc) ecosystem.
 
 
 ## Justification
