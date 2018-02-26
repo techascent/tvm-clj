@@ -5,12 +5,17 @@ Clojure bindings and exploration of the tvm library, part of the aws NNVM ecosys
 
 ## Justification
 
-tvm a system for dynamically generating high performance numeric code with backends for cpu, cuda, opencl, opengl, webassembly, vulcan, and verilog.  It has frontends mainly in python and c++ with a clear and well designed C-ABI to make both the python frontend easier to write and that greatly eases binding to other language VMs, such as java or node.js.
+tvm a system for dynamically generating high performance numeric code with backends for cpu, cuda, opencl, opengl, webassembly, vulcan, and verilog.  It has frontends mainly in python and c++ with a clear and well designed C-ABI that not only aids in the implementation of their python interface, but it also eases the binding into other language ecosystems such as the jvm and node.
 
-The core mechanism of leverage of tvm is the [halide](halide-lang.org) library.  This is a library specifically designed to take algorithms structured in specific ways and allow performance experimentation without affecting the output of the core algorithm.  A very solid justification for this is nicely put in these [slides](http://stellar.mit.edu/S/course/6/sp15/6.815/courseMaterial/topics/topic2/lectureNotes/14_Halide_print/14_Halide_print.pdf).  A Ph. D. was minted [here](http://people.csail.mit.edu/jrk/jrkthesis.pdf).
+The core mechanism of leverage of tvm is the [halide](halide-lang.org) library.  This is a library specifically designed to take algorithms structured in specific ways and allow performance experimentation without affecting the output of the core algorithm.  A very solid justification for this is nicely put in these [slides](http://stellar.mit.edu/S/course/6/sp15/6.815/courseMaterial/topics/topic2/lectureNotes/14_Halide_print/14_Halide_print.pdf).  A Ph. D. was minted [here](http://people.csail.mit.edu/jrk/jrkthesis.pdf).  We also recommend watching the youtube [video](https://youtu.be/3uiEyEKji0M).
 
 
+## The Goals 
 
+1.  Learn about Halide and tvm and enable very clear and simple exploration of the system in clojure.
+1.  Provide the tvm team with clear feedback and a second external implementation or a language binding on top of the C-ABI.
+1.  Leverage lessons learned to enable a simple clojurescript binding to node.js ideally providing identical API and abstraction layer to the javascript ecosystem.
+1.  Encourage wider adoption and exploration in terms of numerical programming; for instance a new implementation of J that carries the properties of a clojure or clojurescript ecosystem but includes all of the concepts.  This would enable running some subset of J (or APL) programs (or functions) that were potentially far more optimized mode than before and accessible from node.js or the jvm.  It would also inform the wider discussion on numeric programming languages such as MatLab, TensorFlow, numpy, etc.
 
 
 ## Getting all the source
