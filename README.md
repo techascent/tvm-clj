@@ -18,6 +18,12 @@ The core mechanism of leverage of tvm is the [halide](halide-lang.org) library. 
 1.  Encourage wider adoption and exploration in terms of numerical programming; for instance a new implementation of J that carries the properties of a clojure or clojurescript ecosystem but includes all of the major concepts of J.  This would enable running some subset of J (or APL) programs (or functions) that are now far more optimized mode than before and accessible from node.js or the jvm.  It would also inform the wider discussion on numeric programming languages such as MatLab, TensorFlow, numpy, etc.
 
 
+## What, Concretely, Are You Talking About?
+
+
+[clojure examples](test/tvm_clj/api_test.clj)
+
+
 ## Getting all the source
 
 At top level:
