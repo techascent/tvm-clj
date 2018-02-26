@@ -15,7 +15,7 @@ The core mechanism of leverage of tvm is the [halide](halide-lang.org) library. 
 1.  Learn about Halide and tvm and enable very clear and simple exploration of the system in clojure.
 1.  Provide the tvm team with clear feedback and a second external implementation or a language binding on top of the C-ABI.
 1.  Leverage lessons learned to enable a simple clojurescript binding to node.js ideally providing identical API and abstraction layer to the javascript ecosystem.
-1.  Encourage wider adoption and exploration in terms of numerical programming; for instance a new implementation of J that carries the properties of a clojure or clojurescript ecosystem but includes all of the concepts.  This would enable running some subset of J (or APL) programs (or functions) that are now far more optimized mode than before and accessible from node.js or the jvm.  It would also inform the wider discussion on numeric programming languages such as MatLab, TensorFlow, numpy, etc.
+1.  Encourage wider adoption and exploration in terms of numerical programming; for instance a new implementation of J that carries the properties of a clojure or clojurescript ecosystem but includes all of the major concepts of J.  This would enable running some subset of J (or APL) programs (or functions) that are now far more optimized mode than before and accessible from node.js or the jvm.  It would also inform the wider discussion on numeric programming languages such as MatLab, TensorFlow, numpy, etc.
 
 
 ## Getting all the source
