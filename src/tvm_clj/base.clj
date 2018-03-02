@@ -5,7 +5,7 @@
   (:require [potemkin :as p])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
             runtime$NodeHandle runtime$TVMModuleHandle
-            runtime$DLTensor]))
+            runtime$DLTensor runtime$TVMStreamHandle]))
 
 
 (defprotocol PJVMTypeToTVMValue
@@ -17,3 +17,5 @@
 
 
 (defrecord ArrayHandle [^runtime$DLTensor tvm-jcpp-handle])
+
+(defrecord StreamHandle [^long device ^long dev-id ^runtime$TVMStreamHandle tvm-hdl])

@@ -12,7 +12,7 @@
            [java.util ArrayList]
            [org.bytedeco.javacpp PointerPointer BytePointer Pointer]
            [java.lang.reflect Field]
-           [tvm_clj.base ArrayHandle]))
+           [tvm_clj.base ArrayHandle StreamHandle]))
 
 
 (set! *warn-on-reflection* true)
@@ -106,7 +106,10 @@
     (runtime/TVMFuncFree tvm-fn))
   ArrayHandle
   (release-resource [tvm-dev-ar]
-    (runtime/TVMArrayFree (.tvm-jcpp-handle tvm-dev-ar))))
+    (runtime/TVMArrayFree (.tvm-jcpp-handle tvm-dev-ar)))
+  StreamHandle
+  (release-resource [stream]
+    (runtime/TVMStreamFree (.device stream) (.dev-id stream) (.tvm-hdl stream))))
 
 
 
@@ -644,6 +647,7 @@ explicitly; it is done for you."
   {:cpu runtime/kDLCPU
    :llvm runtime/kDLCPU
    :stackvm runtime/kDLCPU
+   :gpu runtime/kDLGPU
    :cuda runtime/kDLGPU
    :cpu-pinned runtime/kDLCPUPinned
    :opencl runtime/kDLOpenCL
@@ -709,3 +713,21 @@ explicitly; it is done for you."
                ^runtime$DLTensor (.tvm-jcpp-handle src-hdl)
                ^runtime$DLTensor (.tvm-jcpp-handle dst-hdl)
                (runtime$TVMStreamHandle.))))
+
+(def device-attribute-map
+  {:exists 0
+   :max-threads-per-block 1
+   :warp-size 2
+   :compute-version 3})
+
+
+(defn device-exists?
+  [^long device-type ^long device-id]
+  (g-fn "_GetDeviceAttr" device-type device-id (device-attribute-map :exists)))
+
+
+(defn create-stream
+  ^StreamHandle [^long device-type ^long device-id]
+  (let [retval (runtime$TVMStreamHandle. )]
+    (check-call (runtime/TVMStreamCreate device-type device-id retval))
+    (resource/track (base/->StreamHandle device-type device-id retval))))

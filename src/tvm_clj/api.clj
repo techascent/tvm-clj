@@ -581,7 +581,7 @@ the threading macro with the long set of ir pass possibilities."
                         ;;More checking here to work with stackvm
                         :llvm)
                       target-host)
-        target-device target
+        target-device target-name
         device-fns (mapv #(c/g-fn "ir_pass.LowerIntrin" % (name target-device)) device-fns)
         host-fns (->> host-fns
                       (map #(c/g-fn "ir_pass.LowerIntrin" % (name target-host)))
