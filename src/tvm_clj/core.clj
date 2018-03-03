@@ -10,7 +10,7 @@
             runtime$NodeHandle runtime$TVMModuleHandle runtime$DLTensor
             runtime$TVMStreamHandle]
            [java.util ArrayList]
-           [org.bytedeco.javacpp PointerPointer BytePointer Pointer]
+           [org.bytedeco.javacpp PointerPointer BytePointer Pointer LongPointer]
            [java.lang.reflect Field]
            [tvm_clj.base ArrayHandle StreamHandle]))
 
@@ -106,6 +106,12 @@
     (runtime/TVMFuncFree tvm-fn))
   ArrayHandle
   (release-resource [tvm-dev-ar]
+    ;;Sub-buffers do not own their memory
+    (when-not (:owns-memory? tvm-dev-ar)
+      (let [^runtime$DLTensor jcpp-data (.tvm-jcpp-handle tvm-dev-ar)]
+        (.data jcpp-data (Pointer.))
+        (.shape jcpp-data (LongPointer.))
+        (.strides jcpp-data (LongPointer. ))))
     (runtime/TVMArrayFree (.tvm-jcpp-handle tvm-dev-ar)))
   StreamHandle
   (release-resource [stream]
@@ -690,7 +696,8 @@ explicitly; it is done for you."
                            {:shape shape
                             :datatype datatype
                             :device-type device-type
-                            :device-id device-id}))))
+                            :device-id device-id
+                            :owns-memory? true}))))
 
 
 (defn copy-to-array!
