@@ -715,11 +715,12 @@ explicitly; it is done for you."
 
 
 (defn copy-array-to-array!
-  [^ArrayHandle src-hdl ^ArrayHandle dst-hdl]
+  [^ArrayHandle src-hdl ^ArrayHandle dst-hdl & {:keys [stream-hdl]
+                                                :or {stream-hdl (runtime$TVMStreamHandle.)}}]
   (check-call (runtime/TVMArrayCopyFromTo
                ^runtime$DLTensor (.tvm-jcpp-handle src-hdl)
                ^runtime$DLTensor (.tvm-jcpp-handle dst-hdl)
-               (runtime$TVMStreamHandle.))))
+               ^runtime$TVMStreamHandle stream-hdl)))
 
 (def device-attribute-map
   {:exists 0

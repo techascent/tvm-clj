@@ -10,29 +10,13 @@
             [think.resource.core :as resource]
             [clojure.core.matrix.macros :refer [c-for]]
             [clojure.core.matrix :as m]
-            [tech.compute.driver :as drv])
+            [tech.compute.driver :as drv]
+            [tech.compute.tvm.base :as tvm-comp-base])
   (:import [org.bytedeco.javacpp BytePointer ShortPointer
             IntPointer LongPointer FloatPointer DoublePointer
             Pointer]
            [java.nio Buffer ByteBuffer ShortBuffer IntBuffer
             LongBuffer FloatBuffer DoubleBuffer]))
-
-
-(def extended-primitive-type-map
-  {:uint8 {:jvm-type :int8}
-   :uint16 {:jvm-type :int16}
-   :uint32 {:jvm-type :int32}
-   :uint64 {:jvm-type :int64}})
-
-(defn tvm-type->dtype-type
-  [tvm-type]
-  (get-in extended-primitive-type-map [tvm-type :jvm-type] tvm-type))
-
-
-(defn enumerate-devices
-  [^long device-type]
-  (->> (range)
-       (take-while #(tvm-core/device-exists? device-type %))))
 
 
 (defmacro unsigned->jvm
@@ -146,7 +130,10 @@
   (alias? [lhs rhs]
     (jcpp-pointer-alias? lhs))
   (partially-alias? [lhs rhs]
-    (jcpp-pointer-partial-alias? lhs rhs)))
+    (jcpp-pointer-partial-alias? lhs rhs))
+
+  tvm-comp-base/PConvertToTVM
+  (->tvm [_] ptr))
 
 
 (defn host-buffer->byte-ptr

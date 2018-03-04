@@ -1,7 +1,7 @@
 (ns tech.compute.tvm.device-buffer
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
-            [tech.compute.tvm.shared :as tvm-shared]
+            [tech.compute.tvm.base :as tvm-comp-base]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
             [tech.compute.tvm.host-buffer :as hbuf]
@@ -96,20 +96,28 @@
           new-ptr (hbuf/jcpp-pointer-sub-buffer base-ptr offset length)]
       (->DeviceBuffer device
                       (pointer->tvm-ary new-ptr
-                                        (tvm-shared/device-type device)
-                                        (tvm-shared/device-id device)
+                                        (tvm-comp-base/device-type device)
+                                        (tvm-comp-base/device-id device)
                                         (dtype/get-datatype buffer)))))
   (alias? [lhs rhs]
     (hbuf/jcpp-pointer-alias? (tvm-ary->pointer dev-ary)
                               (:dev-ary rhs)))
   (partially-alias? [lhs rhs]
     (hbuf/jcpp-pointer-partial-alias? (tvm-ary->pointer dev-ary)
-                                      (tvm-ary->pointer (:dev-ary rhs)))))
+                                      (tvm-ary->pointer (:dev-ary rhs))))
+
+  tvm-comp-base/PConvertToTVM
+  (->tvm [item] dev-ary))
 
 
 (defn make-device-buffer-of-type
   [device datatype elem-count]
   (->> (tvm-core/allocate-device-array [elem-count] datatype
-                                      (tvm-shared/device-type device)
-                                      (tvm-shared/device-id device))
+                                      (tvm-comp-base/device-type device)
+                                      (tvm-comp-base/device-id device))
        (->DeviceBuffer device)))
+
+
+(defn device-buffer->tvm-array
+  ^runtime$DLTensor [^DeviceBuffer buf]
+  (.tvm-jcpp-handle (.dev-ary buf)))
