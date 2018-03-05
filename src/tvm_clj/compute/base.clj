@@ -1,4 +1,4 @@
-(ns tech.compute.tvm.base
+(ns tvm-clj.compute.base
   (:require [tvm-clj.core :as tvm-core]))
 
 (defn cpu-device-type

@@ -1,10 +1,10 @@
-(ns tech.compute.tvm.device-buffer
+(ns tvm-clj.compute.device-buffer
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
-            [tech.compute.tvm.base :as tvm-comp-base]
+            [tvm-clj.compute.base :as tvm-comp-base]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
-            [tech.compute.tvm.host-buffer :as hbuf]
+            [tvm-clj.computehost-buffer :as hbuf]
             [think.resource.core :as resource]
             [clojure.core.matrix.protocols :as mp]
             [tech.javacpp-datatype :as jcpp-dtype]

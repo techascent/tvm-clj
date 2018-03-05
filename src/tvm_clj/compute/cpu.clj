@@ -1,13 +1,12 @@
-(ns tech.compute.tvm.cpu
+(ns tvm-clj.compute.cpu
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.base :as tvm-comp-base]
             [tech.javacpp-datatype :as jcpp-dtype]
             [tech.datatype.base :as dtype]
-            [tech.compute.tvm.host-buffer :as hbuf]
-            [tech.compute.tvm.device-buffer :as dbuf]
-            [tech.compute.tvm.shared :as tvm-shared]
+            [tvm-clj.compute.device-buffer :as dbuf]
+            [tvm-clj.compute.shared :as tvm-shared]
             [tech.compute.cpu.driver :as cpu-driver]
             [clojure.core.async :as async]
             [think.resource.core :as resource]))
@@ -18,10 +17,13 @@
 (defrecord CPUStream [device stream]
   drv/PStream
   (copy-host->device [stream host-buffer host-offset
-                      device-buffer device-offset elem-count])
+                      device-buffer device-offset elem-count]
+    (cpu-driver/with-stream-dispatch stream
+      (tvm-shared/copy-array->array host-buffer host-offset device-buffer device-offset elem-count nil)))
   (copy-device->host [stream device-buffer device-offset
                       host-buffer host-offset elem-count]
-    )
+    (cpu-driver/with-stream-dispatch stream
+      (tvm-shared/copy-array->array device-buffer device-offset host-buffer host-offset elem-count nil)))
   (copy-device->device [stream dev-a dev-a-off dev-b dev-b-off elem-count]
     (cpu-driver/with-stream-dispatch stream
       (tvm-shared/copy-array->array dev-a dev-a-off dev-b dev-b-off elem-count nil)))
@@ -33,14 +35,17 @@
   (sync-event [stream event]
     (drv/sync-event (.stream stream))))
 
+
 (defn is-main-thread-cpu-stream?
   [^CPUStream stream]
   (cpu-driver/is-main-thread-cpu-stream? (.stream stream)))
+
 
 (defmacro with-stream-dispatch
   [stream & body]
   `(cpu-driver/with-stream-dispatch (.stream stream)
      ~@body))
+
 
 (defrecord CPUDevice [error-atom]
   tvm-comp-base/PDeviceInfo

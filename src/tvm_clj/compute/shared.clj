@@ -1,8 +1,8 @@
-(ns tech.compute.tvm.shared
+(ns tvm-clj.compute.shared
   (:require [tvm-clj.core :as tvm-core]
             [think.resource.core :as resource]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.base :refer [->tvm] :as tvm-comp-base]
+            [tvm-cljcompute.base :refer [->tvm] :as tvm-comp-base]
             [tech.datatype.base :as dtype])
   (:import [tvm_clj.tvm runtime runtime$TVMStreamHandle]))
 

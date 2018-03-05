@@ -1,8 +1,6 @@
-(ns tech.compute.tvm.host-buffer
+(ns tvm-clj.compute.host-buffer
   "Host buffer datatype that supports unsigned datatypes"
-  (:require [tvm-clj.core :as tvm-core]
-            [tvm-clj.base :as tvm-base]
-            [tech.datatype.base :as dtype]
+  (:require [tech.datatype.base :as dtype]
             [tech.datatype.marshal :as marshal]
             [tech.javacpp-datatype :as jcpp-dtype]
             [tech.datatype.core]
@@ -11,7 +9,7 @@
             [clojure.core.matrix.macros :refer [c-for]]
             [clojure.core.matrix :as m]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.base :as tvm-comp-base])
+            [tvm-clj.compute.base :as tvm-comp-base])
   (:import [org.bytedeco.javacpp BytePointer ShortPointer
             IntPointer LongPointer FloatPointer DoublePointer
             Pointer]
