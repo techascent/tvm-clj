@@ -143,7 +143,7 @@
 
 (defmacro check-type
   [dtype val]
-  `(let [val# (~val)]
+  `(let [val# ~val]
      (when-not (instance? ~dtype val#)
        (throw (ex-info "Point is not desired type"
                        {:desired-type ~dtype

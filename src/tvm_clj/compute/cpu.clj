@@ -2,7 +2,7 @@
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.base :as tvm-comp-base]
+            [tvm-clj.compute.base :as tvm-comp-base]
             [tech.javacpp-datatype :as jcpp-dtype]
             [tech.datatype.base :as dtype]
             [tvm-clj.compute.device-buffer :as dbuf]
@@ -19,21 +19,24 @@
   (copy-host->device [stream host-buffer host-offset
                       device-buffer device-offset elem-count]
     (cpu-driver/with-stream-dispatch stream
-      (tvm-shared/copy-array->array host-buffer host-offset device-buffer device-offset elem-count nil)))
+      (tvm-shared/copy-device->device host-buffer host-offset
+                                      device-buffer device-offset elem-count nil)))
   (copy-device->host [stream device-buffer device-offset
                       host-buffer host-offset elem-count]
     (cpu-driver/with-stream-dispatch stream
-      (tvm-shared/copy-array->array device-buffer device-offset host-buffer host-offset elem-count nil)))
+      (tvm-shared/copy-device->device device-buffer device-offset
+                                      host-buffer host-offset elem-count nil)))
   (copy-device->device [stream dev-a dev-a-off dev-b dev-b-off elem-count]
     (cpu-driver/with-stream-dispatch stream
-      (tvm-shared/copy-array->array dev-a dev-a-off dev-b dev-b-off elem-count nil)))
+      (tvm-shared/copy-device->device dev-a dev-a-off
+                                      dev-b dev-b-off elem-count nil)))
   (memset [stream device-buffer device-offset elem-val elem-count]
+    (throw (ex-info "Not implemented yet.")))
 
-    )
-  (create-event [stream]
-    (drv/create-event (.stream stream)))
-  (sync-event [stream event]
-    (drv/sync-event (.stream stream))))
+  (sync-with-host [stream]
+    (drv/sync-with-host (.stream stream)))
+  (sync-with-stream [src-stream dst-stream]
+    (drv/sync-with-stream (.stream src-stream) (:stream dst-stream))))
 
 
 (defn is-main-thread-cpu-stream?
@@ -49,7 +52,7 @@
 
 (defrecord CPUDevice [error-atom]
   tvm-comp-base/PDeviceInfo
-  (device-type [this] (tvm-base/cpu-device-type))
+  (device-type [this] (tvm-comp-base/cpu-device-type))
   (device-id [this] 0)
 
   drv/PDevice
@@ -86,9 +89,17 @@
   (get-devices [driver]
     (cpu-devices))
   (allocate-host-buffer-impl [driver elem-count elem-type options]
-    (hbuf/make-buffer-of-type elem-type elem-count)))
+    (dbuf/make-cpu-device-buffer elem-type elem-count))
+
+  tvm-comp-base/PDeviceIdToDevice
+  (device-id->device [driver dev-id]
+    (when-not (= 0 dev-id)
+      (throw (ex-info "CPU device types only have device id 0" {})))
+    (first (drv/get-devices driver))))
 
 
 (def cpu-driver
   (memoize
    (fn [] (->CPUDriver))))
+
+(tvm-comp-base/add-device-type (tvm-core/device-type->device-type-int :cpu) (cpu-driver))

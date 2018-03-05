@@ -686,9 +686,12 @@ explicitly; it is done for you."
         {:keys [dtype-code dtype-bits dtype-lanes]}
         (datatype->tvm-datatype-data datatype)
         retval (runtime$DLTensor.)
-        device-type-int (device-type->device-type-int device-type)]
+        device-type-int (int (if (number? device-type)
+                               device-type
+                               (device-type->device-type-int device-type)))]
     (check-call
-     (runtime/TVMArrayAlloc shape-data (int n-dims) (int dtype-code) (int dtype-bits) (int dtype-lanes)
+     (runtime/TVMArrayAlloc shape-data (int n-dims) (int dtype-code)
+                            (int dtype-bits) (int dtype-lanes)
                             device-type-int device-id retval-ptr))
     (.set ^Field jcpp-dtype/address-field retval (.address (.get retval-ptr 0)))
     (resource/release retval-ptr)

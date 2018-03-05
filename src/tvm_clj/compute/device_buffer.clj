@@ -4,7 +4,7 @@
             [tvm-clj.compute.base :as tvm-comp-base]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
-            [tvm-clj.computehost-buffer :as hbuf]
+            [tvm-clj.compute.host-buffer :as hbuf]
             [think.resource.core :as resource]
             [clojure.core.matrix.protocols :as mp]
             [tech.javacpp-datatype :as jcpp-dtype]
@@ -22,8 +22,9 @@
     (hbuf/direct-conversion-map datatype)))
 
 (defn tvm-ary->pointer
-  ^Pointer [^runtime$DLTensor tensor ^long elem-count datatype]
-  (let [tens-ptr (.data tensor)
+  ^Pointer [^ArrayHandle ten-ary ^long elem-count datatype]
+  (let [^runtime$DLTensor tensor (.tvm-jcpp-handle ten-ary)
+        tens-ptr (.data tensor)
         ptr-dtype (base-ptr-dtype datatype)
         retval (jcpp-dtype/make-empty-pointer-of-type ptr-dtype)]
     (.set ^Field jcpp-dtype/address-field retval (+ (.address tens-ptr)
@@ -104,7 +105,8 @@ base address."
                                         datatype
                                         length
                                         ;;add the byte offset where the new pointer should start
-                                        (* (long offset) (long (dtype/datatype->byte-size datatype)))))))
+                                        (* (long offset) (long (dtype/datatype->byte-size
+                                                                datatype)))))))
   (alias? [lhs rhs]
     (hbuf/jcpp-pointer-alias? (tvm-ary->pointer dev-ary)
                               (:dev-ary rhs)))
@@ -126,7 +128,8 @@ base address."
           value (if conv-fn (conv-fn value) value)]
       (dtype/set-constant! (device-buffer->ptr item) offset value elem-count)))
   (get-value [item offset]
-    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :from])
+    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table
+                          [(dtype/get-datatype item) :from])
           ptr (device-buffer->ptr item)]
       (if conv-fn
         (conv-fn (dtype/get-value ptr offset))
@@ -145,7 +148,7 @@ base address."
   [^DeviceBuffer buffer]
   (when-not (is-cpu-device? (.device buffer))
     (throw (ex-info "Can only get pointers from cpu device buffers")))
-  (tvm-ary->pointer (.tvm-ary buffer) (mp/element-count buffer) (dtype/get-datatype buffer)))
+  (tvm-ary->pointer (.dev-ary buffer) (mp/element-count buffer) (dtype/get-datatype buffer)))
 
 
 (defn make-device-buffer-of-type
@@ -161,8 +164,8 @@ base address."
 (defn make-cpu-device-buffer
   "The cpu driver needs to be required for this to work."
   [datatype elem-count]
-  (when-not (resolve 'tech.compute.tvm.cpu/cpu-driver)
-    (require 'tech.compute.tvm.cpu))
+  (when-not (resolve 'tvm-clj.compute.cpu/cpu-driver)
+    (require 'tvm-clj.compute.cpu))
   (make-device-buffer-of-type (tvm-comp-base/get-device runtime/kDLCPU 0)
                               datatype
                               elem-count))
