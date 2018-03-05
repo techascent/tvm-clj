@@ -94,6 +94,10 @@
              (< l-start r-end)))))
 
 
+(defprotocol PToPtr
+  (->ptr [item]))
+
+
 (defrecord HostBuffer [^Pointer ptr tvm-dtype]
   dtype/PDatatype
   (get-datatype [this] tvm-dtype)
@@ -133,32 +137,45 @@
     (jcpp-pointer-partial-alias? lhs rhs))
 
   tvm-comp-base/PConvertToTVM
-  (->tvm [_] ptr))
+  (->tvm [_] ptr)
+
+  PToPtr
+  (->ptr [_] ptr))
+
+
+(defmacro check-type
+  [dtype val]
+  `(let [val# (~val)]
+     (when-not (instance? ~dtype val#)
+       (throw (ex-info "Point is not desired type"
+                       {:desired-type ~dtype
+                        :actual-type (type val#)})))
+     val#))
 
 
 (defn host-buffer->byte-ptr
   ^BytePointer [^HostBuffer host-buf]
-  (.ptr host-buf))
+  (check-type BytePointer (->ptr host-buf)))
 
 (defn host-buffer->short-ptr
   ^ShortPointer [^HostBuffer host-buf]
-  (.ptr host-buf))
+  (check-type ShortPointer (->ptr host-buf)))
 
 (defn host-buffer->int-ptr
   ^IntPointer [^HostBuffer host-buf]
-  (.ptr host-buf))
+  (check-type IntPointer (->ptr host-buf)))
 
-(defn host-buffer->Long-ptr
+(defn host-buffer->long-ptr
   ^LongPointer [^HostBuffer host-buf]
-  (.ptr host-buf))
+  (check-type LongPointer (->ptr host-buf)))
 
 (defn host-buffer->float-ptr
   ^FloatPointer [^HostBuffer host-buf]
-  (.ptr host-buf))
+  (check-type FloatPointer (->ptr host-buf)))
 
 (defn host-buffer->double-ptr
   ^DoublePointer [^HostBuffer host-buf]
-  (.ptr host-buf))
+  (check-type DoublePointer (->ptr host-buf)))
 
 
 (defmacro host-buffer->ptr
@@ -178,27 +195,27 @@
 
 (defn host-buffer->byte-nio-buffer
   ^ByteBuffer [^HostBuffer host-buf]
-  (jcpp-dtype/as-buffer (.ptr host-buf)))
+  (jcpp-dtype/as-buffer (host-buffer->byte-ptr host-buf)))
 
 (defn host-buffer->short-nio-buffer
   ^ShortBuffer [^HostBuffer host-buf]
-  (jcpp-dtype/as-buffer (.ptr host-buf)))
+  (jcpp-dtype/as-buffer (host-buffer->short-ptr host-buf)))
 
 (defn host-buffer->int-nio-buffer
   ^IntBuffer [^HostBuffer host-buf]
-  (jcpp-dtype/as-buffer (.ptr host-buf)))
+  (jcpp-dtype/as-buffer (host-buffer->int-ptr host-buf)))
 
 (defn host-buffer->long-nio-buffer
   ^LongBuffer [^HostBuffer host-buf]
-  (jcpp-dtype/as-buffer (.ptr host-buf)))
+  (jcpp-dtype/as-buffer (host-buffer->long-ptr host-buf)))
 
 (defn host-buffer->float-nio-buffer
   ^FloatBuffer [^HostBuffer host-buf]
-  (jcpp-dtype/as-buffer (.ptr host-buf)))
+  (jcpp-dtype/as-buffer (host-buffer->float-ptr host-buf)))
 
 (defn host-buffer->double-nio-buffer
   ^DoubleBuffer [^HostBuffer host-buf]
-  (jcpp-dtype/as-buffer (.ptr host-buf)))
+  (jcpp-dtype/as-buffer (host-buffer->double-ptr host-buf)))
 
 
 (defmacro host-buffer->nio-buffer

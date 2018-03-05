@@ -7,7 +7,8 @@
             [tech.compute.tvm.host-buffer :as hbuf]
             [think.resource.core :as resource]
             [clojure.core.matrix.protocols :as mp]
-            [tech.javacpp-datatype :as jcpp-dtype])
+            [tech.javacpp-datatype :as jcpp-dtype]
+            [tech.datatype.marshal :as marshal])
   (:import [tvm_clj.tvm runtime$DLTensor runtime]
            [tvm_clj.base ArrayHandle]
            [org.bytedeco.javacpp Pointer]
@@ -25,7 +26,8 @@
   (let [tens-ptr (.data tensor)
         ptr-dtype (base-ptr-dtype datatype)
         retval (jcpp-dtype/make-empty-pointer-of-type ptr-dtype)]
-    (.set ^Field jcpp-dtype/address-field retval (.address tens-ptr))
+    (.set ^Field jcpp-dtype/address-field retval (+ (.address tens-ptr)
+                                                    (.byte_offset tensor)))
     (jcpp-dtype/set-pointer-limit-and-capacity retval elem-count)))
 
 
@@ -46,29 +48,22 @@
 
 (defn datatype->dl-bits
   ^long [datatype]
-  (condp = datatype
-    :uint8 8
-    :uint16 16
-    :uint32 32
-    :uint64 64
-    :int8 8
-    :int16 16
-    :int32 32
-    :int64 64
-    :float32 32
-    :float64 64))
+  (* 8 (dtype/datatype->byte-size datatype)))
 
 (defn pointer->tvm-ary
-  ^ArrayHandle [^Pointer ptr device-type device-id datatype]
+  "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
+have a byte_offset member that you can use to make an array not start at the pointer's
+base address."
+  ^ArrayHandle [^Pointer ptr device-type device-id datatype elem-count byte-offset]
   (let [tens-data (runtime$DLTensor. 1)
-        num-items (dtype/ecount ptr)
         ctx (.ctx tens-data)
         dtype (.dtype tens-data)
         shape (.LongPointer 1)
-        elem-count (long (mp/element-count ptr))]
+        elem-count (long elem-count)]
     (.set shape 0 elem-count)
     (.data tens-data ptr)
     (.ndims tens-data 1)
+    (.byte_offset tens-data (long byte-offset))
     (.device_type ctx (int device-type))
     (.device_id ctx (int device-id))
     (.code dtype (datatype->dl-type-code datatype))
@@ -83,6 +78,14 @@
              :owns-memory? false}))))
 
 
+(defn is-cpu-device?
+  [device]
+  (= runtime/kDLCPU (tvm-comp-base/device-type device)))
+
+
+(declare device-buffer->ptr)
+
+
 (defrecord DeviceBuffer [device dev-ary]
   dtype/PDatatype
   (get-datatype [buf] (:datatype dev-ary))
@@ -93,12 +96,15 @@
   drv/PBuffer
   (sub-buffer-impl [buffer offset length]
     (let [base-ptr (tvm-ary->pointer dev-ary)
-          new-ptr (hbuf/jcpp-pointer-sub-buffer base-ptr offset length)]
+          datatype (dtype/get-datatype buffer)]
       (->DeviceBuffer device
-                      (pointer->tvm-ary new-ptr
+                      (pointer->tvm-ary base-ptr
                                         (tvm-comp-base/device-type device)
                                         (tvm-comp-base/device-id device)
-                                        (dtype/get-datatype buffer)))))
+                                        datatype
+                                        length
+                                        ;;add the byte offset where the new pointer should start
+                                        (* (long offset) (long (dtype/datatype->byte-size datatype)))))))
   (alias? [lhs rhs]
     (hbuf/jcpp-pointer-alias? (tvm-ary->pointer dev-ary)
                               (:dev-ary rhs)))
@@ -107,7 +113,39 @@
                                       (tvm-ary->pointer (:dev-ary rhs))))
 
   tvm-comp-base/PConvertToTVM
-  (->tvm [item] dev-ary))
+  (->tvm [item] dev-ary)
+
+
+  dtype/PAccess
+  (set-value! [item offset value]
+    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :to])
+          value (if conv-fn (conv-fn value) value)]
+      (dtype/set-value! (device-buffer->ptr item) offset value)))
+  (set-constant! [item offset value elem-count]
+    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :to])
+          value (if conv-fn (conv-fn value) value)]
+      (dtype/set-constant! (device-buffer->ptr item) offset value elem-count)))
+  (get-value [item offset]
+    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :from])
+          ptr (device-buffer->ptr item)]
+      (if conv-fn
+        (conv-fn (dtype/get-value ptr offset))
+        (dtype/get-value ptr offset))))
+
+  hbuf/PToPtr
+  (->ptr [item] (device-buffer->ptr item))
+
+  ;;Efficient bulk copy is provided by this line and implementing the PToPtr protocol
+  marshal/PContainerType
+  (container-type [this] :tvm-host-buffer))
+
+
+(defn device-buffer->ptr
+  "Get a javacpp pointer from a device buffer.  Throws if this isn't a cpu buffer"
+  [^DeviceBuffer buffer]
+  (when-not (is-cpu-device? (.device buffer))
+    (throw (ex-info "Can only get pointers from cpu device buffers")))
+  (tvm-ary->pointer (.tvm-ary buffer) (mp/element-count buffer) (dtype/get-datatype buffer)))
 
 
 (defn make-device-buffer-of-type
@@ -116,6 +154,18 @@
                                       (tvm-comp-base/device-type device)
                                       (tvm-comp-base/device-id device))
        (->DeviceBuffer device)))
+
+
+
+
+(defn make-cpu-device-buffer
+  "The cpu driver needs to be required for this to work."
+  [datatype elem-count]
+  (when-not (resolve 'tech.compute.tvm.cpu/cpu-driver)
+    (require 'tech.compute.tvm.cpu))
+  (make-device-buffer-of-type (tvm-comp-base/get-device runtime/kDLCPU 0)
+                              datatype
+                              elem-count))
 
 
 (defn device-buffer->tvm-array

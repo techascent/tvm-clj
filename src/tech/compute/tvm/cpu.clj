@@ -13,10 +13,6 @@
             [think.resource.core :as resource]))
 
 
-(defn cpu-device-type
-  ^long []
-  (tvm-core/device-type->device-type-int :cpu))
-
 (declare cpu-driver)
 
 (defrecord CPUStream [device stream]
@@ -48,7 +44,7 @@
 
 (defrecord CPUDevice [error-atom]
   tvm-comp-base/PDeviceInfo
-  (device-type [this] (cpu-device-type))
+  (device-type [this] (tvm-base/cpu-device-type))
   (device-id [this] 0)
 
   drv/PDevice
