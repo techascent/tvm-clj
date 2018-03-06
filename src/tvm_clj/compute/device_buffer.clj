@@ -11,7 +11,7 @@
             [tech.datatype.marshal :as marshal])
   (:import [tvm_clj.tvm runtime$DLTensor runtime]
            [tvm_clj.base ArrayHandle]
-           [org.bytedeco.javacpp Pointer]
+           [org.bytedeco.javacpp Pointer LongPointer]
            [java.lang.reflect Field]))
 
 
@@ -59,11 +59,11 @@ base address."
   (let [tens-data (runtime$DLTensor. 1)
         ctx (.ctx tens-data)
         dtype (.dtype tens-data)
-        shape (.LongPointer 1)
+        shape (LongPointer. 1)
         elem-count (long elem-count)]
-    (.set shape 0 elem-count)
+    (.put shape 0 elem-count)
     (.data tens-data ptr)
-    (.ndims tens-data 1)
+    (.ndim tens-data 1)
     (.byte_offset tens-data (long byte-offset))
     (.device_type ctx (int device-type))
     (.device_id ctx (int device-id))
@@ -96,7 +96,7 @@ base address."
 
   drv/PBuffer
   (sub-buffer-impl [buffer offset length]
-    (let [base-ptr (tvm-ary->pointer dev-ary)
+    (let [base-ptr (device-buffer->ptr buffer)
           datatype (dtype/get-datatype buffer)]
       (->DeviceBuffer device
                       (pointer->tvm-ary base-ptr
