@@ -1,5 +1,6 @@
 (ns tvm-clj.compute.base
-  (:require [tvm-clj.core :as tvm-core]))
+  (:require [tvm-clj.core :as tvm-core]
+            [tvm-clj.api :as tvm-api]))
 
 (defn cpu-device-type
   ^long []
@@ -35,8 +36,25 @@
   [device-type ^long device-id]
   (let [device-type (long (if (number? device-type)
                                device-type
-                               (tvm-core/device-type->device-type-int device-type)))])
-  (if-let [driver (get @*device-types->drivers* device-type)]
-    (device-id->device driver device-id)
-    (throw (ex-info "Failed to find driver for device type:"
-                    {:device-type device-type}))))
+                               (tvm-core/device-type->device-type-int device-type)))]
+    (if-let [driver (get @*device-types->drivers* device-type)]
+      (device-id->device driver device-id)
+      (throw (ex-info "Failed to find driver for device type:"
+                      {:device-type device-type})))))
+
+(defprotocol PCompileModule
+  (->module-impl [driver lowered-function-seq build-config]))
+
+(defn ->module
+  [driver lowered-function-seq & {:keys [build-config]
+                                  :or {build-config tvm-api/default-build-config}}]
+  (->module-impl driver lowered-function-seq build-config))
+
+
+(defprotocol PTVMStream
+  (call-function-impl [stream fn arg-list]))
+
+
+(defn call-function
+  [stream fn & args]
+  (call-function-impl stream fn args))

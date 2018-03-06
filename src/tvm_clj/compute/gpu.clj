@@ -1,13 +1,13 @@
 (ns tvm-clj.compute.gpu
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
+            [tvm-clj.api :as tvm-api]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.base :as tvm-comp-base]
             [tech.datatype.base :as dtype]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
-            [think.resource.core :as resource]
-            ))
+            [think.resource.core :as resource]))
 
 
 (declare cuda-driver)
@@ -25,18 +25,18 @@
   (device-id [_] (tvm-comp-base/device-id device))
 
   drv/PStream
-  (copy-host->device [stream host-buffer host-offset
+  (copy-host->device [_ host-buffer host-offset
                       device-buffer device-offset elem-count]
     (tvm-shared/copy-device->device host-buffer host-offset
                                     device-buffer device-offset elem-count stream))
-  (copy-device->host [stream device-buffer device-offset
+  (copy-device->host [_ device-buffer device-offset
                       host-buffer host-offset elem-count]
     (tvm-shared/copy-device->device device-buffer device-offset
                                     host-buffer host-offset elem-count stream))
-  (copy-device->device [stream dev-a dev-a-off dev-b dev-b-off elem-count]
+  (copy-device->device [_ dev-a dev-a-off dev-b dev-b-off elem-count]
     (tvm-shared/copy-device->device dev-a dev-a-off
                                     dev-b dev-b-off elem-count stream))
-  (memset [stream device-buffer device-offset elem-val elem-count]
+  (memset [_tream device-buffer device-offset elem-val elem-count]
     (throw (ex-info "Not implemented yet.")))
   (sync-with-host [_]
     (tvm-core/sync-stream-with-host (tvm-comp-base/device-type device)
@@ -51,6 +51,13 @@
                                       (tvm-comp-base/device-id device)
                                       (tvm-base/->tvm src-stream)
                                       (tvm-base/->tvm dst-stream)))
+  tvm-comp-base/PTVMStream
+  (call-function-impl [_ fn arg-list]
+    (tvm-core/set-current-thread-stream (tvm-comp-base/device-type device)
+                                        (tvm-comp-base/device-id device)
+                                        stream)
+    (apply tvm-core/call-function fn arg-list))
+
   resource/PResource
   (release-resource [_] ))
 
@@ -70,7 +77,13 @@
   (allocate-device-buffer-impl [device elem-count elem-type]
     (dbuf/make-device-buffer-of-type device elem-type elem-count))
   (allocate-rand-buffer-impl [device elem-count]
-    (dbuf/make-device-buffer-of-type device :float32 elem-count)))
+    (dbuf/make-device-buffer-of-type device :float32 elem-count))
+
+  drv/PDriverProvider
+  (get-driver [dev] driver)
+
+  drv/PDeviceProvider
+  (get-device [dev] dev))
 
 (defn make-gpu-device [driver dev-id]
   (->GPUDevice driver dev-id))
@@ -96,7 +109,12 @@
       retval
       (throw (ex-info "Device does not exist"
                       {:device-type (tvm-core/device-type-int->device-type device-type)
-                       :device-id dev-id})))))
+                       :device-id dev-id}))))
+
+  tvm-comp-base/PCompileModule
+  (->module-impl [driver lowered-fn-seq build-config]
+    (tvm-api/lowered-functions->module
+     lowered-fn-seq build-config :target-name (tvm-core/device-type-int->device-type device-type))))
 
 
 (def gpu-device-types #{:cuda :opencl :rocm})

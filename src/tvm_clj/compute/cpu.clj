@@ -1,6 +1,7 @@
 (ns tvm-clj.compute.cpu
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
+            [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.base :as tvm-comp-base]
             [tvm-clj.compute.device-buffer :as dbuf]
@@ -13,29 +14,34 @@
 
 (defrecord CPUStream [device stream]
   drv/PStream
-  (copy-host->device [stream host-buffer host-offset
+  (copy-host->device [_ host-buffer host-offset
                       device-buffer device-offset elem-count]
     (cpu-driver/with-stream-dispatch stream
       (tvm-shared/copy-device->device host-buffer host-offset
                                       device-buffer device-offset elem-count nil)))
-  (copy-device->host [stream device-buffer device-offset
+  (copy-device->host [_ device-buffer device-offset
                       host-buffer host-offset elem-count]
     (cpu-driver/with-stream-dispatch stream
       (tvm-shared/copy-device->device device-buffer device-offset
                                       host-buffer host-offset elem-count nil)))
-  (copy-device->device [stream dev-a dev-a-off dev-b dev-b-off elem-count]
+  (copy-device->device [_ dev-a dev-a-off dev-b dev-b-off elem-count]
     (cpu-driver/with-stream-dispatch stream
       (tvm-shared/copy-device->device dev-a dev-a-off
                                       dev-b dev-b-off elem-count nil)))
   (memset [stream device-buffer device-offset elem-val elem-count]
     (throw (ex-info "Not implemented yet.")))
-  (sync-with-host [stream]
-    (drv/sync-with-host (.stream stream)))
-  (sync-with-stream [src-stream dst-stream]
-    (drv/sync-with-stream (.stream src-stream) (:stream dst-stream)))
+  (sync-with-host [_]
+    (drv/sync-with-host stream))
+  (sync-with-stream [_ dst-stream]
+    (drv/sync-with-stream stream (:stream dst-stream)))
 
   resource/PResource
-  (release-resource [_] ))
+  (release-resource [_] )
+
+  tvm-comp-base/PTVMStream
+  (call-function-impl [_ fn arg-list]
+    (cpu-driver/with-stream-dispatch stream
+      (apply tvm-core/call-function fn arg-list))))
 
 (defn is-main-thread-cpu-stream?
   [^CPUStream stream]
@@ -87,7 +93,11 @@
   (device-id->device [driver dev-id]
     (when-not (= 0 dev-id)
       (throw (ex-info "CPU device types only have device id 0" {})))
-    (first (drv/get-devices driver))))
+    (first (drv/get-devices driver)))
+
+  tvm-comp-base/PCompileModule
+  (->module-impl [driver lowered-fn-seq build-config]
+    (api/lowered-functions->module lowered-fn-seq build-config :target-name :llvm)))
 
 (def driver
   (memoize

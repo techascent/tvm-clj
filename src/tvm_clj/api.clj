@@ -68,7 +68,7 @@
    ;; /*!
    ;; * \brief The IterVar itself is a thread-index
    ;; *  of a fixed thread launching group.
-   ;; *  Note that this is already assumed to be paralellized.
+   ;; *  Note that this is already assumed to be parallelized.
    ;; *
    ;; *  Disallow: split/fuse/vectorize/parallel
    ;; */
@@ -507,7 +507,7 @@ the threading macro with the long set of ir pass possibilities."
 
 
 (def target-name->props
-  [[#{:llvm} {:keys #{:cpu}}]
+  [[#{:llvm :cpu} {:keys #{:cpu}}]
    [#{:cuda :nvptx} (fn [target-name]
                         {:keys #{:cuda :gpu}
                          :max-num-threads 512
@@ -521,8 +521,7 @@ the threading macro with the long set of ir pass possibilities."
    [#{:opengl} (fn [target-name]
                   {:keys #{:opengl}})]])
 
-
-(defn create-target
+(defn target-info
   [target-name]
   (let [target-map-fn (->> target-name->props
                            (filter #((first %) target-name))
@@ -536,6 +535,12 @@ the threading macro with the long set of ir pass possibilities."
            (target-map-fn target-name))))
 
 
+(defn target-name->thread-warp-size
+  ^long [target-name]
+  (long
+   (:thread-warp-size (target-info target-name))))
+
+
 (defn lowered-functions->module
   ^runtime$TVMModuleHandle
   [lowered-function-seq build-config & {:keys [target-name target-host]
@@ -547,7 +552,6 @@ the threading macro with the long set of ir pass possibilities."
                {:arg-types arg-type-list})))
   (let [arg-name-set (->> (map :name lowered-function-seq)
                           set)
-        target (create-target target-name)
         _ (when-not-error (= (count lowered-function-seq)
                              (count arg-name-set))
             (ex-info "Arguments have duplicate names or are themselves duplicated"
@@ -559,7 +563,7 @@ the threading macro with the long set of ir pass possibilities."
                                           :device-function
                                           [host-fns (conj device-fns lowered-fn)]
                                           :mixed-function
-                                          (let [warp-size (long (:thread-warp-size target))
+                                          (let [warp-size (long (target-name->thread-warp-size target-name))
                                                 fsplits (-> (if (:detect-global-barrier? build-config)
                                                               (c/g-fn "ir_pass.ThreadSync" lowered-fn "global")
                                                               lowered-fn)
@@ -570,28 +574,17 @@ the threading macro with the long set of ir pass possibilities."
                                              (concat device-fns (rest fsplits))])))
                                       [[] []]
                                       lowered-function-seq)
-        device-type (c/device-type->device-type-int target-name)
         host-fns (mapv (fn [host-fn]
-                         (c/g-fn "ir_pass.BindDeviceType" host-fn device-type)
-                         (c/g-fn "ir_pass.LowerTVMBuiltin" host-fn))
+                         (c/g-fn "ir_pass.BindDeviceType" host-fn (c/device-type->device-type-int target-host))
+                         (-> (c/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
+                             (gfnr "ir_pass.LowerIntrin" (name target-host))
+                             (gfnr "ir_pass.CombineContextCall")))
                        host-fns)
-        target-host (if-not target-host
-                      (if (= device-type runtime/kDLCPU)
-                        target
-                        ;;More checking here to work with stackvm
-                        :llvm)
-                      target-host)
-        target-device target-name
-        device-fns (mapv #(c/g-fn "ir_pass.LowerIntrin" % (name target-device)) device-fns)
-        host-fns (->> host-fns
-                      (map #(c/g-fn "ir_pass.LowerIntrin" % (name target-host)))
-                      (map #(c/g-fn "ir_pass.CombineContextCall" %))
-                      ;;Force here to avoid laziness + side-effectiness mixing
-                      doall)
         ^runtime$TVMModuleHandle mhost (c/g-fn "codegen._Build" host-fns (name target-host))]
     (when (seq device-fns)
       (resource/with-resource-context
-        (->> (c/g-fn "codegen._Build" device-fns (name target-device))
+        (->> (mapv #(c/g-fn "ir_pass.LowerIntrin" % (name target-name)) device-fns)
+             (#(c/g-fn "codegen._Build" % (name target-name)))
              (runtime/TVMModImport mhost))))
     mhost))
 

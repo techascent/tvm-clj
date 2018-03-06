@@ -10,7 +10,7 @@
 (defn enumerate-devices
   [^long device-type]
   (->> (range)
-       (take-while #(tvm-core/device-exists? device-type %))))
+       (take-while #(= 1 (tvm-core/device-exists? device-type %)))))
 
 
 (defn maybe-sub-buffer

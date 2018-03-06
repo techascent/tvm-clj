@@ -118,6 +118,11 @@ base address."
   (->tvm [item] dev-ary)
 
 
+  tvm-base/PJVMTypeToTVMValue
+  (->tvm-value [_]
+    (tvm-base/->tvm-value dev-ary))
+
+
   dtype/PAccess
   (set-value! [item offset value]
     (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :to])

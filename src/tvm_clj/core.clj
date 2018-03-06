@@ -765,3 +765,8 @@ explicitly; it is done for you."
   [^long device-type ^long device-id ^StreamHandle src ^StreamHandle dst]
   (check-call (runtime/TVMStreamStreamSynchronize
                device-type device-id (.tvm-hdl src) (.tvm-hdl dst))))
+
+
+(defn set-current-thread-stream
+  [^long device-type ^long device-id ^StreamHandle stream]
+  (runtime/TVMSetStream device-type device-id (base/->tvm stream)))
