@@ -9,6 +9,7 @@
             [clojure.core.matrix.macros :refer [c-for]]
             [clojure.core.matrix :as m]
             [tech.compute.driver :as drv]
+            [tvm-clj.base :as tvm-base]
             [tvm-clj.compute.base :as tvm-comp-base])
   (:import [org.bytedeco.javacpp BytePointer ShortPointer
             IntPointer LongPointer FloatPointer DoublePointer
@@ -134,7 +135,7 @@
   (partially-alias? [lhs rhs]
     (jcpp-pointer-partial-alias? lhs rhs))
 
-  tvm-comp-base/PConvertToTVM
+  tvm-base/PToTVM
   (->tvm [_] ptr)
 
   PToPtr

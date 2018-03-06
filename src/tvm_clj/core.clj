@@ -386,48 +386,48 @@ https://github.com/dmlc/tvm/issues/918"
 
 (extend-protocol base/PJVMTypeToTVMValue
   Double
-  (jvm->tvm-value [value] [(Double/doubleToLongBits (double value)) runtime/kDLFloat])
+  (->tvm-value [value] [(Double/doubleToLongBits (double value)) runtime/kDLFloat])
   Float
-  (jvm->tvm-value [value] [(Double/doubleToLongBits (double value)) runtime/kDLFloat])
+  (->tvm-value [value] [(Double/doubleToLongBits (double value)) runtime/kDLFloat])
   Byte
-  (jvm->tvm-value [value] [(long value) runtime/kDLInt])
+  (->tvm-value [value] [(long value) runtime/kDLInt])
   Short
-  (jvm->tvm-value [value] [(long value) runtime/kDLInt])
+  (->tvm-value [value] [(long value) runtime/kDLInt])
   Integer
-  (jvm->tvm-value [value] [(long value) runtime/kDLInt])
+  (->tvm-value [value] [(long value) runtime/kDLInt])
   Long
-  (jvm->tvm-value [value] [(long value) runtime/kDLInt])
+  (->tvm-value [value] [(long value) runtime/kDLInt])
   Boolean
-  (jvm->tvm-value [value] [(if value
+  (->tvm-value [value] [(if value
                              (long 1)
                              (long 0)) runtime/kDLInt])
   String
-  (jvm->tvm-value [value]
+  (->tvm-value [value]
     (let [pb (BytePointer. value "ASCII")]
       (resource/track pb)
       [(.address pb) runtime/kStr]))
 
   NodeHandle
-  (jvm->tvm-value [value]
+  (->tvm-value [value]
     [(.address ^runtime$NodeHandle (.tvm-jcpp-handle ^NodeHandle value)) runtime/kNodeHandle])
 
   ArrayHandle
-  (jvm->tvm-value [value]
+  (->tvm-value [value]
     [(.address ^runtime$DLTensor (.tvm-jcpp-handle ^ArrayHandle value)) runtime/kArrayHandle])
 
   Object
-  (jvm->tvm-value [value]
+  (->tvm-value [value]
     (cond
       (sequential? value)
-      (base/jvm->tvm-value (apply tvm-array value))
+      (base/->tvm-value (apply tvm-array value))
       (map? value)
-      (base/jvm->tvm-value (apply tvm-map (->> (seq value)
+      (base/->tvm-value (apply tvm-map (->> (seq value)
                                                (apply concat))))
       (nil? value)
       [0 runtime/kNull]))
 
   nil
-  (jvm->tvm-value [value]
+  (->tvm-value [value]
     [0 runtime/kNull]))
 
 
@@ -441,7 +441,7 @@ https://github.com/dmlc/tvm/issues/918"
     (resource/track retval)
     (->> args
          (map-indexed (fn [idx arg]
-                        (let [[long-val dtype] (base/jvm->tvm-value arg)]
+                        (let [[long-val dtype] (base/->tvm-value arg)]
                           (.put lb (int idx) (long long-val))
                           (aset type-codes idx (int dtype)))))
          dorun)
@@ -668,12 +668,22 @@ explicitly; it is done for you."
    ;; // AddExtraTVMType which is not in DLPack here
    })
 
+(def device-type->kwd-map (c-set/map-invert kwd->device-type-map))
+
 
 (defn device-type->device-type-int
   ^long [device-type]
   (if-let [dev-enum (kwd->device-type-map device-type)]
     dev-enum
     (throw (ex-info "Failed to find device type enum"
+                    {:device-type device-type}))))
+
+
+(defn device-type-int->device-type
+  [^long device-type]
+  (if-let [retval (device-type->kwd-map device-type)]
+    retval
+    (throw (ex-info "Failed to find keyword for device type"
                     {:device-type device-type}))))
 
 
@@ -718,12 +728,14 @@ explicitly; it is done for you."
 
 
 (defn copy-array-to-array!
-  [^ArrayHandle src-hdl ^ArrayHandle dst-hdl & {:keys [stream-hdl]
-                                                :or {stream-hdl (runtime$TVMStreamHandle.)}}]
-  (check-call (runtime/TVMArrayCopyFromTo
-               ^runtime$DLTensor (.tvm-jcpp-handle src-hdl)
-               ^runtime$DLTensor (.tvm-jcpp-handle dst-hdl)
-               ^runtime$TVMStreamHandle stream-hdl)))
+  [^ArrayHandle src-hdl ^ArrayHandle dst-hdl stream]
+  (let [stream (if stream
+                 (base/->tvm stream)
+                 (runtime$TVMStreamHandle.))]
+    (check-call (runtime/TVMArrayCopyFromTo
+                 ^runtime$DLTensor (base/->tvm src-hdl)
+                 ^runtime$DLTensor (base/->tvm dst-hdl)
+                 ^runtime$TVMStreamHandle stream))))
 
 (def device-attribute-map
   {:exists 0
@@ -742,3 +754,14 @@ explicitly; it is done for you."
   (let [retval (runtime$TVMStreamHandle. )]
     (check-call (runtime/TVMStreamCreate device-type device-id retval))
     (resource/track (base/->StreamHandle device-type device-id retval))))
+
+
+(defn sync-stream-with-host
+  [^long device-type ^long device-id ^StreamHandle stream]
+  (check-call (runtime/TVMSynchronize device-type device-id (.tvm-hdl stream))))
+
+
+(defn sync-stream-with-stream
+  [^long device-type ^long device-id ^StreamHandle src ^StreamHandle dst]
+  (check-call (runtime/TVMStreamStreamSynchronize
+               device-type device-id (.tvm-hdl src) (.tvm-hdl dst))))

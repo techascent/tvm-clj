@@ -1,8 +1,8 @@
 (ns tvm-clj.compute.shared
   (:require [tvm-clj.core :as tvm-core]
+            [tvm-clj.base :refer [->tvm] :as tvm-base]
             [think.resource.core :as resource]
             [tech.compute.driver :as drv]
-            [tvm-clj.compute.base :refer [->tvm] :as tvm-comp-base]
             [tech.datatype.base :as dtype])
   (:import [tvm_clj.tvm runtime runtime$TVMStreamHandle]))
 
@@ -13,9 +13,17 @@
        (take-while #(tvm-core/device-exists? device-type %))))
 
 
+(defn maybe-sub-buffer
+  [buf offset elem-count]
+  (if-not (and (= 0 (long offset))
+               (= (dtype/ecount buf) (long elem-count)))
+    (drv/sub-buffer buf offset elem-count)
+    buf))
+
+
 (defn copy-device->device
-  [dev-a dev-a-off dev-b dev-b-off elem-count tvm-stream]
-  (let [dev-a (drv/sub-buffer dev-a dev-a-off elem-count)
-        dev-b (drv/sub-buffer dev-b dev-b-off elem-count)
-        tvm-stream (if tvm-stream tvm-stream (runtime$TVMStreamHandle.))]
-    (tvm-core/copy-array-to-array! (->tvm dev-a) (->tvm dev-b) :stream-hdl tvm-stream)))
+  [dev-a dev-a-off dev-b dev-b-off elem-count stream]
+  (resource/with-resource-context
+    (let [dev-a (maybe-sub-buffer dev-a dev-a-off elem-count)
+          dev-b (maybe-sub-buffer dev-b dev-b-off elem-count)]
+      (tvm-core/copy-array-to-array! (->tvm dev-a) (->tvm dev-b) stream))))

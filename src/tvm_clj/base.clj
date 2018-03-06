@@ -9,13 +9,38 @@
 
 
 (defprotocol PJVMTypeToTVMValue
-  (jvm->tvm-value [jvm-type]))
+  "Convert something to a [long tvm-value-type] pair"
+  (->tvm-value [jvm-type]))
+
+
+(defprotocol PToTVM
+  "Convert something to some level of tvm type."
+  (->tvm [item]))
+
+
+(extend-protocol PToTVM
+  runtime$TVMFunctionHandle
+  (->tvm [item] item)
+  runtime$TVMValue
+  (->tvm [item] item)
+  runtime$NodeHandle
+  (->tvm [item] item)
+  runtime$TVMModuleHandle
+  (->tvm [item] item)
+  runtime$DLTensor
+  (->tvm [item] item)
+  runtime$TVMStreamHandle
+  (->tvm [item] item))
 
 
 (defprotocol PConvertToNode
   (->node [item]))
 
 
-(defrecord ArrayHandle [^runtime$DLTensor tvm-jcpp-handle])
+(defrecord ArrayHandle [^runtime$DLTensor tvm-jcpp-handle]
+  PToTVM
+  (->tvm [_] tvm-jcpp-handle))
 
-(defrecord StreamHandle [^long device ^long dev-id ^runtime$TVMStreamHandle tvm-hdl])
+(defrecord StreamHandle [^long device ^long dev-id ^runtime$TVMStreamHandle tvm-hdl]
+  PToTVM
+  (->tvm [_] tvm-hdl))

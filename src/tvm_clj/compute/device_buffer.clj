@@ -114,7 +114,7 @@ base address."
     (hbuf/jcpp-pointer-partial-alias? (tvm-ary->pointer dev-ary)
                                       (tvm-ary->pointer (:dev-ary rhs))))
 
-  tvm-comp-base/PConvertToTVM
+  tvm-base/PToTVM
   (->tvm [item] dev-ary)
 
 
@@ -140,7 +140,12 @@ base address."
 
   ;;Efficient bulk copy is provided by this line and implementing the PToPtr protocol
   marshal/PContainerType
-  (container-type [this] :tvm-host-buffer))
+  (container-type [this] :tvm-host-buffer)
+
+  ;;The underlying tvm array is tracked by the system so there is no
+  ;;need to release this resource.
+  resource/PResource
+  (release-resource [_] ))
 
 
 (defn device-buffer->ptr
@@ -153,18 +158,18 @@ base address."
 
 (defn make-device-buffer-of-type
   [device datatype elem-count]
-  (->> (tvm-core/allocate-device-array [elem-count] datatype
-                                      (tvm-comp-base/device-type device)
-                                      (tvm-comp-base/device-id device))
-       (->DeviceBuffer device)))
-
-
+  (resource/track
+   (->> (tvm-core/allocate-device-array [elem-count] datatype
+                                        (tvm-comp-base/device-type device)
+                                        (tvm-comp-base/device-id device))
+        (->DeviceBuffer device))))
 
 
 (defn make-cpu-device-buffer
-  "The cpu driver needs to be required for this to work."
+  "Make a cpu device buffer.  These are used as host buffers for all devices
+and device buffers for the cpu device."
   [datatype elem-count]
-  (when-not (resolve 'tvm-clj.compute.cpu/cpu-driver)
+  (when-not (resolve 'tvm-clj.compute.cpu/driver)
     (require 'tvm-clj.compute.cpu))
   (make-device-buffer-of-type (tvm-comp-base/get-device runtime/kDLCPU 0)
                               datatype
@@ -173,4 +178,4 @@ base address."
 
 (defn device-buffer->tvm-array
   ^runtime$DLTensor [^DeviceBuffer buf]
-  (.tvm-jcpp-handle (.dev-ary buf)))
+  (tvm-base/->tvm (tvm-base/->tvm buf)))
