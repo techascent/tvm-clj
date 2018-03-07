@@ -52,7 +52,7 @@
   `(cpu-driver/with-stream-dispatch (.stream stream)
      ~@body))
 
-(defrecord CPUDevice [error-atom]
+(defrecord CPUDevice [error-atom default-stream]
   tvm-comp-base/PDeviceInfo
   (device-type [this] (tvm-comp-base/cpu-device-type))
   (device-id [this] 0)
@@ -75,12 +75,19 @@
   (get-device [dev] dev)
 
   resource/PResource
-  (release-resource [dev]))
+  (release-resource [dev])
+
+  tvm-comp-base/PTVMDevice
+  (supports-create-stream? [device] true)
+  (default-stream [device] @default-stream))
 
 (def cpu-devices
   (memoize
    (fn []
-     [(->CPUDevice (atom nil))])))
+     (let [device (->CPUDevice (atom nil) (atom nil))
+           default-stream (->CPUStream device (cpu-driver/main-thread-cpu-stream))]
+       (swap! (:default-stream device) (constantly default-stream))
+       [device]))))
 
 (defrecord CPUDriver []
   drv/PDriver

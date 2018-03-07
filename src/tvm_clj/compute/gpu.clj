@@ -46,8 +46,10 @@
   (sync-with-stream [src-stream dst-stream]
     (when-not (= (tvm-comp-base/device-type src-stream) (tvm-comp-base/device-type dst-stream))
       (throw (ex-info "Cannot synchronize streams of two different device types"
-                      {:src-device-type (tvm-core/device-type-int->device-type (tvm-comp-base/device-type src-stream))
-                       :dst-device-type (tvm-core/device-type-int->device-type (tvm-comp-base/device-type dst-stream))})))
+                      {:src-device-type (tvm-core/device-type-int->device-type
+                                         (tvm-comp-base/device-type src-stream))
+                       :dst-device-type (tvm-core/device-type-int->device-type
+                                         (tvm-comp-base/device-type dst-stream))})))
     (tvm-core/sync-stream-with-stream (tvm-comp-base/device-type device)
                                       (tvm-comp-base/device-id device)
                                       (tvm-base/->tvm src-stream)
@@ -89,7 +91,7 @@
 
   tvm-comp-base/PTVMDevice
   (supports-create-stream? [device] supports-create?)
-  (default-stream [device] default-stream)
+  (default-stream [device] @default-stream)
 
   resource/PResource
   (release-resource [_] (resource/release-resource resource-context)))
@@ -106,8 +108,9 @@
            (catch Throwable e
              (tvm-base/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
         supports-create? (boolean default-stream)
-        device (->GPUDevice driver dev-id supports-create? nil resource-context)]
-    (assoc device :default-stream (->GPUStream device default-stream))))
+        device (->GPUDevice driver dev-id supports-create? (atom nil) resource-context)]
+    (swap! (:default-stream device) (constantly (->GPUStream device default-stream)))
+    device))
 
 
 (def ^:private enumerate-devices
