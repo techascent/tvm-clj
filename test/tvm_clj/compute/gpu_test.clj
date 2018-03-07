@@ -14,4 +14,10 @@
 (deftest cuda-basic-add
   (resource/with-resource-context
     (cpu-test/test-add-fn (base/get-device :cuda 0)
-                          (api-test/create-myadd-fn-gpu))))
+                          (api-test/create-myadd-fn-gpu :cuda))))
+
+
+(deftest opencl-basic-add
+  (resource/with-resource-context
+    (cpu-test/test-add-fn (base/get-device :opencl 0)
+                          (api-test/create-myadd-fn-gpu :opencl))))

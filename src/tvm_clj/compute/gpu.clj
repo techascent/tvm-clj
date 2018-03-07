@@ -7,7 +7,8 @@
             [tech.datatype.base :as dtype]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
-            [think.resource.core :as resource]))
+            [think.resource.core :as resource])
+  (:import [tvm_clj.tvm runtime$TVMStreamHandle]))
 
 
 (declare cuda-driver)
@@ -53,16 +54,17 @@
                                       (tvm-base/->tvm dst-stream)))
   tvm-comp-base/PTVMStream
   (call-function-impl [_ fn arg-list]
-    (tvm-core/set-current-thread-stream (tvm-comp-base/device-type device)
-                                        (tvm-comp-base/device-id device)
-                                        stream)
+    (when (.address (tvm-base/->tvm stream))
+      (tvm-core/set-current-thread-stream (tvm-comp-base/device-type device)
+                                          (tvm-comp-base/device-id device)
+                                          stream))
     (apply tvm-core/call-function fn arg-list))
 
   resource/PResource
   (release-resource [_] ))
 
 
-(defrecord GPUDevice [driver ^long device-id]
+(defrecord GPUDevice [driver ^long device-id supports-create? default-stream resource-context]
   tvm-comp-base/PDeviceInfo
   (device-type [this] (:device-type driver))
   (device-id [this] device-id)
@@ -83,10 +85,29 @@
   (get-driver [dev] driver)
 
   drv/PDeviceProvider
-  (get-device [dev] dev))
+  (get-device [dev] dev)
 
-(defn make-gpu-device [driver dev-id]
-  (->GPUDevice driver dev-id))
+  tvm-comp-base/PTVMDevice
+  (supports-create-stream? [device] supports-create?)
+  (default-stream [device] default-stream)
+
+  resource/PResource
+  (release-resource [_] (resource/release-resource resource-context)))
+
+
+(defn- make-gpu-device
+  "Never call this external; devices are centrally created and registered."
+  [driver dev-id]
+  (let [dev-type (:device-type driver)
+        [default-stream resource-context]
+        (resource/return-resource-context
+         (try
+           (tvm-core/create-stream dev-type dev-id)
+           (catch Throwable e
+             (tvm-base/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
+        supports-create? (boolean default-stream)
+        device (->GPUDevice driver dev-id supports-create? nil resource-context)]
+    (assoc device :default-stream (->GPUStream device default-stream))))
 
 
 (def ^:private enumerate-devices
