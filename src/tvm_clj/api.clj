@@ -216,6 +216,10 @@ is calling a halide function with the tensor's generating-op and value index."
                   ~@body)]
     (with-meta retval {:arglists `(quote ~arg-vec)})))
 
+(defn compute-raw
+  [shape compute-dims body-data]
+  (let []))
+
 
 (defn compute
   [shape fcompute & {:keys [name tag]
@@ -388,13 +392,15 @@ for what it is worth but it is hard to me to see how this is useful.
     If user pass a fully generic symbolic array to the strides,
     then the resulting function becomes fully generic."
   [shape & {:keys [dtype name data strides elem-offset scope data-alignment]
-            :or {name "buffer" dtype "float32" strides [] scope "" data-alignment -1
-                 elem-offset 0}}]
+            :or {name "buffer" dtype "float32" strides [] scope "" data-alignment -1}}]
   (let [shape (if (sequential? shape)
                 shape
                 [shape])
+        strides (mapv #(variable (str "_stride_" %) :dtype "int32")
+                      (clojure.core/range (count shape)))
         data (if data data (variable name :dtype "handle"))
-        offset-factor 0]
+        offset-factor 0
+        elem-offset (variable "_buf_offset" :dtype "uint64")]
     (c/global-node-function "_Buffer"
                             data dtype shape strides elem-offset name scope
                             data-alignment offset-factor)))

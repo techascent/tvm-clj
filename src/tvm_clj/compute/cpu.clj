@@ -12,7 +12,7 @@
 
 (declare driver)
 
-(defrecord CPUStream [device stream]
+(defrecord CPUStream [device-fn stream]
   drv/PStream
   (copy-host->device [_ host-buffer host-offset
                       device-buffer device-offset elem-count]
@@ -39,7 +39,17 @@
   tvm-comp-base/PTVMStream
   (call-function-impl [_ fn arg-list]
     (cpu-driver/with-stream-dispatch stream
-      (apply tvm-core/call-function fn arg-list))))
+      (apply tvm-core/call-function fn arg-list)))
+
+  drv/PDriverProvider
+  (get-driver [_] (drv/get-driver (device-fn)))
+
+  drv/PDeviceProvider
+  (get-device [_] (device-fn))
+
+  tvm-comp-base/PDeviceInfo
+  (device-type [this] (tvm-comp-base/device-type (device-fn)))
+  (device-id [this] (tvm-comp-base/device-id (device-fn))))
 
 (defn is-main-thread-cpu-stream?
   [^CPUStream stream]
@@ -82,7 +92,7 @@
   (memoize
    (fn []
      (let [device (->CPUDevice (atom nil) (atom nil))
-           default-stream (->CPUStream device (cpu-driver/main-thread-cpu-stream))]
+           default-stream (->CPUStream (constantly device) (cpu-driver/main-thread-cpu-stream))]
        (swap! (:default-stream device) (constantly default-stream))
        [device]))))
 

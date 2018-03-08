@@ -8,11 +8,16 @@
             [think.resource.core :as resource]
             [clojure.core.matrix.protocols :as mp]
             [tech.javacpp-datatype :as jcpp-dtype]
-            [tech.datatype.marshal :as marshal])
-  (:import [tvm_clj.tvm runtime$DLTensor runtime]
+            [tech.datatype.marshal :as marshal]
+            [tech.compute.tensor :as ct])
+  (:import [tvm_clj.tvm runtime$DLTensor runtime runtime$DLContext]
            [tvm_clj.base ArrayHandle]
            [org.bytedeco.javacpp Pointer LongPointer]
-           [java.lang.reflect Field]))
+           [java.lang.reflect Field]
+           [tech.compute.tensor Tensor]))
+
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 
 
 (defn base-ptr-dtype
@@ -51,29 +56,42 @@
   ^long [datatype]
   (* 8 (dtype/datatype->byte-size datatype)))
 
-(defn pointer->tvm-ary
-  "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
-have a byte_offset member that you can use to make an array not start at the pointer's
-base address."
-  ^ArrayHandle [^Pointer ptr device-type device-id datatype elem-count byte-offset]
+
+(defn raw-create-tvm-ary
+  [^Pointer ptr device-type device-id datatype byte-offset
+   ^LongPointer shape-ptr & {:keys [strides-ptr]}]
   (let [tens-data (runtime$DLTensor. 1)
+        n-dims (.capacity shape-ptr)
         ctx (.ctx tens-data)
-        dtype (.dtype tens-data)
-        shape (LongPointer. 1)
-        elem-count (long elem-count)]
-    (.put shape 0 elem-count)
+        dtype (.dtype tens-data)]
     (.data tens-data ptr)
-    (.ndim tens-data 1)
+    (.ndim tens-data n-dims)
     (.byte_offset tens-data (long byte-offset))
     (.device_type ctx (int device-type))
     (.device_id ctx (int device-id))
     (.code dtype (datatype->dl-type-code datatype))
     (.bits dtype (datatype->dl-bits datatype))
     (.lanes dtype 1)
-    (.shape tens-data shape)
-    (resource/track shape)
+    (.shape tens-data shape-ptr)
+    (if strides-ptr
+      (.strides tens-data strides-ptr)
+      (.strides tens-data (LongPointer.)))
+    tens-data))
+
+
+(defn pointer->tvm-ary
+  "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
+  have a byte_offset member that you can use to make an array not start at the pointer's
+  base address."
+  ^ArrayHandle [^Pointer ptr device-type device-id datatype elem-count byte-offset]
+  (let [^LongPointer shape (let [shape (LongPointer. 1)]
+                             (.put shape 0 elem-count)
+                             (resource/track shape))
+        elem-count (long elem-count)]
+    (.put shape 0 elem-count)
     (resource/track
-     (merge (tvm-base/->ArrayHandle tens-data)
+     (merge (tvm-base/->ArrayHandle
+             (raw-create-tvm-ary ptr device-type device-id datatype byte-offset shape))
             {:shape [elem-count]
              :datatype datatype
              :owns-memory? false}))))
@@ -184,3 +202,22 @@ and device buffers for the cpu device."
 (defn device-buffer->tvm-array
   ^runtime$DLTensor [^DeviceBuffer buf]
   (tvm-base/->tvm (tvm-base/->tvm buf)))
+
+
+(extend-type Tensor
+  tvm-base/PJVMTypeToTVMValue
+  (->tvm-value [item]
+    (let [src-dl-tensor (device-buffer->tvm-array (ct/tensor->buffer item))
+          ^runtime$DLContext ctx (.ctx src-dl-tensor)
+          dims (ct/tensor->dimensions item)
+          shape-data (resource/track (jcpp-dtype/make-pointer-of-type :int64 (:shape dims)))
+          stride-data (resource/track
+                       (jcpp-dtype/make-pointer-of-type
+                        :int64
+                        (mapv #(long  %)
+                              (:strides dims))))
+          ^runtime$DLTensor new-ary (raw-create-tvm-ary (.data src-dl-tensor) (.device_type ctx) (.device_id ctx)
+                                                        (ct/get-datatype item) (.byte_offset src-dl-tensor)
+                                                        shape-data :strides-ptr stride-data)]
+      (tvm-base/->tvm-value
+       (tvm-base/->ArrayHandle new-ary)))))

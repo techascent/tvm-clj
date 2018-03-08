@@ -10,7 +10,8 @@
             [clojure.core.matrix :as m]
             [tech.compute.driver :as drv]
             [tvm-clj.base :as tvm-base]
-            [tvm-clj.compute.base :as tvm-comp-base])
+            [tvm-clj.compute.base :as tvm-comp-base]
+            [tech.compute.tensor.utils :as tens-utils])
   (:import [org.bytedeco.javacpp BytePointer ShortPointer
             IntPointer LongPointer FloatPointer DoublePointer
             Pointer]
@@ -24,7 +25,7 @@
     :uint8 `(bit-and (unchecked-short ~val) 0xFF)
     :uint16 `(bit-and (unchecked-int ~val) 0xFFFF)
     :uint32 `(bit-and (unchecked-long ~val) 0xFFFFFFFF)
-    :uint64 `(bit-and (unchecked-long ~val) 0xFFFFFFFFFFFFFFFFF)
+    :uint64 `(bit-and (unchecked-long ~val) 0xFFFFFFFFFFFFFFF)
     `~val))
 
 
@@ -44,6 +45,23 @@
             (unsigned->jvm ~dtype val#))
    :to `(fn [val#]
           (jvm->unsigned ~dtype val#))})
+
+
+(defmethod tens-utils/dtype-cast :uint8
+  [data dtype]
+  (unsigned->jvm :uint8 data))
+
+(defmethod tens-utils/dtype-cast :uint16
+  [data dtype]
+  (unsigned->jvm :uint16 data))
+
+(defmethod tens-utils/dtype-cast :uint32
+  [data dtype]
+  (unsigned->jvm :uint32 data))
+
+(defmethod tens-utils/dtype-cast :uint64
+  [data dtype]
+  (unsigned->jvm :uint64 data))
 
 
 (def unsigned-types [:uint8 :uint16 :uint32 :uint64])

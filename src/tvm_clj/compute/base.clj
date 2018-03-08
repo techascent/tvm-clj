@@ -28,19 +28,28 @@
 ;;Mapping from integer device types to drivers implementing that type.
 (defonce ^:dynamic *device-types->drivers* (atom {}))
 
+
 (defn add-device-type
   [^long device-type driver]
   (swap! *device-types->drivers* assoc device-type driver))
 
-(defn get-device
-  [device-type ^long device-id]
+
+(defn get-driver
+  [device-type]
   (let [device-type (long (if (number? device-type)
-                               device-type
-                               (tvm-core/device-type->device-type-int device-type)))]
+                            device-type
+                            (tvm-core/device-type->device-type-int device-type)))]
     (if-let [driver (get @*device-types->drivers* device-type)]
-      (device-id->device driver device-id)
+      driver
       (throw (ex-info "Failed to find driver for device type:"
                       {:device-type device-type})))))
+
+
+(defn get-device
+  [device-type ^long device-id]
+  (-> (get-driver device-type)
+      (device-id->device device-id)))
+
 
 (defprotocol PCompileModule
   (->module-impl [driver lowered-function-seq build-config]))
