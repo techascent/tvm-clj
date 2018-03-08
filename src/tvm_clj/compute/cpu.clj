@@ -28,8 +28,6 @@
     (cpu-driver/with-stream-dispatch stream
       (tvm-shared/copy-device->device dev-a dev-a-off
                                       dev-b dev-b-off elem-count nil)))
-  (memset [stream device-buffer device-offset elem-val elem-count]
-    (throw (ex-info "Not implemented yet.")))
   (sync-with-host [_]
     (drv/sync-with-host stream))
   (sync-with-stream [_ dst-stream]
@@ -67,6 +65,8 @@
     (dbuf/make-cpu-device-buffer elem-type elem-count))
   (allocate-rand-buffer-impl [device elem-count]
     (dbuf/make-cpu-device-buffer :float32 elem-count))
+  (supports-create-stream? [device] true)
+  (default-stream [device] @default-stream)
 
   drv/PDriverProvider
   (get-driver [dev] (driver))
@@ -75,11 +75,8 @@
   (get-device [dev] dev)
 
   resource/PResource
-  (release-resource [dev])
+  (release-resource [dev]))
 
-  tvm-comp-base/PTVMDevice
-  (supports-create-stream? [device] true)
-  (default-stream [device] @default-stream))
 
 (def cpu-devices
   (memoize

@@ -19,7 +19,7 @@
           dev-buf-a (drv/allocate-device-buffer 10 :float32)
           dev-buf-b (drv/allocate-device-buffer 10 :float32)
           dev-buf-c (drv/allocate-device-buffer 10 :float32)
-          stream (base/default-stream device)
+          stream (drv/default-stream device)
           result (int-array 10)]
       (dtype/copy-raw->item! test-data host-buf 0)
       (drv/copy-host->device stream host-buf 0 dev-buf-a 0 10)

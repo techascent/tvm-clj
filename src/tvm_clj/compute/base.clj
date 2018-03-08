@@ -51,11 +51,6 @@
   (->module-impl driver lowered-function-seq build-config))
 
 
-(defprotocol PTVMDevice
-  (supports-create-stream? [device])
-  (default-stream [device]))
-
-
 (defprotocol PTVMStream
   (call-function-impl [stream fn arg-list]))
 

@@ -37,8 +37,6 @@
   (copy-device->device [_ dev-a dev-a-off dev-b dev-b-off elem-count]
     (tvm-shared/copy-device->device dev-a dev-a-off
                                     dev-b dev-b-off elem-count stream))
-  (memset [_tream device-buffer device-offset elem-val elem-count]
-    (throw (ex-info "Not implemented yet.")))
   (sync-with-host [_]
     (tvm-core/sync-stream-with-host (tvm-comp-base/device-type device)
                                     (tvm-comp-base/device-id device)
@@ -82,16 +80,14 @@
     (dbuf/make-device-buffer-of-type device elem-type elem-count))
   (allocate-rand-buffer-impl [device elem-count]
     (dbuf/make-device-buffer-of-type device :float32 elem-count))
+  (supports-create-stream? [device] supports-create?)
+  (default-stream [device] @default-stream)
 
   drv/PDriverProvider
   (get-driver [dev] driver)
 
   drv/PDeviceProvider
   (get-device [dev] dev)
-
-  tvm-comp-base/PTVMDevice
-  (supports-create-stream? [device] supports-create?)
-  (default-stream [device] @default-stream)
 
   resource/PResource
   (release-resource [_] (resource/release-resource resource-context)))
