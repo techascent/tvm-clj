@@ -598,7 +598,7 @@ explicitly; it is done for you."
     (when (= 0 (.address retval))
       (throw (ex-info "Could not find module function"
                       {:fn-name fn-name})))
-    retval))
+    (resource/track retval)))
 
 
 (def datatype->tvm-datatype-data-map
@@ -700,16 +700,13 @@ explicitly; it is done for you."
         retval (runtime$DLTensor.)
         device-type-int (int (if (number? device-type)
                                device-type
-                               (device-type->device-type-int device-type)))
-        strides (resource/track
-                 (jcpp-dtype/make-pointer-of-type :int64 (ct-dims/extend-strides shape [])))]
+                               (device-type->device-type-int device-type)))]
     (check-call
      (runtime/TVMArrayAlloc shape-data (int n-dims) (int dtype-code)
                             (int dtype-bits) (int dtype-lanes)
                             device-type-int device-id retval-ptr))
     (.set ^Field jcpp-dtype/address-field retval (.address (.get retval-ptr 0)))
     (let [^runtime$DLTensor retval (jcpp-dtype/set-pointer-limit-and-capacity retval 1)]
-      (.strides retval strides)
       (resource/release retval-ptr)
       (resource/track (merge (base/->ArrayHandle retval)
                              {:shape shape

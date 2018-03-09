@@ -204,6 +204,14 @@ and device buffers for the cpu device."
   (tvm-base/->tvm (tvm-base/->tvm buf)))
 
 
+(defn has-byte-offset?
+  [tensor]
+  (let [buf (ct/tensor->buffer tensor)
+        ^ArrayHandle buf-data (tvm-base/->tvm buf)
+        ^runtime$DLTensor backing-store (tvm-base/->tvm buf-data)]
+    (not= 0 (.byte_offset backing-store))))
+
+
 (extend-type Tensor
   tvm-base/PJVMTypeToTVMValue
   (->tvm-value [item]
@@ -211,13 +219,15 @@ and device buffers for the cpu device."
           ^runtime$DLContext ctx (.ctx src-dl-tensor)
           dims (ct/tensor->dimensions item)
           shape-data (resource/track (jcpp-dtype/make-pointer-of-type :int64 (:shape dims)))
-          stride-data (resource/track
-                       (jcpp-dtype/make-pointer-of-type
-                        :int64
-                        (mapv #(long  %)
-                              (:strides dims))))
+          stride-data (when-not (ct/dense? item)
+                        (resource/track
+                         (jcpp-dtype/make-pointer-of-type
+                          :int64
+                          (mapv #(long  %)
+                                (:strides dims)))))
           ^runtime$DLTensor new-ary (raw-create-tvm-ary (.data src-dl-tensor) (.device_type ctx) (.device_id ctx)
                                                         (ct/get-datatype item) (.byte_offset src-dl-tensor)
                                                         shape-data :strides-ptr stride-data)]
+
       (tvm-base/->tvm-value
-       (tvm-base/->ArrayHandle new-ary)))))
+       (resource/track (tvm-base/->ArrayHandle new-ary))))))

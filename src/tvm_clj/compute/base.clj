@@ -52,6 +52,7 @@
 
 
 (defprotocol PCompileModule
+  (gpu-scheduling? [driver])
   (->module-impl [driver lowered-function-seq build-config]))
 
 (defn ->module

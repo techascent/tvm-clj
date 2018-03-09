@@ -392,15 +392,13 @@ for what it is worth but it is hard to me to see how this is useful.
     If user pass a fully generic symbolic array to the strides,
     then the resulting function becomes fully generic."
   [shape & {:keys [dtype name data strides elem-offset scope data-alignment]
-            :or {name "buffer" dtype "float32" strides [] scope "" data-alignment -1}}]
+            :or {name "buffer" dtype "float32" scope "" data-alignment -1}}]
   (let [shape (if (sequential? shape)
                 shape
                 [shape])
-        strides (mapv #(variable (str "_stride_" %) :dtype "int32")
-                      (clojure.core/range (count shape)))
+        elem-offset (if elem-offset elem-offset 0)
         data (if data data (variable name :dtype "handle"))
-        offset-factor 0
-        elem-offset (variable "_buf_offset" :dtype "int32")]
+        offset-factor 0]
     (c/global-node-function "_Buffer"
                             data dtype shape strides elem-offset name scope
                             data-alignment offset-factor)))
@@ -410,15 +408,16 @@ for what it is worth but it is hard to me to see how this is useful.
   "Given an arg-list and existing bind map, produce a new arg list
 and bind map with all arguments bound to input buffers with defined buffer layout.
 Bind map is a map of type NodeHandle->NodeHandle where the keys are tensors and the
-values are buffers"
+values are buffers.  The default is to bind a compact, non-offset buffer so if you want
+a different buffer type than this then you need to bind it yourself."
   [arg-list bind-map build-config]
   (reduce (fn [[arg-list bind-map] arg]
             (condp = (c/get-node-type arg)
               :tensor
               (if-let [buf (bind-map arg)]
                 [(conj arg-list buf) bind-map]
-                (let [new-buf (declare-buffer (:shape arg) :dtype (:dtype arg)
-                                              name (:name arg)
+                (let [shape (:shape arg)
+                      new-buf (declare-buffer (:shape arg) :dtype (:dtype arg)
                                               :data-alignment (:data-alignment build-config))]
                   [(conj arg-list new-buf) (assoc bind-map arg new-buf)]))
               :buffer

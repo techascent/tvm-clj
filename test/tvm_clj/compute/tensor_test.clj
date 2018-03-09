@@ -1,6 +1,6 @@
-(ns tvm-clj.compute.cpu-tensor-test
+(ns tvm-clj.compute.tensor-test
   (:require [tech.compute.verify.tensor :as vt]
-            [tvm-clj.compute.test-utils :as cu]
+            [tvm-clj.compute.test-utils :refer [def-all-dtype-test] :as cu]
             [tech.compute.verify.utils :refer [*datatype*] :as vu]
             [tvm-clj.compute.cpu :as tvm-cpu]
             [tvm-clj.compute.base :as base]
@@ -9,10 +9,10 @@
             [tech.compute.tensor :as ct]
             [tech.datatype.base :as dtype]
             [tech.javacpp-datatype :as jcpp-dtype]
-            [tvm-clj.compute.cpu-tensor-math]
+            [tvm-clj.compute.tensor-math]
             [clojure.test :refer :all]))
 
 
 
-(cu/def-all-dtype-test assign-constant!
+(deftest assign-constant!
   (vt/assign-constant! (base/get-driver :cpu) *datatype*))
