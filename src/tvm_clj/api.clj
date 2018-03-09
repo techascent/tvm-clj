@@ -400,7 +400,7 @@ for what it is worth but it is hard to me to see how this is useful.
                       (clojure.core/range (count shape)))
         data (if data data (variable name :dtype "handle"))
         offset-factor 0
-        elem-offset (variable "_buf_offset" :dtype "uint64")]
+        elem-offset (variable "_buf_offset" :dtype "int32")]
     (c/global-node-function "_Buffer"
                             data dtype shape strides elem-offset name scope
                             data-alignment offset-factor)))

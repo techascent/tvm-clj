@@ -5,7 +5,10 @@
             [clojure.set :as c-set]
             [tvm-clj.base :as base]
             [tech.datatype.base :as dtype]
-            [potemkin :as p])
+            [potemkin :as p]
+            ;;Need stride calculations from here
+            [tech.compute.tensor.dimensions :as ct-dims]
+            )
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
             runtime$NodeHandle runtime$TVMModuleHandle runtime$DLTensor
             runtime$TVMStreamHandle]
@@ -106,12 +109,12 @@
     (runtime/TVMFuncFree tvm-fn))
   ArrayHandle
   (release-resource [tvm-dev-ar]
-    ;;Sub-buffers do not own their memory
-    (when-not (:owns-memory? tvm-dev-ar)
-      (let [^runtime$DLTensor jcpp-data (.tvm-jcpp-handle tvm-dev-ar)]
+    (let [^runtime$DLTensor jcpp-data (.tvm-jcpp-handle tvm-dev-ar)]
+      (.strides jcpp-data (LongPointer. ))
+      ;;Sub-buffers do not own their memory
+      (when-not (:owns-memory? tvm-dev-ar)
         (.data jcpp-data (Pointer.))
-        (.shape jcpp-data (LongPointer.))
-        (.strides jcpp-data (LongPointer. ))))
+        (.shape jcpp-data (LongPointer.))))
     (runtime/TVMArrayFree (.tvm-jcpp-handle tvm-dev-ar)))
   StreamHandle
   (release-resource [stream]
@@ -690,27 +693,30 @@ explicitly; it is done for you."
 (defn allocate-device-array
   [shape datatype device-type ^long device-id]
   (let [n-dims (count shape)
-        shape-data (long-array n-dims)
-        _ (dtype/copy-raw->item! shape shape-data 0)
+        shape-data (long-array shape)
         retval-ptr (PointerPointer. 1)
         {:keys [dtype-code dtype-bits dtype-lanes]}
         (datatype->tvm-datatype-data datatype)
         retval (runtime$DLTensor.)
         device-type-int (int (if (number? device-type)
                                device-type
-                               (device-type->device-type-int device-type)))]
+                               (device-type->device-type-int device-type)))
+        strides (resource/track
+                 (jcpp-dtype/make-pointer-of-type :int64 (ct-dims/extend-strides shape [])))]
     (check-call
      (runtime/TVMArrayAlloc shape-data (int n-dims) (int dtype-code)
                             (int dtype-bits) (int dtype-lanes)
                             device-type-int device-id retval-ptr))
     (.set ^Field jcpp-dtype/address-field retval (.address (.get retval-ptr 0)))
-    (resource/release retval-ptr)
-    (resource/track (merge (base/->ArrayHandle retval)
-                           {:shape shape
-                            :datatype datatype
-                            :device-type device-type
-                            :device-id device-id
-                            :owns-memory? true}))))
+    (let [^runtime$DLTensor retval (jcpp-dtype/set-pointer-limit-and-capacity retval 1)]
+      (.strides retval strides)
+      (resource/release retval-ptr)
+      (resource/track (merge (base/->ArrayHandle retval)
+                             {:shape shape
+                              :datatype datatype
+                              :device-type device-type
+                              :device-id device-id
+                              :owns-memory? true})))))
 
 
 (defn copy-to-array!
