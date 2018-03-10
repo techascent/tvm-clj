@@ -60,6 +60,12 @@
                                           stream))
     (apply tvm-core/call-function fn arg-list))
 
+  drv/PDeviceProvider
+  (get-device [_] device)
+
+  drv/PDriverProvider
+  (get-driver [_] (drv/get-driver device))
+
   resource/PResource
   (release-resource [_] ))
 

@@ -14,5 +14,11 @@
 
 
 
-(deftest assign-constant!
+(def-all-dtype-test assign-constant-cpu!
   (vt/assign-constant! (base/get-driver :cpu) *datatype*))
+
+(def-all-dtype-test assign-constant-cuda!
+  (vt/assign-constant! (base/get-driver :cuda) *datatype*))
+
+(def-all-dtype-test assign-constant-opencl!
+  (vt/assign-constant! (base/get-driver :opencl) *datatype*))

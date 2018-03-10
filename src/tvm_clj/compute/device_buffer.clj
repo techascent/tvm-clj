@@ -114,7 +114,8 @@
 
   drv/PBuffer
   (sub-buffer-impl [buffer offset length]
-    (let [base-ptr (device-buffer->ptr buffer)
+    (let [^runtime$DLTensor tvm-tensor (tvm-base/->tvm dev-ary)
+          base-ptr (.data tvm-tensor)
           datatype (dtype/get-datatype buffer)]
       (->DeviceBuffer device
                       (pointer->tvm-ary base-ptr
@@ -175,7 +176,8 @@
   "Get a javacpp pointer from a device buffer.  Throws if this isn't a cpu buffer"
   [^DeviceBuffer buffer]
   (when-not (is-cpu-device? (.device buffer))
-    (throw (ex-info "Can only get pointers from cpu device buffers")))
+    (throw (ex-info "Can only get pointers from cpu device buffers"
+                    {})))
   (tvm-ary->pointer (.dev-ary buffer) (mp/element-count buffer) (dtype/get-datatype buffer)))
 
 

@@ -132,4 +132,7 @@
 (extend-protocol tm/TensorMath
   CPUStream
   (assign-constant! [stream tensor value]
+    (assign-constant! stream tensor value))
+  GPUStream
+  (assign-constant! [stream tensor value]
     (assign-constant! stream tensor value)))
