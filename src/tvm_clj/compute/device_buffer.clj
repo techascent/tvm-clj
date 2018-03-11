@@ -130,8 +130,12 @@
     (hbuf/jcpp-pointer-alias? (tvm-ary->pointer dev-ary)
                               (:dev-ary rhs)))
   (partially-alias? [lhs rhs]
-    (hbuf/jcpp-pointer-partial-alias? (tvm-ary->pointer dev-ary)
-                                      (tvm-ary->pointer (:dev-ary rhs))))
+    (hbuf/jcpp-pointer-partial-alias? (tvm-ary->pointer dev-ary
+                                                        (mp/element-count lhs)
+                                                        (:datatype dev-ary))
+                                      (tvm-ary->pointer (:dev-ary rhs)
+                                                        (mp/element-count rhs)
+                                                        (:datatype dev-ary))))
 
   tvm-base/PToTVM
   (->tvm [item] dev-ary)

@@ -53,6 +53,8 @@
 
 (defprotocol PCompileModule
   (gpu-scheduling? [driver])
+  ;;https://github.com/dmlc/tvm/issues/984
+  (device-datatypes? [driver])
   (->module-impl [driver lowered-function-seq build-config]))
 
 (defn ->module

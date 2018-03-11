@@ -139,6 +139,7 @@
 
   tvm-comp-base/PCompileModule
   (gpu-scheduling? [driver] true)
+  (device-datatypes? [driver] true)
   (->module-impl [driver lowered-fn-seq build-config]
     (tvm-api/lowered-functions->module
      lowered-fn-seq build-config :target-name (tvm-core/device-type-int->device-type device-type))))

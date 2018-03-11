@@ -22,3 +22,13 @@
 
 (def-all-dtype-test assign-constant-opencl!
   (vt/assign-constant! (base/get-driver :opencl) *datatype*))
+
+
+(def-all-dtype-test assign-cpu!
+  (vt/assign-marshal (base/get-driver :cpu) *datatype*))
+
+(def-all-dtype-test assign-cuda!
+  (vt/assign-marshal (base/get-driver :cuda) *datatype*))
+
+(def-all-dtype-test assign-opencl!
+  (vt/assign-marshal (base/get-driver :opencl) *datatype*))

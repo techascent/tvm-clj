@@ -53,6 +53,12 @@
   (c/global-node-function "_const" numeric-value dtype))
 
 
+(defn static-cast
+  "Cast an item from one datatype to another"
+  [dtype expr-node]
+  (c/global-node-function "make.Cast" dtype expr-node))
+
+
 (def iteration-variable-types
   "Iteration variable types defined in tvm/include/Expr.h"
   {
@@ -204,9 +210,20 @@ is calling a halide function with the tensor's generating-op and value index."
           :halide (:op tensor) (:value_index tensor))))
 
 
-(defn add
-  [lhs rhs]
-  (c/global-node-function "make.Add" lhs rhs))
+(defmacro def-bin-op
+  "Define a binary operation"
+  [op-name make-name]
+  `(defn ~op-name
+     [lhs# rhs#]
+     (c/global-node-function ~make-name lhs# rhs#)))
+
+
+
+(def-bin-op add "make.Add")
+(def-bin-op mod "make.Mod")
+(def-bin-op mul "make.Mul")
+(def-bin-op div "make.Div")
+
 
 
 (defmacro tvm-fn

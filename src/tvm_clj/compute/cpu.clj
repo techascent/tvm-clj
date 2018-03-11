@@ -111,6 +111,7 @@
 
   tvm-comp-base/PCompileModule
   (gpu-scheduling? [driver] false)
+  (device-datatypes? [driver] false)
   (->module-impl [driver lowered-fn-seq build-config]
     (api/lowered-functions->module lowered-fn-seq build-config :target-name :llvm)))
 
