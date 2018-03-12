@@ -12,16 +12,18 @@ tvm leverages [Halide](http://halide-lang.org).  Halide takes algorithms structu
 
 ## Goals 
 
-1.  Learn about Halide and tvm and enable very clear and simple exploration of the system in clojure.
+1.  Learn about Halide and tvm and enable very clear and simple exploration of the system in clojure.  Make clojure a first class language in the dmlc ecosystem.
 1.  Provide the tvm team with clear feedback and a second external implementation or a language binding on top of the C-ABI.
-1.  Leverage lessons learned to enable a simple clojurescript binding to node.js ideally providing identical API and abstraction layer to the javascript ecosystem.
 1.  Encourage wider adoption and exploration in terms of numerical programming; for instance a new implementation of J that carries the properties of a clojure or clojurescript ecosystem but includes all of the major concepts of J.  This would enable running some subset of J (or APL) programs (or functions) that are now far more optimized mode than before and accessible from node.js or the jvm.  It would also inform the wider discussion on numeric programming languages such as MatLab, TensorFlow, numpy, etc.
+1.  Provide richer platform for binding to nnvm so that running existing networks via clojure is as seamless as possible.
 
 
 ## What, Concretely, Are You Talking About?
 
 
-[clojure examples](test/tvm_clj/api_test.clj)
+tvm exposes a directed graph along with a declarative scheduling system to build high performance numerical systems for n-dimensional data.  In the example below, we dynamically create a function to add 2 vectors then compile that function for a cpu and gpu backend.  Note that the major difference between the backends lies in the scheduling; not in the algorithm itself.
+
+[clojure example](test/tvm_clj/api_test.clj)
 
 
 ## Getting all the source
