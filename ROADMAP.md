@@ -1,3 +1,6 @@
+## Initial system for kernel combing
+* The tensors are right now designed to implement the operations discretely.  This is not, however, the most efficient way to use TVM at all.  The best by far is to combine all the kernels into one function, and in some cases to combine multiple kernels into each other.
+
 ## Implement TOPI bindings
 * TOPI is the tvm library of tested functions built via TVM.  It contains nontrivial functions to write yourself and hey, they are all right there.  This requires somehow compiling and loading the topi shared library along with definitions, documentation, and bindings for the functions in the library. 
  
