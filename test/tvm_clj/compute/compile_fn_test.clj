@@ -9,7 +9,7 @@
 Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   [input-tensor]
   ;;Move to bgr instead of rgb  Also drop alpha if exists in first place.
-  (-> (ct/select :all :all [2 1 0])
+  (-> (ct/select input-tensor :all :all [2 1 0])
       ;;transpose to channels first.
       (ct/transpose [2 0 1])
       ;;First actual operation that is compiled.
