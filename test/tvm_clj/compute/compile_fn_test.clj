@@ -9,12 +9,15 @@
             [tech.datatype.marshal :as marshal]
             [clojure.core.matrix.protocols :as mp]
             [tech.compute.tensor :as compute-tensor]
-            [tech.javacpp-datatype :as jcpp-dtype])
+            [tech.javacpp-datatype :as jcpp-dtype]
+            [clojure.core.matrix.macros :refer [c-for]])
   (:import [org.bytedeco.javacpp opencv_core
-            opencv_imgcodecs opencv_core$Mat]))
+            opencv_imgcodecs opencv_core$Mat]
+           [tech.datatype ByteArrayView]
+           ))
 
-(def img-width 512)
-(def img-height 512)
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
 
 
 (defn convert-bgr-bytes-to-floats
@@ -26,8 +29,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
       ;;transpose to channels first.
       (ct/transpose [2 0 1])
       ;;First actual operation that is compiled.
-      (ct/static-cast :float32)
       ;;Rest of the work.  These should all get rolled into assignment step above.
+      (ct/static-cast :float32)
       (ct/div 255)
       (ct/sub 0.5)))
 
@@ -41,6 +44,33 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
     (-> (compute-tensor/assign! retval input-tensor)
         (compute-tensor/binary-op! 1.0 retval 1.0 255.0 :/)
         (compute-tensor/binary-op! 1.0 retval 1.0 0.5 :-))))
+
+
+(defn convert-bgr-bytes-to-floats-by-hand
+  [input-tensor]
+  (let [^bytes ary-data (.data ^ByteArrayView (:buffer input-tensor))
+        [height width n-channels] (ct/shape input-tensor)
+        height (long height)
+        width (long width)
+        n-channels (long n-channels)
+        n-elems (long (* height width 3))
+        retval (float-array (* 3 height width))]
+    (c-for [idx 0 (< idx n-elems) (inc idx)]
+           (let [pixel (quot idx n-channels)
+                 channel (rem idx n-channels)
+                 x-pos (rem pixel width)
+                 y-pos (quot pixel width)
+                 dest-channel-stride (* x-pos y-pos)]
+             (when (< channel 3)
+               (aset retval (+ pixel
+                               (* (- 2 channel) dest-channel-stride))
+                     (float (- (/ (aget ary-data idx)
+                                  255.0)
+                               0.5))))))
+    (compute-tensor/->Tensor (:device input-tensor)
+                             {:shape [3 height width]
+                              :strides [(* height width) width 1]}
+                             (dtype/->view retval))))
 
 
 (defn convert-floats-to-bgr-bytes
@@ -57,10 +87,10 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
       (ct/static-cast :uint8)))
 
 
-(defn take-20-values
-  [input-tensor]
-  (-> (compute-tensor/as-vector input-tensor)
-      (compute-tensor/select (range 20))
+(defn tensor-take
+  [n tensor]
+  (-> (compute-tensor/as-vector tensor)
+      (compute-tensor/select (range n))
       (compute-tensor/to-double-array)
       vec))
 
