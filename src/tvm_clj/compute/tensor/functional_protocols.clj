@@ -2,6 +2,7 @@
 
 
 (defprotocol PFunctionalBackend
-  (select [stream item dtype])
-  (static-cast [stream item dtype])
-  (binary-op [stream lhs rhs op]))
+  (select [stream item args])
+  (transpose [stream item reorder-vec])
+  (static-cast [stream item dtype dest-shape])
+  (binary-op [stream lhs rhs op dest-shape]))

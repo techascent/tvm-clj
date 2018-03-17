@@ -26,24 +26,32 @@
 
 
 (defn transpose
-  [item & args]
-  (apply ct/transpose item args))
+  [item reorder-vec]
+  (fnp/transpose ct/*stream* item reorder-vec))
 
 
 (defn static-cast
-  [item new-dt]
-  (fnp/static-cast ct/*stream* item new-dt))
+  [item new-dt & {:keys [dest-shape]}]
+  (fnp/static-cast ct/*stream* item new-dt (or dest-shape (mp/get-shape item))))
 
 
 (defn binary-op
-  [lhs rhs op]
-  (fnp/binary-op ct/*stream* lhs rhs op))
+  [lhs rhs op dest-shape]
+  (fnp/binary-op ct/*stream* lhs rhs op (or dest-shape (mp/get-shape lhs))))
 
 (defmacro define-binary-op
   [fn-name op]
-  `(defn ~fn-name
-     [lhs# rhs#]
-     (binary-op lhs# rhs# ~op)))
+  (let [fn-name-r (symbol (str (name fn-name) "-r"))
+        dest-shape (symbol "dest-shape")
+        lhs (symbol "lhs")
+        rhs (symbol "rhs")]
+    `(do
+       (defn ~fn-name
+         [~lhs ~rhs & {:keys [~dest-shape]}]
+         (binary-op ~lhs ~rhs ~op ~dest-shape))
+       (defn ~fn-name-r
+         [~rhs ~lhs & {:keys [~dest-shape]}]
+         (binary-op ~lhs ~rhs ~op ~dest-shape)))))
 
 
 (define-binary-op add :+)

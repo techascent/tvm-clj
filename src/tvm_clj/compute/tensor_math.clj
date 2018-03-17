@@ -138,6 +138,14 @@
                (y-dim-tvm-fn n-dims compute-fn)))
 
 
+(defn n-dims->shape-stride-tuples
+  [n-dims arg-name]
+  (->> (range n-dims)
+       (mapv (fn [idx]
+               [(api/variable (str arg-name "_shape_" idx) :dtype "int32")
+                (api/variable (str arg-name "_stride_" idx) :dtype "int32")]))))
+
+
 (defn tensor-read-placeholder
   [tensor]
   (api/placeholder [(api/variable "_tens_ecount")] :dtype (name (ct/get-datatype tensor))))
@@ -151,10 +159,7 @@
                      :read-tensor-n-dims (count (ct/shape tensor))})))
 
   {:placeholder (tensor-read-placeholder tensor)
-   :shape-stride-tuples (->> (range n-dims)
-                                    (mapv (fn [idx]
-                                            [(api/variable (str arg-name "_shape_" idx) :dtype "int32")
-                                             (api/variable (str arg-name "_stride_" idx) :dtype "int32")])))})
+   :shape-stride-tuples (n-dims->shape-stride-tuples n-dims)})
 
 
 (defn tensor-read

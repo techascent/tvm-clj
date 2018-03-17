@@ -27,13 +27,16 @@
                                     :strides [1]}
                                    (dtype-core/->view (int-array arg))))))
                 args)))
-  (static-cast [stream item dtype]
-    (let [retval (ct/new-tensor (ct/shape item) :datatype dtype :init-value nil)]
+  (transpose [stream item reorder-vec]
+    (ct/transpose item reorder-vec))
+
+  (static-cast [stream item dtype dest-shape]
+    (let [retval (ct/new-tensor dest-shape :datatype dtype :init-value nil)]
       (ct/assign! retval item)
       retval))
 
-  (binary-op [stream lhs rhs op]
-    (let [retval (ct/new-tensor (ct/shape lhs)
+  (binary-op [stream lhs rhs op dest-shape]
+    (let [retval (ct/new-tensor dest-shape
                                 :datatype (ct/get-datatype lhs)
                                 :init-value nil)]
       (ct/binary-op! retval 1.0 lhs 1.0 rhs op)
