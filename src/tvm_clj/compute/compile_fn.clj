@@ -52,9 +52,11 @@
 
 
 (def ^:dynamic *preamble* (atom []))
-;;compile-time->runtime map
-(def ^:dynamic *runtime-tensors* (atom {}))
-(def ^:dynamic *shape-stride-map* (atom {}))
+;;Map of compile-time tensors to runtime tensors during runtime
+(def ^:dynamic *runtime-variables* (atom {}))
+;;Map of compile-time tensors to compile-time information
+(def ^:dynamic *compile-bindings* (atom {}))
+(def ^:dynamic *function-call* (atom []))
 (def ^:dynamic *id* (atom 0))
 
 (defn append-preamble-fn!
@@ -69,20 +71,72 @@
   [argname]
   (assoc argname :id (next-id!)))
 
+(defn increment-argname
+  [argname]
+  (assoc argname :idx (next-id!)))
+
+(defn argname->str
+  [argname]
+  (str (:name argname) "_" (:idx argname)))
+
 (defn store-fn-result!
   [{arg-key :argname} arg-val]
-  (swap! *runtime-tensors* assoc arg-key arg-val))
+  (swap! *runtime-variables* assoc-in [arg-key :tensor] arg-val))
 
 (defn find-fn-arg
   [{arg-key :argname}]
-  (if-let [arg-val (get @*runtime-tensors* arg-key)]
+  (if-let [arg-val (get-in @*runtime-variables* [arg-key :tensor])]
     arg-val
     (throw (ex-info "Failed to find argument for key:" {:arg-key arg-key}))))
 
 
-(defn increment-argname
-  [argname]
-  (assoc argname :idx (next-id!)))
+(defn get-or-create-shape-strides-buffer
+  "Generate a flat-bound buffer and shape strides and
+push everything into the function call.
+Returns map of
+{:binding tensor
+ :shape-strides shape-stride-tuples
+}"
+  [{:keys [argname] :as tensor}]
+  (if-let [bindings (get-in @*compile-bindings* [argname :flat-bindings])]
+    bindings
+    (let [compile-shape (mp/get-shape tensor)
+          n-dims (count compile-shape)
+          {:keys [placeholder shape-stride-tuples]} (tm/tensor-read-dims->vars tensor)
+          retval {:placeholder placeholder
+                  :shape-stride-tuples shape-stride-tuples}]
+      ;;Add these arguments to the function call
+      (swap! *function-call* conj {:compile-list (concat [placeholder]
+                                                         (map first shape-stride-tuples)
+                                                         (map second shape-stride-tuples))
+                                   :runtime-list #(tm/explode-read-tensor (find-fn-arg tensor) %)})
+      ;;Make sure we do not re-generate these arguments
+      (swap! *compile-bindings* assoc-in [argname :flat-bindings] retval)
+      retval)))
+
+
+(defn valid-tvm-shape?
+  [shape]
+  (->> shape
+       ;;TVM does not support arbitrary lists of indexes as a shape.
+       (remove #(or (= :all %)
+                    (number? %)))
+       nil?))
+
+
+(defn get-or-create-tensor-buffer
+  "Generate a bound buffer using the bind-tensor's settings for byte-offset and stride but
+tvm's shape and stride system."
+  [{:keys [argname] :as tensor}]
+  (if-let [bindings (get-in @*compile-bindings* [argname :full-bindings])]
+    bindings
+    (let [compile-shape (mp/get-shape tensor)]
+      (when-not (valid-tvm-shape? compile-shape)
+        (throw (ex-info "Shape is not a valid tvm shape"
+                        {:shape compile-shape}))))
+    )
+  )
+
 
 (defn preamble-operation
   [item result preamble-fn]
