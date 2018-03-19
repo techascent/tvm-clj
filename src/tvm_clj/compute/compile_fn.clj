@@ -13,7 +13,7 @@
             [tvm-clj.compute.tensor-math :as tm]))
 
 
-(defrecord BindTensor [dimensions dense? byte-offset? datatype argname]
+(defrecord BindTensor [dimensions strides? byte-offset? datatype argname]
   dtype/PDatatype
   (get-datatype [this] datatype)
 
@@ -32,13 +32,13 @@
 
 
 (defn bind-tensor
-  [n-dims argname & {:keys [dense? byte-offset? datatype]
-                     :or {dense? true byte-offset? false datatype ct/*datatype*
+  [n-dims argname & {:keys [strides? byte-offset? datatype]
+                     :or {strides? true byte-offset? false datatype ct/*datatype*
                           }}]
   (->BindTensor {:shape (vec (repeat n-dims :all))
                  :index-order (ct-dims/reversev (range n-dims))}
-                dense? byte-offset? datatype {:name argname
-                                              :idx 0}))
+                strides? byte-offset? datatype {:name argname
+                                               :idx 0}))
 
 
 (defn valid-select-arg?
@@ -92,16 +92,17 @@
 
 (defn get-or-create-shape-strides-buffer
   "Generate a flat-bound buffer and shape strides and
-push everything into the function call.
+push everything into the function call.  This is used if we want to use a custom striding
+algorithm such as broadcasting or when there is an index vector (constant or dynamic).
 Returns map of
-{:binding tensor
- :shape-strides shape-stride-tuples
+{:placeholder tensor
+ :shape-stride-tuples [[shape-var stride-var][shape-var stride-var]]
 }"
-  [{:keys [argname] :as tensor}]
+  [{:keys [argname] :as tensor} n-max-shape-dims]
   (if-let [bindings (get-in @*compile-bindings* [argname :flat-bindings])]
     bindings
     (let [compile-shape (mp/get-shape tensor)
-          n-dims (count compile-shape)
+          n-dims (long n-max-shape-dims)
           {:keys [placeholder shape-stride-tuples]} (tm/tensor-read-dims->vars tensor)
           retval {:placeholder placeholder
                   :shape-stride-tuples shape-stride-tuples}]
@@ -109,7 +110,14 @@ Returns map of
       (swap! *function-call* conj {:compile-list (concat [placeholder]
                                                          (map first shape-stride-tuples)
                                                          (map second shape-stride-tuples))
-                                   :runtime-list #(tm/explode-read-tensor (find-fn-arg tensor) %)})
+                                   :bind-map #(vector placeholder (api/declare-buffer
+                                                                   (:shape placeholder)
+                                                                   :dtype (name (dtype/get-datatype tensor))
+                                                                   :name (argname->str argname)
+                                                                   :elem-offset (if (:byte-offset? tensor)
+                                                                                  (api/variable "_elem_offset")
+                                                                                  nil)))
+                                   :runtime-list #(tm/explode-read-tensor (find-fn-arg tensor) n-dims)})
       ;;Make sure we do not re-generate these arguments
       (swap! *compile-bindings* assoc-in [argname :flat-bindings] retval)
       retval)))
@@ -124,18 +132,49 @@ Returns map of
        nil?))
 
 
+(defn extend-runtime-tensor-shape
+  [tensor n-dims]
+  (let [tens-shape (tm/left-pad-ones (get-in tensor [:dimensions :shape]) n-dims)]
+    (assoc tensor
+           :dimensions {:shape tens-shape
+                        :strides (ct-dims/extend-strides tens-shape
+                                                         (get-in tensor [:dimensions :strides]))})))
+
+
 (defn get-or-create-tensor-buffer
   "Generate a bound buffer using the bind-tensor's settings for byte-offset and stride but
-tvm's shape and stride system."
-  [{:keys [argname] :as tensor}]
+  tvm's shape and stride system.  Implies no broadcasting nor index vector."
+  [{:keys [argname] :as tensor} n-max-shape-dims]
   (if-let [bindings (get-in @*compile-bindings* [argname :full-bindings])]
     bindings
     (let [compile-shape (mp/get-shape tensor)]
       (when-not (valid-tvm-shape? compile-shape)
         (throw (ex-info "Shape is not a valid tvm shape"
-                        {:shape compile-shape}))))
-    )
-  )
+                        {:shape compile-shape})))
+      (let [n-dims (long n-max-shape-dims)
+            shape-vars (->> (range n-dims)
+                            (mapv (fn [idx]
+                                    (api/variable (str (argname->str argname) "_shape_" idx :dtype "int32")))))
+            placeholder (api/placeholder shape-vars :dtype (name (dtype/get-datatype tensor)) :name (argname->str argname))]
+        (swap! *function-call* conj {:compile-list [placeholder]
+                                     :bind-map #(vector placeholder (api/declare-buffer
+                                                                     (:shape placeholder)
+                                                                     :dtype (name (dtype/get-datatype tensor))
+                                                                     :name (argname->str argname)
+                                                                     :strides (if (:sparse? tensor)
+                                                                                (mapv (fn [idx]
+                                                                                        (api/variable (str "_stride_" idx)
+                                                                                                      :dtype "int32"))
+                                                                                      (clojure.core/range n-max-shape-dims))
+                                                                                nil)
+                                                                     :elem-offset (if (:byte-offset? tensor)
+                                                                                    (api/variable "_elem_offset")
+                                                                                    nil)))
+                                     :runtime-list #(-> (find-fn-arg tensor)
+                                                        (extend-runtime-tensor-shape n-dims)
+                                                        (assoc :sparse? (:sparse? tensor)))})
+        (swap! *compile-bindings* assoc-in [argname :full-bindings] placeholder)
+        placeholder))))
 
 
 (defn preamble-operation
@@ -213,19 +252,46 @@ Runtime item is a tvm tensor.  Args are the arguments to select."
        boolean))
 
 
-(defn argname->str
-  [{:keys [name idx]}]
-  (str name "_" idx))
+(defn valid-dest-shape?
+  "Shapes used for destination shapes must be full specified; meaning all integer constants.
+They cannot be :all or [1 2 3 5]"
+  [dest-shape]
+  (every? number? dest-shape))
 
 
-(defn get-or-create-shape-strides
-  [tensor]
-  (if-let [retval (get @*shape-stride-map* (:argname tensor))]
-    retval
-    (let [retval (tm/n-dims->shape-stride-tuples (count (mp/get-shape tensor))
-                                                 (argname->str (:argname tensor)))]
-      (swap! *shape-stride-map* assoc (:argname tensor) retval)
-      retval)))
+(defn ensure-valid-dest-shape
+  [dest-shape]
+  (when-not (or (nil? dest-shape) (valid-dest-shape? dest-shape))
+    (throw (ex-info "Destination shape is invalid"
+                    {:dest-shape dest-shape})))
+  dest-shape)
+
+
+(defn arg-shape->result-shape
+  "Convert any sequential lists to integers"
+  [arg-shape]
+  (mapv (fn [shape-item]
+          (if (vector? shape-item)
+            (count shape-item)
+            shape-item))
+        arg-shape))
+
+
+(defn ensure-tvm-shape
+  [dimensions]
+  (update dimensions :tvm-shape
+          (fn [tvm-shape]
+            (if tvm-shape
+              tvm-shape
+              (mapv (fn [shape-item]
+                      (cond
+                        (number? shape-item)
+                        (api/const (int shape-item))
+                        (= :all shape-item)
+                        (api/variable "shape_var" :dtype "int32")
+                        :else
+                        (throw (ex-info "Failed to map shape data"
+                                        {:shape-arg shape-item})))))))))
 
 
 (defrecord CompileStream [^long device-type]
@@ -265,7 +331,7 @@ Runtime item is a tvm tensor.  Args are the arguments to select."
                  ;;algorithm not necessary at this time.
                  :byte-offset? (boolean (or (:byte-offset item)
                                             (select-arg-imply-byte-offset? args)))
-                 :dense? false))
+                 :strides? true))
          #(runtime-select % args)))))
 
   (transpose [stream item reorder-vec]
@@ -282,26 +348,26 @@ Runtime item is a tvm tensor.  Args are the arguments to select."
         (assoc item
                :dimensions {:shape (mapv #(get item-shape %) reorder-vec)
                             :index-order (mapv #(get item-indexes %) reorder-vec)}
-               :dense? false))
+               :strides? true))
        #(ct/transpose % reorder-vec))))
 
   (static-cast [stream item dtype dest-shape]
-    (let [n-dims (count (mp/get-shape item))
-          dst-shape-vars (->> (range n-dims)
-                              (mapv (fn [idx]
-                                      (api/variable (str "dest_shape_" idx) :dtype "int32"))))
-          item-tensor (:tensor item)
-          item-shape-stride-tuples (get-or-create-shape-strides item)
-          compute-op (tm/n-dim-compute-op
-                      n-dims
-                      (fn [index-vars]
-                        (api/static-cast
-                         (name dtype)
-                         (tensor-read item-tensor index-vars
-                                      item-shape-stride-tuples (mp/get-shape item))
-                         )))
+    (let [result-dimensions (ensure-tvm-shape
+                             (if (ensure-valid-dest-shape dest-shape)
+                               {:shape dest-shape
+                                :tvm-shape (mapv #(api/const (int %)) dest-shape)}
+                               {:shape (arg-shape->result-shape (mp/get-shape item))
+                                :tvm-shape (get-in item [:dimensions :tvm-shape])}))
+          compute-op (api/compute (:tvm-shape result-dimensions)
+                                  (tm/y-dim-tvm-fn
+                                   (count (:shape result-dimensions))
+                                   (fn [index-vars]
+                                     (api/static-cast
+                                      (name dtype)
+                                      (tensor-read item index-vars
+                                                   item-shape-stride-tuples (mp/get-shape item))))))
           result (first (api/output-tensors compute-op))]
-      (assoc (bind-tensor n-dims (increment-argname (:argname item)) :datatype dtype)
+      (assoc (->BindTensor result-dimensions false false dtype (increment-argname (:argname item)))
              :tensor result)))
 
   (binary-op [stream lhs rhs op dest-shape]))
