@@ -44,7 +44,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                   (compiler/make-variable :image-channels)
                   (compiler/make-tensor-and-buffer :input [:image-height :image-width :image-channels] :dtype :uint8))
         input-tensor (compiler/get-tensor graph :input)]
-    (compiler/compile-fn convert-bgr-bytes-to-floats graph input-tensor)))
+    (compiler/input-fn->graph convert-bgr-bytes-to-floats graph input-tensor)))
 
 
 (defn convert-bgr-bytes-to-floats-non-functional

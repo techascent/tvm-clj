@@ -28,6 +28,10 @@
 (defn- edges->map
   [graph key-fn val-fn]
   (->> (edges graph)
+       (mapcat (fn [edge]
+                 (for [in (:input edge)
+                       out (:output edge)]
+                   [in out])))
        (group-by key-fn)
        (map (fn [[k v]]
               [k (map val-fn v)]))
@@ -44,6 +48,20 @@
   (edges->map graph second first))
 
 
+(defn roots
+  [graph]
+  (let [p->c (parent->child-map graph)]
+    (c-set/difference (set (keys p->c))
+                      (set (apply concat (vals p->c))))))
+
+
+(defn leaves
+  [graph]
+  (let [c->p (child->parent-map graph)]
+    (c-set/difference (set (keys c->p))
+                      (set (apply concat (vals c->p))))))
+
+
 (defn get-node
   [graph node-id]
   (let [retval (get-in graph [:nodes node-id])]
@@ -52,6 +70,7 @@
       {:node-id node-id
        :nodes (keys (get graph :nodes))})
     retval))
+
 
 (defn generate-id
   [id-stem id-set]
@@ -113,6 +132,7 @@
   (add-node graph {:type :variable
                    :dtype dtype
                    :id varname}))
+
 
 (defn variable?
   [graph id]
@@ -351,7 +371,7 @@ apply it to the graph atom and return the new node id."
     (let [item-shape (vec (get-in item [:dimensions :shape]))
           new-shape (mapv item-shape reorder-vec)
           retval (generate-derived-node! *graph (assoc-in item [:dimensions :shape] new-shape))]
-      (add-edge! *graph :tranpose [item reorder-vec] [retval])
+      (add-edge! *graph :transpose [item reorder-vec] [retval])
       retval))
 
   (static-cast [stream item dtype dest-shape]
@@ -378,10 +398,37 @@ apply it to the graph atom and return the new node id."
 
 
 
-(defn compile-fn
+(defn input-fn->graph
   [input-fn graph & input-fn-args]
   (let [*graph (atom graph)
         compile-stream (->CompileStream *graph)]
     (ct/with-stream compile-stream
       (apply input-fn input-fn-args))
     @*graph))
+
+
+(defmulti edge-metadata
+  "Return a map of metadata that describes an edge"
+  :type)
+
+
+(defmethod edge-metadata :select [edge] {:location :host})
+(defmethod edge-metadata :transpose [edge] {:location :host})
+(defmethod edge-metadata :static-cast [edge] {:location :device :operation :element-wise})
+(defmethod edge-metadata :binary-op [edge] {:location :device :operation :element-wise})
+
+
+(defn graph->host-device-graphs
+  "Given a graph, split it into host and device graphs"
+  [graph]
+  (let [location-detector (comp #{:host} :location edge-metadata)
+        host-edges (->> (edges graph)
+                        (filter location-detector))
+        device-edges (->> (edges graph)
+                          (remove location-detector))]
+    ;;Use edges to build new graphs with everything (including variables).
+    ;;Use host edges to build preamble and record what is going on.
+    ;;Use device edges to combine & build final function.  Can combine
+    ;;always contiguous elementwise operations
+    ;;TODO investigate reshape & such in middle of function.
+    [host-edges device-edges]))
