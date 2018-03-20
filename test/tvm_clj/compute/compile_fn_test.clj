@@ -10,7 +10,8 @@
             [clojure.core.matrix.protocols :as mp]
             [tech.compute.tensor :as compute-tensor]
             [tech.javacpp-datatype :as jcpp-dtype]
-            [clojure.core.matrix.macros :refer [c-for]])
+            [clojure.core.matrix.macros :refer [c-for]]
+            [tvm-clj.compute.compile-fn :as compiler])
   (:import [org.bytedeco.javacpp opencv_core
             opencv_imgcodecs opencv_core$Mat]
            [tech.datatype ByteArrayView]
@@ -33,6 +34,17 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
       (ct/static-cast :float32)
       (ct/div 255)
       (ct/sub 0.5)))
+
+
+(defn compile-bgr-bytes
+  []
+  (let [graph (-> (compiler/compute-graph)
+                  (compiler/make-variable :image-width)
+                  (compiler/make-variable :image-height)
+                  (compiler/make-variable :image-channels)
+                  (compiler/make-tensor-and-buffer :input [:image-height :image-width :image-channels] :dtype :uint8))
+        input-tensor (compiler/get-tensor graph :input)]
+    (compiler/compile-fn convert-bgr-bytes-to-floats graph input-tensor)))
 
 
 (defn convert-bgr-bytes-to-floats-non-functional

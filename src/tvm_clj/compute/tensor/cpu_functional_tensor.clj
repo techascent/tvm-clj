@@ -5,7 +5,8 @@
             [tech.compute.cpu.tensor-math]
             [tech.datatype.core :as dtype-core]
             [tech.compute.driver :as drv])
-  (:import [tech.compute.cpu.driver CPUStream]))
+  (:import [tech.compute.cpu.driver CPUStream]
+           [tech.compute.tensor Tensor]))
 
 
 
@@ -31,13 +32,17 @@
     (ct/transpose item reorder-vec))
 
   (static-cast [stream item dtype dest-shape]
-    (let [retval (ct/new-tensor dest-shape :datatype dtype :init-value nil)]
+    (let [retval (ct/new-tensor (or dest-shape (ct/shape item))
+                                :datatype dtype :init-value nil)]
       (ct/assign! retval item)
       retval))
 
   (binary-op [stream lhs rhs op dest-shape]
-    (let [retval (ct/new-tensor dest-shape
-                                :datatype (ct/get-datatype lhs)
+    (let [primary-tensor (->> (filter #(instance? Tensor %) [lhs rhs])
+                              first)
+          res-shape (or dest-shape (ct/shape primary-tensor))
+          retval (ct/new-tensor dest-shape
+                                :datatype (ct/get-datatype primary-tensor)
                                 :init-value nil)]
       (ct/binary-op! retval 1.0 lhs 1.0 rhs op)
       retval)))
