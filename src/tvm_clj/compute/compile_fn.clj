@@ -271,14 +271,13 @@
 
 (defn apply-sequence-to-shape-item
   [select-arg shape-item]
-  (let [new-sequence
-        (cond
-          (keyword? shape-item) select-arg
-          (number? shape-item) (check-sequence-max select-arg shape-item)
-          (sequential? shape-item) (let [select-arg (check-sequence-max select-arg (count shape-item))]
-                                     (mapv (vec shape-item) select-arg))
-          :else (throw (ex-info "Unrecognized shape value type"
-                                {:shape-value shape-item})))]))
+  (cond
+    (keyword? shape-item) select-arg
+    (number? shape-item) (check-sequence-max select-arg shape-item)
+    (sequential? shape-item) (let [select-arg (check-sequence-max select-arg (count shape-item))]
+                               (mapv (vec shape-item) select-arg))
+    :else (throw (ex-info "Unrecognized shape value type"
+                          {:shape-value shape-item}))))
 
 
 (defn check-value-max
@@ -359,6 +358,7 @@ apply it to the graph atom and return the new node id."
                            (not (ct-dims/monotonically-increasing? (last new-item-shape))))
           ;;Reduce monotonically increasing sequences to just numbers as this will be the result of the runtime select.
           ;;We can't do this earlier else we cannot decifer if the buffer has a byte offset or not.
+          _ (println new-item-shape)
           new-item-shape (mapv (fn [shape-item]
                                  (if (and (sequential? shape-item)
                                           (ct-dims/monotonically-increasing? shape-item))
@@ -510,16 +510,16 @@ the same result bounds."
             [(->> (map (fn [index-var ;; int32
                             shape-var ;; int32
                             stride-var ;; int32
-                            compile-shape-entry ;;number, sequence, keyword
+                            shape-entry ;;number, sequence, keyword
                             ]
-                         (let [index-var (if (and (sequential? compile-time-shape)
+                         (let [index-var (if (and (sequential? shape-entry)
                                                   ;;If the sequence *is* monotonically increasing then whatever select produced
                                                   ;;them will be valid.  The only time we have a compile time mapping
                                                   ;;is if the sequence is *not* monotonically increasing.
-                                                  (not (ct-dims/monotonically-increasing? compile-time-shape)))
+                                                  (not (ct-dims/monotonically-increasing? shape-entry)))
                                            ;;ugghhh.  Build a large if-else lookup table and hope the compiler can build
                                            ;;a decent lookup table.
-                                           (->> (map-indexed vector compile-time-shape)
+                                           (->> (map-indexed vector shape-entry)
                                                 (reduce (fn [table [idx number]]
                                                           (api/if-then-else
                                                            (api/eq index-var (api/const (long idx) :dtype "int32"))
@@ -528,14 +528,15 @@ the same result bounds."
                                                         index-var))
                                            index-var)]
                            (api/mul stride-var
-                                    (api/mod index-var shape-var)))))
+                                    (api/mod index-var shape-var))))
+                       index-vars shape-vars stride-vars compile-time-shape)
                   (reduce api/add))]))
 
 
 (defn read-var
   [var res-dtype variable-map index-vars]
   (if (number? var)
-    (api/const (tens-utils/dtype-cast res-dtype :dtype (name res-dtype)))
+    (api/const (tens-utils/dtype-cast var res-dtype))
     (let [read-op (get-in variable-map [(:id var) :read-operation])]
       (read-op index-vars))))
 
@@ -556,7 +557,7 @@ Dispatch on edge type."
 (defmethod tvm-eltwise-binding :static-cast
   [variable-map graph index-vars edge]
   (let [[item dtype _] (:args edge)]
-    (api/static-cast (name (dtype edge)) (read-var item dtype variable-map index-vars))))
+    (api/static-cast (name dtype) (read-var item dtype variable-map index-vars))))
 
 
 (defmethod tvm-eltwise-binding :binary-op
@@ -685,13 +686,14 @@ Dispatch on edge type."
                       (let [variable-map (reduce (fn [variable-map edge]
                                                    (let [output-id (first (:output edge))]
                                                      (assoc-in variable-map [output-id :read-operation]
-                                                               (tvm-eltwise-binding variable-map operation-graph
-                                                                                    index-vars edge))))
+                                                               (constantly
+                                                                (tvm-eltwise-binding variable-map operation-graph
+                                                                                     index-vars edge)))))
                                           variable-map
                                           (:edges operation-graph))
                             last-output-op (get-in variable-map [output-id :read-operation])]
                         (last-output-op index-vars))))
-        output-node (get-tensor operation-graph last-edge)
+        output-node (get-tensor operation-graph output-id)
         output-node-buffer (get-buffer operation-graph (:bufname output-node))
         output-tensor (first (api/output-tensors compute-op))
         variable-map (assoc variable-map output-id
@@ -710,8 +712,70 @@ Dispatch on edge type."
                                       (map #(vector (:tensor %) (:bind-buffer %)))
                                       (into {}))
                        :declaration-bind-list (vec (mapcat :declaration-bind-list var-map-values))
-                       :callsitte-bind-list-fn #(fn [runtime-var-map]
+                       :callsite-bind-list-fn #(fn [runtime-var-map]
                                                   (->> var-map-values
                                                        (mapcat (fn [{:keys [node-id callsite-bind-list-fn]}]
                                                                  (callsite-bind-list-fn (get var-map-values node-id))))
                                                        vec))})))
+
+
+(defn compile-fn
+  "Produce a compiled function that has the actual function to be called
+and a description of the arguments to the function."
+  [driver initial-graph input-fn & args]
+  (let [fn-graph (apply input-fn->graph input-fn initial-graph args)
+        {:keys [host-graph device-graph]} (graph->host-device-graphs fn-graph)
+        device-op-graphs (->> (partition-device-graph-into-operations device-graph)
+                              (map-indexed vector))
+        total-input-list (c-set/union (set (roots fn-graph))
+                                      (set (leaves fn-graph))
+                                      ;;Because select,transpose,reshap happen on the host, if there is a select operation
+                                      ;;on a piece of data that data buffer has to 'pop' out of the device graphs.
+                                      ;;Else the device graphs can communicate tensor buffers to each other.
+                                      (set (filter (set (roots host-graph))
+                                                   (mapcat leaves device-op-graphs))))
+        compiled-functions (->> device-op-graphs
+                                (map (fn [[idx device-op-graph]]
+                                       (let [compiled-graph (create-tvm-operation device-op-graph)
+                                             operation (:operation compiled-graph)
+                                             op-schedule (condp = (:type operation)
+                                                           :injective (comp-b/schedule-injective driver operation))]
+                                         (api/schedule->lowered-function op-schedule
+                                                                         (:declaration-bind-list device-op-graph)
+                                                                         api/default-build-config
+                                                                         :name (str "fn_" idx)
+                                                                         :bind-map (:bind-map operation))))))
+        module (comp-b/->module driver compiled-functions)
+        call-functions (->> device-op-graphs
+                            (map (fn [[idx device-op-graph]]
+                                   (assoc device-op-graph
+                                          :operation
+                                          {:fn (c/get-module-function module (str "fn_" idx))
+                                           :callsite-bind-list-fn (get-in device-op-graph
+                                                                          [:operation :callsite-bind-list-fn])}))))
+        final-fn (fn [arg-map]
+                   (when-not-error (every? #(contains? arg-map %) total-input-list)
+                     "Argmap does not include required argument"
+                     {:argmap-keys (keys arg-map)
+                      :required-args total-input-list})
+                   (let [dev-argmap (->> (:edges host-graph)
+                                         (reduce (fn [arg-map edge]
+                                                   (host-perform-edge arg-map host-graph edge))
+                                                 arg-map))]
+                     (->> call-functions
+                          (map (fn [op-graph]
+                                 (let [tvm-fn (get-in op-graph [:operation fn])
+                                       callsite-binders (get-in op-graph [:operation :callsite-bind-list-fn])]
+                                   (apply c/call-function tvm-fn (callsite-binders dev-argmap)))))
+                          dorun)
+                     nil))]
+
+
+
+    {:required-arguments (->> total-input-list
+                              (mapv (fn [id]
+                                      (let [tens (get-tensor fn-graph id)]
+                                        {:id id
+                                         :datatype (dtype/get-datatype tens)
+                                         :shape (mp/get-shape tens)}))))
+     :fn final-fn}))
