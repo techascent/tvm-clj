@@ -426,9 +426,90 @@ apply it to the graph atom and return the new node id."
                         (filter location-detector))
         device-edges (->> (edges graph)
                           (remove location-detector))]
-    ;;Use edges to build new graphs with everything (including variables).
-    ;;Use host edges to build preamble and record what is going on.
-    ;;Use device edges to combine & build final function.  Can combine
-    ;;always contiguous elementwise operations
-    ;;TODO investigate reshape & such in middle of function.
-    [host-edges device-edges]))
+    {:host-graph (assoc graph :edges host-edges)
+     :device-graph (assoc graph :edges device-edges)}))
+
+
+(defn can-combine-edge?
+  [prev-edge next-edge]
+  (and (= (:output prev-edge)
+          (:input next-edge))
+       (= (:operation (edge-metadata prev-edge))
+          (:operation (edge-metadata next-edge)))))
+
+
+(defn partition-device-graph-into-operations
+  "Given a device graph partition the graph into different operations;
+operations can be reductive, element-wise, or scanning.
+Operations can be combined if the have data dependencies and operate over
+the same result bounds."
+  [device-graph]
+  (let [edge-lists (->> (:edges device-graph)
+                        (reduce (fn [edge-lists next-edge]
+                                  (if-let [valid-edge-list-idx (->> (map-indexed vector edge-lists)
+                                                                    (filter #(can-combine-edge? (last (second %)) next-edge))
+                                                                    ffirst)]
+                                    (assoc edge-lists valid-edge-list-idx (conj (get edge-lists valid-edge-list-idx) next-edge))
+                                    (conj edge-lists [next-edge])))
+                                []))]
+    (mapv #(assoc device-graph :edges %) edge-lists)))
+
+
+(defn graph->read-operations
+  [operation-graph]
+  (let [leaf (get-tensor operation-graph (first (leaves operation-graph)))
+        n-dims (count (mp/get-shape leaf))
+        roots (mapv #(get-tensor operation-graph %) (roots operation-graph))]
+    ;;Define if this is a custom read operation or if it is a tvm read operation
+    (mapv (fn [root-node]
+            (let [node-shape (get-in root-node [:dimensions :shape])]
+              {:node-id (:id root-node)
+               :n-dims n-dims
+               :shape node-shape
+               :read-type
+               (if (every? (fn [shape-item]
+                             (cond
+                               (keyword? shape-item) true
+                               (number? shape-item) true
+                               (sequential? shape-item) (ct-dims/monotonically-increasing? shape-item)))
+                           node-shape)
+                 :tvm-read
+                 :custom-read)}))
+          roots)))
+
+
+(defn graph-seq->read-operations
+  [op-graphs]
+  (->> op-graphs
+       (mapcat graph->read-operations)
+       set))
+
+
+(defn create-tvm-operation
+  "Create and compile a tvm operation."
+  [operation-graph]
+  (when-not-error (= 1 (count (leaves operation-graph)))
+    "Operation graph cannot handle multiple outputs"
+    {:leaves (leaves operation-graph)})
+  ;;The leaf defines the iteration variables
+  (let [leaf (get-tensor operation-graph (first (leaves operation-graph)))
+        n-dims (count (mp/get-shape leaf))
+        compute-op (tm/n-dim-compute-op
+                    n-dims
+                    (fn [index-vars]
+                      (let [read-ops (graph->read-operations operation-graph)]
+                        (->> (map vector
+                                  (:edges operation-graph)
+                                  (concat [nil] (:edges operation-graph)))
+                             (reduce (fn [last-op [edge prev-edge]]
+                                       (condp = (:type edge)
+                                         :static-cast
+
+                                         )
+                                       )
+                                     nil
+                                     )))
+                      )
+                    )]
+    )
+  )
