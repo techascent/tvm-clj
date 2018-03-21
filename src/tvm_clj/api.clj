@@ -213,16 +213,23 @@ is calling a halide function with the tensor's generating-op and value index."
 (defmacro def-bin-op
   "Define a binary operation"
   [op-name make-name]
-  `(defn ~op-name
-     [lhs# rhs#]
-     (c/global-node-function ~make-name lhs# rhs#)))
+  (let [lhs (symbol "lhs")
+        rhs (symbol "rhs")]
+    `(defn ~op-name
+       [~lhs ~rhs]
+       (c/global-node-function ~make-name ~lhs ~rhs))))
 
 
 
 (def-bin-op add "make.Add")
+(def-bin-op sub "make.Sub")
 (def-bin-op mod "make.Mod")
 (def-bin-op mul "make.Mul")
 (def-bin-op div "make.Div")
+(def-bin-op eq "make.EQ")
+(defn if-then-else
+  [bool-stmt true-stmt false-stmt]
+  (c/global-node-function "make.IfThenElse" bool-stmt true-stmt false-stmt))
 
 
 

@@ -55,6 +55,7 @@
   (gpu-scheduling? [driver])
   ;;https://github.com/dmlc/tvm/issues/984
   (device-datatypes? [driver])
+  (schedule-injective [driver op])
   (->module-impl [driver lowered-function-seq build-config]))
 
 (defn ->module

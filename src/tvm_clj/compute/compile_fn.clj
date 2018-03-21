@@ -11,7 +11,8 @@
             [tech.compute.tensor :as ct]
             [clojure.set :as c-set]
             [tvm-clj.compute.tensor-math :as tm]
-            [clojure.string :as c-str]))
+            [clojure.string :as c-str]
+            [tech.compute.tensor.utils :as tens-utils]))
 
 
 (defn compute-graph
@@ -270,13 +271,14 @@
 
 (defn apply-sequence-to-shape-item
   [select-arg shape-item]
-  (cond
-    (keyword? shape-item) select-arg
-    (number? shape-item) (check-sequence-max select-arg shape-item)
-    (sequential? shape-item) (let [select-arg (check-sequence-max select-arg (count shape-item))]
-                               (mapv (vec shape-item) select-arg))
-    :else (throw (ex-info "Unrecognized shape value type"
-                          {:shape-value shape-item}))))
+  (let [new-sequence
+        (cond
+          (keyword? shape-item) select-arg
+          (number? shape-item) (check-sequence-max select-arg shape-item)
+          (sequential? shape-item) (let [select-arg (check-sequence-max select-arg (count shape-item))]
+                                     (mapv (vec shape-item) select-arg))
+          :else (throw (ex-info "Unrecognized shape value type"
+                                {:shape-value shape-item})))]))
 
 
 (defn check-value-max
@@ -310,12 +312,13 @@ apply it to the graph atom and return the new node id."
 
 
 (defn add-edge!
-  [graph* edge-op args output-tensors]
-  (let [new-edge {:type edge-op
-                  :args (vec args)
-                  :input (->> (filter is-tensor? args)
-                              (mapv :id))
-                  :output (mapv :id output-tensors)}]
+  [graph* edge-op args output-tensors extra-keys]
+  (let [new-edge (merge {:type edge-op
+                         :args (vec args)
+                         :input (->> (filter is-tensor? args)
+                                     (mapv :id))
+                         :output (mapv :id output-tensors)}
+                        extra-keys)]
     (swap! graph* update :edges conj new-edge)
     new-edge))
 
@@ -354,6 +357,14 @@ apply it to the graph atom and return the new node id."
           ;;then we imply sparsity
           new-sparse? (and (sequential? (last new-item-shape))
                            (not (ct-dims/monotonically-increasing? (last new-item-shape))))
+          ;;Reduce monotonically increasing sequences to just numbers as this will be the result of the runtime select.
+          ;;We can't do this earlier else we cannot decifer if the buffer has a byte offset or not.
+          new-item-shape (mapv (fn [shape-item]
+                                 (if (and (sequential? shape-item)
+                                          (ct-dims/monotonically-increasing? shape-item))
+                                   (count shape-item)
+                                   shape-item))
+                               new-item-shape)
           new-buffer? (not= new-byte-offset? (:byte-offset? item-buffer))
           new-buffer-id (if new-buffer?
                           (:id (generate-derived-node! *graph (assoc item-buffer
@@ -364,14 +375,14 @@ apply it to the graph atom and return the new node id."
                                                            :bufname new-buffer-id
                                                            :sparse? (or (:sparse? item) new-sparse?))
                                                     (assoc-in [:dimensions :shape] new-item-shape)))]
-      (add-edge! *graph :select [item args] [retval])
+      (add-edge! *graph :select [item args] [retval] {})
       retval))
 
   (transpose [stream item reorder-vec]
     (let [item-shape (vec (get-in item [:dimensions :shape]))
           new-shape (mapv item-shape reorder-vec)
           retval (generate-derived-node! *graph (assoc-in item [:dimensions :shape] new-shape))]
-      (add-edge! *graph :transpose [item reorder-vec] [retval])
+      (add-edge! *graph :transpose [item reorder-vec] [retval] {})
       retval))
 
   (static-cast [stream item dtype dest-shape]
@@ -382,7 +393,7 @@ apply it to the graph atom and return the new node id."
                       ;;Get-shape performs a simplifying reduction
                       (mp/get-shape item))
           retval (generate-op-result! *graph :cast item dtype new-shape)]
-      (add-edge! *graph :static-cast [item dtype dest-shape] [retval])
+      (add-edge! *graph :static-cast [item dtype dest-shape] [retval] {:dtype dtype})
       retval))
 
   (binary-op [stream lhs rhs op dest-shape]
@@ -393,7 +404,7 @@ apply it to the graph atom and return the new node id."
           result-dtype (or (when primary-tensor (ct/get-datatype primary-tensor))
                            ct/*datatype*)
           retval (generate-op-result! *graph :binary-op primary-tensor result-dtype result-shape)]
-      (add-edge! *graph :binary-op [lhs rhs op dest-shape] [retval])
+      (add-edge! *graph :binary-op [lhs rhs op dest-shape] [retval] {:op op})
       retval)))
 
 
@@ -466,6 +477,7 @@ the same result bounds."
               {:node-id (:id root-node)
                :n-dims n-dims
                :shape node-shape
+               :node root-node
                :read-type
                (if (every? (fn [shape-item]
                              (cond
@@ -484,6 +496,165 @@ the same result bounds."
        (mapcat graph->read-operations)
        set))
 
+(defn create-n-vars
+  [n stem dtype]
+  (->> (range n)
+       (mapv (fn [idx]
+               (api/variable (str stem "_" idx) :dtype "int32")))))
+
+(defn custom-read-operation
+  "A custom read bindings when the read operation falls outside the scope
+  of what tvm supports."
+  [index-vars tvm-tensor shape-vars stride-vars compile-time-shape]
+  (api/tget tvm-tensor
+            [(->> (map (fn [index-var ;; int32
+                            shape-var ;; int32
+                            stride-var ;; int32
+                            compile-shape-entry ;;number, sequence, keyword
+                            ]
+                         (let [index-var (if (and (sequential? compile-time-shape)
+                                                  ;;If the sequence *is* monotonically increasing then whatever select produced
+                                                  ;;them will be valid.  The only time we have a compile time mapping
+                                                  ;;is if the sequence is *not* monotonically increasing.
+                                                  (not (ct-dims/monotonically-increasing? compile-time-shape)))
+                                           ;;ugghhh.  Build a large if-else lookup table and hope the compiler can build
+                                           ;;a decent lookup table.
+                                           (->> (map-indexed vector compile-time-shape)
+                                                (reduce (fn [table [idx number]]
+                                                          (api/if-then-else
+                                                           (api/eq index-var (api/const (long idx) :dtype "int32"))
+                                                           (api/const (long number) :dtype "int32")
+                                                           table))
+                                                        index-var))
+                                           index-var)]
+                           (api/mul stride-var
+                                    (api/mod index-var shape-var)))))
+                  (reduce api/add))]))
+
+
+(defn read-var
+  [var res-dtype variable-map index-vars]
+  (if (number? var)
+    (api/const (tens-utils/dtype-cast res-dtype :dtype (name res-dtype)))
+    (let [read-op (get-in variable-map [(:id var) :read-operation])]
+      (read-op index-vars))))
+
+
+(defmulti tvm-eltwise-binding
+  "Perform the specific tvm eltwise operation.
+Return an updated variable map with the :read-operation updated with a function
+that takes the index vars and produces a value for the approprate variable (result
+of the edge operation.
+
+Returns a new variable map.
+
+Dispatch on edge type."
+  (fn [variable-map graph index-vars edge]
+    (:type edge)))
+
+
+(defmethod tvm-eltwise-binding :static-cast
+  [variable-map graph index-vars edge]
+  (let [[item dtype _] (:args edge)]
+    (api/static-cast (name (dtype edge)) (read-var item dtype variable-map index-vars))))
+
+
+(defmethod tvm-eltwise-binding :binary-op
+  [variable-map graph index-vars edge]
+  (let [[lhs rhs op _] (:args edge)
+        op-dtype (-> (get-tensor graph (first (:output edge)))
+                     dtype/get-datatype)
+        tvm-op (condp = op
+                 :+ api/add
+                 :- api/sub
+                 :rem api/mod
+                 :/ api/div
+                 :* api/mul)]
+    (->> [lhs rhs]
+         (map #(read-var % op-dtype variable-map index-vars))
+         (apply tvm-op))))
+
+
+(defmulti read-op->variable-map-entry
+  "Produce the necessary read operation and binding information for the roots of the graph."
+  (fn [read-op & args]
+    (:read-type read-op)))
+
+
+(defmethod read-op->variable-map-entry :custom-read
+  [read-op n-dims operation-graph]
+  (let [node (:node read-op)
+        node-buffer (get-buffer operation-graph (:bufname node))
+        datatype (dtype/get-datatype node)
+        dtype-name (name datatype)
+        placeholder (api/placeholder [(api/variable "n" :dtype "int32")] :dtype dtype-name)
+        shape-vars (create-n-vars n-dims "shape" "int32")
+        stride-vars (create-n-vars n-dims "stride" "int32")
+        elem-offset (if (:byte-offset? node-buffer)
+                      (api/variable "elem_offset" :dtype "int32")
+                      0)]
+    (assoc read-op
+           :tensor placeholder
+           :shape-vars shape-vars
+           :stride-vars stride-vars
+           :bind-buffer (api/declare-buffer [(api/variable "n" :dtype "int32")]
+                                            :dtype dtype-name
+                                            :elem-offset elem-offset)
+           ;;What variables need to be bound in the declaration
+           :declaration-bind-list (concat [placeholder] shape-vars stride-vars)
+           ;;Function to produce the binding at the callsite...This produces a list that needs to be in the
+           ;;same order as the above list
+           :callsite-bind-list-fn (fn [tensor]
+                                    (let [tens-shape (tm/left-pad-ones
+                                                      (mp/get-shape tensor)
+                                                      n-dims)
+                                          tens-stride (ct-dims/extend-strides
+                                                       tens-shape
+                                                       (get-in tensor [:dimensions :shape]))]
+                                      ;;We bind the raw buffer as a one-dimensional buffer.
+                                      (concat [(ct/tensor->buffer tensor)]
+                                              (map int tens-shape)
+                                              (map int tens-stride))))
+           :read-operation #(custom-read-operation % placeholder
+                                                   shape-vars stride-vars
+                                                   (get-in node [:dimensions :shape])))))
+
+
+(defmethod read-op->variable-map-entry :tvm-read
+  [read-op n-dims operation-graph]
+  (let [node (:node read-op)
+        node-buffer (get-buffer operation-graph (:bufname node))
+        datatype (dtype/get-datatype node)
+        dtype-name (name datatype)
+        placeholder (api/placeholder (create-n-vars n-dims "shape" "int32")
+                                     :dtype dtype-name)
+        elem-offset (if (:byte-offset? node-buffer)
+                      (api/variable "elem_offset" :dtype "int32")
+                      0)]
+    (assoc read-op
+           :tensor placeholder
+           :bind-buffer (api/declare-buffer (create-n-vars n-dims "shape" "int32")
+                                            :dtype dtype-name
+                                            :strides (when (:sparse? node)
+                                                       (create-n-vars n-dims "stride" "int32"))
+                                            :elem-offset elem-offset)
+           :declaration-bind-list [placeholder]
+           :callsite-bind-list-fn (fn [tensor]
+                                    ;;Extend the shape to be compatible with the function
+                                    (let [tens-shape (tm/left-pad-ones
+                                                      (mp/get-shape tensor)
+                                                      n-dims)
+                                          tens-stride (ct-dims/extend-strides
+                                                       tens-shape
+                                                       (get-in tensor [:dimensions :shape]))]
+                                      [(-> tensor
+                                           (assoc-in [:dimensions :shape] tens-shape)
+                                           (assoc-in [:dimensions :stride] tens-stride)
+                                           (assoc-in [:buffer :byte-offset?] (:byte-offset? node-buffer))
+                                           (assoc :sparse? (:sparse? node)))]))
+                                 :read-operation #(api/tget placeholder %))))
+
+
 
 (defn create-tvm-operation
   "Create and compile a tvm operation."
@@ -494,22 +665,53 @@ the same result bounds."
   ;;The leaf defines the iteration variables
   (let [leaf (get-tensor operation-graph (first (leaves operation-graph)))
         n-dims (count (mp/get-shape leaf))
+        variable-map (->> (graph->read-operations operation-graph)
+                          (map #(read-op->variable-map-entry % n-dims operation-graph))
+                          ;;create a map that finds the bind buffer entry
+                          (map (juxt :node-id identity))
+                          (into {}))
+        last-edge (last (:edges operation-graph))
+        output-id (:id leaf)
+        _ (when-not-error (= output-id (first (:output last-edge)))
+            "Graph leaf does not correspond to the last edge"
+            {:leaf-id (:id leaf)
+             :output-id (first (:output last-edge))})
+        ;;For now we only support injective operations.  But later we will need to
+        ;;figure out how to work with a wider range of operations
+        ;;(reduce, pooling, scanning)
         compute-op (tm/n-dim-compute-op
                     n-dims
                     (fn [index-vars]
-                      (let [read-ops (graph->read-operations operation-graph)]
-                        (->> (map vector
-                                  (:edges operation-graph)
-                                  (concat [nil] (:edges operation-graph)))
-                             (reduce (fn [last-op [edge prev-edge]]
-                                       (condp = (:type edge)
-                                         :static-cast
-
-                                         )
-                                       )
-                                     nil
-                                     )))
-                      )
-                    )]
-    )
-  )
+                      (let [variable-map (reduce (fn [variable-map edge]
+                                                   (let [output-id (first (:output edge))]
+                                                     (assoc-in variable-map [output-id :read-operation]
+                                                               (tvm-eltwise-binding variable-map operation-graph
+                                                                                    index-vars edge))))
+                                          variable-map
+                                          (:edges operation-graph))
+                            last-output-op (get-in variable-map [output-id :read-operation])]
+                        (last-output-op index-vars))))
+        output-node (get-tensor operation-graph last-edge)
+        output-node-buffer (get-buffer operation-graph (:bufname output-node))
+        output-tensor (first (api/output-tensors compute-op))
+        variable-map (assoc variable-map output-id
+                            {:tensor output-tensor
+                             :node-id output-id
+                             :bind-buffer (api/declare-buffer (create-n-vars n-dims "output_shape" "int32")
+                                                              :dtype (:dtype output-tensor))
+                             :callsite-bind-list-fn (fn [tensor]
+                                                      [tensor])})
+        var-map-values (vals variable-map)]
+    ;;Return a summarized operation that was described by the graph.
+    (assoc operation-graph
+           :operation {:type :injective
+                       :operation compute-op
+                       :bind-map (->> var-map-values
+                                      (map #(vector (:tensor %) (:bind-buffer %)))
+                                      (into {}))
+                       :declaration-bind-list (vec (mapcat :declaration-bind-list var-map-values))
+                       :callsitte-bind-list-fn #(fn [runtime-var-map]
+                                                  (->> var-map-values
+                                                       (mapcat (fn [{:keys [node-id callsite-bind-list-fn]}]
+                                                                 (callsite-bind-list-fn (get var-map-values node-id))))
+                                                       vec))})))
