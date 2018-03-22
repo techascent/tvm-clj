@@ -130,12 +130,14 @@
 
 
 (defn n-dim-compute-op
-  [n-dims compute-fn]
+  [n-dims compute-fn & {:keys [name]
+                        :or {name "compute_op"}}]
   ;;Result shape has n-dims
   (api/compute (->> (range n-dims)
                     (mapv (fn [idx]
-                            (api/variable (str "i" idx)))))
-               (y-dim-tvm-fn n-dims compute-fn)))
+                            (api/variable (str name "_i" idx)))))
+               (y-dim-tvm-fn n-dims compute-fn)
+               :name name))
 
 
 (defn n-dims->shape-stride-tuples
@@ -232,9 +234,7 @@ lhs = rhs"
         assign-fn
         (get-or-create-fn
          stream fn-name
-         #(let [dst-shape-vars (->> (range n-dims)
-                                    (mapv (fn [idx]
-                                            (api/variable (str "dest_shape_" idx) :dtype "int32"))))
+         #(let [
                 ;;Ignoring the fact the the shape at any index *could* be an array of data instead of
                 ;;an integer...
                 {rhs-placeholder :placeholder
@@ -249,7 +249,6 @@ lhs = rhs"
                 result (first (api/output-tensors compute-op))]
             (compute->lowered-function stream fn-name compute-op
                                        (->> (concat [result]
-                                                    dst-shape-vars
                                                     [rhs-placeholder]
                                                     (map first rhs-shape-stride-tuples)
                                                     (map second rhs-shape-stride-tuples))

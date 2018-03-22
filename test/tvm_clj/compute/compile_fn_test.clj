@@ -11,7 +11,9 @@
             [tech.compute.tensor :as compute-tensor]
             [tech.javacpp-datatype :as jcpp-dtype]
             [clojure.core.matrix.macros :refer [c-for]]
-            [tvm-clj.compute.compile-fn :as compiler])
+            [tvm-clj.compute.compile-fn :as compiler]
+            [tvm-clj.compute.base :as comp-base]
+            [think.parallel.core :as parallel])
   (:import [org.bytedeco.javacpp opencv_core
             opencv_imgcodecs opencv_core$Mat]
            [tech.datatype ByteArrayView]
@@ -44,7 +46,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                   (compiler/make-variable :image-channels)
                   (compiler/make-tensor-and-buffer :input [:image-height :image-width :image-channels] :dtype :uint8))
         input-tensor (compiler/get-tensor graph :input)]
-    (compiler/compile-fn graph convert-bgr-bytes-to-floats input-tensor)))
+    (compiler/compile-fn (comp-base/get-driver :cpu) graph convert-bgr-bytes-to-floats input-tensor)))
 
 
 (defn convert-bgr-bytes-to-floats-non-functional
@@ -67,7 +69,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
         n-channels (long n-channels)
         n-elems (long (* height width 3))
         retval (float-array (* 3 height width))]
-    (c-for [idx 0 (< idx n-elems) (inc idx)]
+    (parallel/parallel-for idx n-elems
            (let [pixel (quot idx n-channels)
                  channel (rem idx n-channels)
                  x-pos (rem pixel width)

@@ -358,7 +358,6 @@ apply it to the graph atom and return the new node id."
                            (not (ct-dims/monotonically-increasing? (last new-item-shape))))
           ;;Reduce monotonically increasing sequences to just numbers as this will be the result of the runtime select.
           ;;We can't do this earlier else we cannot decifer if the buffer has a byte offset or not.
-          _ (println new-item-shape)
           new-item-shape (mapv (fn [shape-item]
                                  (if (and (sequential? shape-item)
                                           (ct-dims/monotonically-increasing? shape-item))
@@ -502,6 +501,7 @@ the same result bounds."
        (mapv (fn [idx]
                (api/variable (str stem "_" idx) :dtype "int32")))))
 
+
 (defn custom-read-operation
   "A custom read bindings when the read operation falls outside the scope
   of what tvm supports."
@@ -521,10 +521,10 @@ the same result bounds."
                                            ;;a decent lookup table.
                                            (->> (map-indexed vector shape-entry)
                                                 (reduce (fn [table [idx number]]
-                                                          (api/if-then-else
-                                                           (api/eq index-var (api/const (long idx) :dtype "int32"))
-                                                           (api/const (long number) :dtype "int32")
-                                                           table))
+                                                          (let [bool-stmt (api/eq index-var (api/const (long idx) :dtype "int32"))
+                                                                true-stmt (api/const (long number) :dtype "int32")
+                                                                false-stmt table]
+                                                            (api/select bool-stmt true-stmt false-stmt)))
                                                         index-var))
                                            index-var)]
                            (api/mul stride-var
@@ -588,17 +588,20 @@ Dispatch on edge type."
         node-buffer (get-buffer operation-graph (:bufname node))
         datatype (dtype/get-datatype node)
         dtype-name (name datatype)
-        placeholder (api/placeholder [(api/variable "n" :dtype "int32")] :dtype dtype-name)
-        shape-vars (create-n-vars n-dims "shape" "int32")
-        stride-vars (create-n-vars n-dims "stride" "int32")
+        node-name (name (:id node))
+        buffer-ecount (api/variable (str node-name "_buffer_ecount") :dtype "int32")
+        placeholder (api/placeholder [buffer-ecount]
+                                     :dtype dtype-name :name (str node-name "_buffer"))
+        shape-vars (create-n-vars n-dims (str node-name "_shape") "int32")
+        stride-vars (create-n-vars n-dims (str node-name "_stride") "int32")
         elem-offset (if (:byte-offset? node-buffer)
-                      (api/variable "elem_offset" :dtype "int32")
+                      (api/variable (str node-name "_elem_offset") :dtype "int32")
                       0)]
     (assoc read-op
            :tensor placeholder
            :shape-vars shape-vars
            :stride-vars stride-vars
-           :bind-buffer (api/declare-buffer [(api/variable "n" :dtype "int32")]
+           :bind-buffer (api/declare-buffer [buffer-ecount]
                                             :dtype dtype-name
                                             :elem-offset elem-offset)
            ;;What variables need to be bound in the declaration
@@ -625,19 +628,22 @@ Dispatch on edge type."
   [read-op n-dims operation-graph]
   (let [node (:node read-op)
         node-buffer (get-buffer operation-graph (:bufname node))
+        node-name (name (:id node))
         datatype (dtype/get-datatype node)
         dtype-name (name datatype)
-        placeholder (api/placeholder (create-n-vars n-dims "shape" "int32")
-                                     :dtype dtype-name)
+        shape-vars (create-n-vars n-dims (str node-name "_shape") "int32")
+        placeholder (api/placeholder shape-vars
+                                     :dtype dtype-name
+                                     :name node-name)
         elem-offset (if (:byte-offset? node-buffer)
-                      (api/variable "elem_offset" :dtype "int32")
+                      (api/variable (str node-name "_elem_offset") :dtype "int32")
                       0)]
     (assoc read-op
            :tensor placeholder
-           :bind-buffer (api/declare-buffer (create-n-vars n-dims "shape" "int32")
+           :bind-buffer (api/declare-buffer shape-vars
                                             :dtype dtype-name
                                             :strides (when (:sparse? node)
-                                                       (create-n-vars n-dims "stride" "int32"))
+                                                       (create-n-vars n-dims (str node-name "_stride") "int32"))
                                             :elem-offset elem-offset)
            :declaration-bind-list [placeholder]
            :callsite-bind-list-fn (fn [tensor]
@@ -680,29 +686,34 @@ Dispatch on edge type."
         ;;For now we only support injective operations.  But later we will need to
         ;;figure out how to work with a wider range of operations
         ;;(reduce, pooling, scanning)
-        compute-op (tm/n-dim-compute-op
-                    n-dims
-                    (fn [index-vars]
-                      (let [variable-map (reduce (fn [variable-map edge]
-                                                   (let [output-id (first (:output edge))]
-                                                     (assoc-in variable-map [output-id :read-operation]
-                                                               (constantly
-                                                                (tvm-eltwise-binding variable-map operation-graph
-                                                                                     index-vars edge)))))
-                                          variable-map
-                                          (:edges operation-graph))
-                            last-output-op (get-in variable-map [output-id :read-operation])]
-                        (last-output-op index-vars))))
+        output-name (name output-id)
+        output-shape (create-n-vars n-dims (str output-name "_shape") "int32")
+        compute-op (api/compute
+                    output-shape
+                    (tm/y-dim-tvm-fn
+                     n-dims
+                     (fn [index-vars]
+                       (let [variable-map (reduce (fn [variable-map edge]
+                                                    (let [output-id (first (:output edge))]
+                                                      (assoc-in variable-map [output-id :read-operation]
+                                                                (constantly
+                                                                 (tvm-eltwise-binding variable-map operation-graph
+                                                                                      index-vars edge)))))
+                                                  variable-map
+                                                  (:edges operation-graph))
+                             last-output-op (get-in variable-map [output-id :read-operation])]
+                         (last-output-op index-vars))))
+                    :name output-name)
         output-node (get-tensor operation-graph output-id)
         output-node-buffer (get-buffer operation-graph (:bufname output-node))
         output-tensor (first (api/output-tensors compute-op))
         variable-map (assoc variable-map output-id
                             {:tensor output-tensor
                              :node-id output-id
-                             :bind-buffer (api/declare-buffer (create-n-vars n-dims "output_shape" "int32")
+                             :bind-buffer (api/declare-buffer output-shape
                                                               :dtype (:dtype output-tensor))
-                             :callsite-bind-list-fn (fn [tensor]
-                                                      [tensor])})
+                             :declaration-bind-list [output-tensor]
+                             :callsite-bind-list-fn #(vector %)})
         var-map-values (vals variable-map)]
     ;;Return a summarized operation that was described by the graph.
     (assoc operation-graph
@@ -715,8 +726,47 @@ Dispatch on edge type."
                        :callsite-bind-list-fn #(fn [runtime-var-map]
                                                   (->> var-map-values
                                                        (mapcat (fn [{:keys [node-id callsite-bind-list-fn]}]
-                                                                 (callsite-bind-list-fn (get var-map-values node-id))))
+                                                                 (if-let [var-map-tensor (get runtime-var-map node-id)]
+                                                                   (callsite-bind-list-fn var-map-tensor)
+                                                                   (throw (ex-info "Failed to find runtime tensor in arg map"
+                                                                                   {:tensor-id node-id
+                                                                                    :runtime-ids (keys runtime-var-map)})))))
                                                        vec))})))
+
+
+(defn- map-edge-args-to-runtime
+  [arg-map edge]
+  (->> (:args edge)
+       (map #(if (is-tensor? %)
+               (get arg-map (:id %))
+               %))))
+
+
+(defmulti host-perform-edge
+  "Perform the edge function on the host.  Return an updated arg-map."
+  (fn [arg-map graph edge & args]
+    (:type edge)))
+
+
+(defmethod host-perform-edge :select
+  [arg-map graph edge & args]
+  (let [[tensor select-args] (map-edge-args-to-runtime arg-map edge)
+        ;;remap the select args to what the runtime system is capable of
+        ;;Which means replace non-monotonic sequences with :all
+        select-args (->> select-args
+                         (map (fn [select-arg]
+                                (if (and (sequential? select-arg)
+                                         (not (ct-dims/monotonically-increasing? select-arg)))
+                                  :all
+                                  select-arg))))
+        out-id (first (:output edge))]
+    (apply ct/select tensor select-args)))
+
+
+(defmethod host-perform-edge :transpose
+  [arg-map graph edge & args]
+  (let [[tensor reorder-vec] (map-edge-args-to-runtime arg-map edge)]
+    (ct/transpose tensor reorder-vec)))
 
 
 (defn compile-fn
@@ -739,20 +789,21 @@ and a description of the arguments to the function."
                                        (let [compiled-graph (create-tvm-operation device-op-graph)
                                              operation (:operation compiled-graph)
                                              op-schedule (condp = (:type operation)
-                                                           :injective (comp-b/schedule-injective driver operation))]
+                                                           :injective (comp-b/schedule-injective driver
+                                                                                                 (:operation operation)))]
                                          (api/schedule->lowered-function op-schedule
-                                                                         (:declaration-bind-list device-op-graph)
+                                                                         (:declaration-bind-list operation)
                                                                          api/default-build-config
                                                                          :name (str "fn_" idx)
                                                                          :bind-map (:bind-map operation))))))
         module (comp-b/->module driver compiled-functions)
-        call-functions (->> device-op-graphs
-                            (map (fn [[idx device-op-graph]]
-                                   (assoc device-op-graph
-                                          :operation
-                                          {:fn (c/get-module-function module (str "fn_" idx))
-                                           :callsite-bind-list-fn (get-in device-op-graph
-                                                                          [:operation :callsite-bind-list-fn])}))))
+        call-functions  (->> device-op-graphs
+                             (mapv (fn [[idx device-op-graph]]
+                                     (assoc device-op-graph
+                                            :operation
+                                            {:fn (c/get-module-function module (str "fn_" idx))
+                                             :callsite-bind-list-fn (get-in device-op-graph
+                                                                            [:operation :callsite-bind-list-fn])}))))
         final-fn (fn [arg-map]
                    (when-not-error (every? #(contains? arg-map %) total-input-list)
                      "Argmap does not include required argument"
@@ -760,22 +811,20 @@ and a description of the arguments to the function."
                       :required-args total-input-list})
                    (let [dev-argmap (->> (:edges host-graph)
                                          (reduce (fn [arg-map edge]
-                                                   (host-perform-edge arg-map host-graph edge))
+                                                   (assoc arg-map (first (:output edge))
+                                                          (host-perform-edge arg-map host-graph edge)))
                                                  arg-map))]
                      (->> call-functions
                           (map (fn [op-graph]
-                                 (let [tvm-fn (get-in op-graph [:operation fn])
+                                 (let [tvm-fn (get-in op-graph [:operation :fn])
                                        callsite-binders (get-in op-graph [:operation :callsite-bind-list-fn])]
                                    (apply c/call-function tvm-fn (callsite-binders dev-argmap)))))
                           dorun)
                      nil))]
-
-
-
     {:required-arguments (->> total-input-list
                               (mapv (fn [id]
                                       (let [tens (get-tensor fn-graph id)]
                                         {:id id
                                          :datatype (dtype/get-datatype tens)
                                          :shape (mp/get-shape tens)}))))
-     :fn final-fn}))
+     :fn! final-fn}))

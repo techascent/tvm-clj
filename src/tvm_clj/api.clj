@@ -227,9 +227,13 @@ is calling a halide function with the tensor's generating-op and value index."
 (def-bin-op mul "make.Mul")
 (def-bin-op div "make.Div")
 (def-bin-op eq "make.EQ")
-(defn if-then-else
+
+
+(defn select
+  "Select between two expressions based on a condition.  Thus works similar to the
+clojure 'if' statement."
   [bool-stmt true-stmt false-stmt]
-  (c/global-node-function "make.IfThenElse" bool-stmt true-stmt false-stmt))
+  (c/global-node-function "make.Select" bool-stmt true-stmt false-stmt))
 
 
 
@@ -303,6 +307,18 @@ is calling a halide function with the tensor's generating-op and value index."
   "Bind an iter-var to a stage variable"
   [stage iter-var thread-ivar]
   (c/g-fn "_StageBind" stage iter-var thread-ivar))
+
+
+(defn stage-fuse
+  "Fuse n-axis together, returns single new axis"
+  [stage & axis-args]
+  (reduce #(c/g-fn "_StageFuse" stage %1 %2) axis-args))
+
+
+(defn stage-parallel
+  "Indicate that this axis has complete parallelism"
+  [stage axis]
+  (c/g-fn "_StageParallel" stage axis))
 
 
 (defn name->thread-axis-iterator
