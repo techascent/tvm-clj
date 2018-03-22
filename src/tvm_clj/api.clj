@@ -213,16 +213,27 @@ is calling a halide function with the tensor's generating-op and value index."
 (defmacro def-bin-op
   "Define a binary operation"
   [op-name make-name]
-  `(defn ~op-name
-     [lhs# rhs#]
-     (c/global-node-function ~make-name lhs# rhs#)))
+  (let [lhs (symbol "lhs")
+        rhs (symbol "rhs")]
+    `(defn ~op-name
+       [~lhs ~rhs]
+       (c/global-node-function ~make-name ~lhs ~rhs))))
 
 
 
 (def-bin-op add "make.Add")
+(def-bin-op sub "make.Sub")
 (def-bin-op mod "make.Mod")
 (def-bin-op mul "make.Mul")
 (def-bin-op div "make.Div")
+(def-bin-op eq "make.EQ")
+
+
+(defn select
+  "Select between two expressions based on a condition.  Thus works similar to the
+clojure 'if' statement."
+  [bool-stmt true-stmt false-stmt]
+  (c/global-node-function "make.Select" bool-stmt true-stmt false-stmt))
 
 
 
@@ -296,6 +307,18 @@ is calling a halide function with the tensor's generating-op and value index."
   "Bind an iter-var to a stage variable"
   [stage iter-var thread-ivar]
   (c/g-fn "_StageBind" stage iter-var thread-ivar))
+
+
+(defn stage-fuse
+  "Fuse n-axis together, returns single new axis"
+  [stage & axis-args]
+  (reduce #(c/g-fn "_StageFuse" stage %1 %2) axis-args))
+
+
+(defn stage-parallel
+  "Indicate that this axis has complete parallelism"
+  [stage axis]
+  (c/g-fn "_StageParallel" stage axis))
 
 
 (defn name->thread-axis-iterator

@@ -112,6 +112,14 @@
   tvm-comp-base/PCompileModule
   (gpu-scheduling? [driver] false)
   (device-datatypes? [driver] false)
+  (schedule-injective [driver compute-op]
+    ;;For injective we fuse all dimensions and then run them all in parallel.
+    (let [schedule (api/create-schedule [compute-op])
+          stage (get-in schedule [:stage_map compute-op])
+          op-axis (:axis compute-op)
+          fused-axis (apply api/stage-fuse stage op-axis)]
+      (api/stage-parallel stage fused-axis)
+      schedule))
   (->module-impl [driver lowered-fn-seq build-config]
     (api/lowered-functions->module lowered-fn-seq build-config :target-name :llvm)))
 
