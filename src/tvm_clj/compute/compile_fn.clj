@@ -573,7 +573,9 @@ Dispatch on edge type."
                  :* api/mul)]
     (->> [lhs rhs]
          (map #(read-var % op-dtype variable-map index-vars))
-         (apply tvm-op))))
+         (apply tvm-op)
+         ;;Keep the types the same; tvm does widening operations
+         (api/static-cast (name op-dtype)))))
 
 
 (defmulti read-op->variable-map-entry
@@ -723,15 +725,15 @@ Dispatch on edge type."
                                       (map #(vector (:tensor %) (:bind-buffer %)))
                                       (into {}))
                        :declaration-bind-list (vec (mapcat :declaration-bind-list var-map-values))
-                       :callsite-bind-list-fn #(fn [runtime-var-map]
-                                                  (->> var-map-values
-                                                       (mapcat (fn [{:keys [node-id callsite-bind-list-fn]}]
-                                                                 (if-let [var-map-tensor (get runtime-var-map node-id)]
-                                                                   (callsite-bind-list-fn var-map-tensor)
-                                                                   (throw (ex-info "Failed to find runtime tensor in arg map"
-                                                                                   {:tensor-id node-id
-                                                                                    :runtime-ids (keys runtime-var-map)})))))
-                                                       vec))})))
+                       :callsite-bind-list-fn (fn [runtime-var-map]
+                                                (->> var-map-values
+                                                     (mapcat (fn [{:keys [node-id callsite-bind-list-fn]}]
+                                                               (if-let [var-map-tensor (get runtime-var-map node-id)]
+                                                                 (callsite-bind-list-fn var-map-tensor)
+                                                                 (throw (ex-info "Failed to find runtime tensor in arg map"
+                                                                                 {:tensor-id node-id
+                                                                                  :runtime-ids (keys runtime-var-map)})))))
+                                                     vec))})))
 
 
 (defn- map-edge-args-to-runtime
@@ -777,25 +779,30 @@ and a description of the arguments to the function."
         {:keys [host-graph device-graph]} (graph->host-device-graphs fn-graph)
         device-op-graphs (->> (partition-device-graph-into-operations device-graph)
                               (map-indexed vector))
-        total-input-list (c-set/union (set (roots fn-graph))
-                                      (set (leaves fn-graph))
+        roots-set (set (roots fn-graph))
+        leaves-set (set (leaves fn-graph))
+        total-input-list (c-set/union roots-set
+                                      leaves-set
                                       ;;Because select,transpose,reshap happen on the host, if there is a select operation
                                       ;;on a piece of data that data buffer has to 'pop' out of the device graphs.
                                       ;;Else the device graphs can communicate tensor buffers to each other.
                                       (set (filter (set (roots host-graph))
                                                    (mapcat leaves device-op-graphs))))
-        compiled-functions (->> device-op-graphs
-                                (map (fn [[idx device-op-graph]]
-                                       (let [compiled-graph (create-tvm-operation device-op-graph)
-                                             operation (:operation compiled-graph)
-                                             op-schedule (condp = (:type operation)
-                                                           :injective (comp-b/schedule-injective driver
-                                                                                                 (:operation operation)))]
-                                         (api/schedule->lowered-function op-schedule
-                                                                         (:declaration-bind-list operation)
-                                                                         api/default-build-config
-                                                                         :name (str "fn_" idx)
-                                                                         :bind-map (:bind-map operation))))))
+        device-op-graphs (->> device-op-graphs
+                              (map (fn [[idx device-op-graph]]
+                                     (let [compiled-graph (create-tvm-operation device-op-graph)
+                                           operation (:operation compiled-graph)
+                                           op-schedule (condp = (:type operation)
+                                                         :injective (comp-b/schedule-injective driver
+                                                                                               (:operation operation)))]
+                                       [idx
+                                        (assoc-in compiled-graph [:operation :operation]
+                                                  (api/schedule->lowered-function op-schedule
+                                                                                  (:declaration-bind-list operation)
+                                                                                  api/default-build-config
+                                                                                  :name (str "fn_" idx)
+                                                                                  :bind-map (:bind-map operation)))]))))
+        compiled-functions (map #(get-in % [1 :operation :operation]) device-op-graphs)
         module (comp-b/->module driver compiled-functions)
         call-functions  (->> device-op-graphs
                              (mapv (fn [[idx device-op-graph]]
@@ -820,11 +827,14 @@ and a description of the arguments to the function."
                                        callsite-binders (get-in op-graph [:operation :callsite-bind-list-fn])]
                                    (apply c/call-function tvm-fn (callsite-binders dev-argmap)))))
                           dorun)
-                     nil))]
-    {:required-arguments (->> total-input-list
-                              (mapv (fn [id]
-                                      (let [tens (get-tensor fn-graph id)]
-                                        {:id id
-                                         :datatype (dtype/get-datatype tens)
-                                         :shape (mp/get-shape tens)}))))
+                     nil))
+        id->arg-definition-fn (fn [id-list]
+                                (mapv #(let [tens (get-tensor fn-graph %)]
+                                         {:id %
+                                          :datatype (dtype/get-datatype tens)
+                                          :shape (mp/get-shape tens)})
+                                      id-list))]
+    {:inputs (id->arg-definition-fn roots-set)
+     :outputs (id->arg-definition-fn leaves-set)
+     :intermediates (id->arg-definition-fn (c-set/difference total-input-list roots-set leaves-set))
      :fn! final-fn}))

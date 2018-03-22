@@ -13,11 +13,11 @@
             [clojure.core.matrix.macros :refer [c-for]]
             [tvm-clj.compute.compile-fn :as compiler]
             [tvm-clj.compute.base :as comp-base]
+            [tech.compute.driver :as drv]
             [think.parallel.core :as parallel])
   (:import [org.bytedeco.javacpp opencv_core
             opencv_imgcodecs opencv_core$Mat]
-           [tech.datatype ByteArrayView]
-           ))
+           [tech.datatype ByteArrayView FloatArrayView]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -39,14 +39,16 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
 
 
 (defn compile-bgr-bytes
-  []
+  [& {:keys [driver-name]
+      :or {driver-name :cpu}}]
   (let [graph (-> (compiler/compute-graph)
                   (compiler/make-variable :image-width)
                   (compiler/make-variable :image-height)
                   (compiler/make-variable :image-channels)
                   (compiler/make-tensor-and-buffer :input [:image-height :image-width :image-channels] :dtype :uint8))
         input-tensor (compiler/get-tensor graph :input)]
-    (compiler/compile-fn (comp-base/get-driver :cpu) graph convert-bgr-bytes-to-floats input-tensor)))
+    (assoc (compiler/compile-fn (comp-base/get-driver driver-name) graph convert-bgr-bytes-to-floats input-tensor)
+           :driver driver-name)))
 
 
 (defn convert-bgr-bytes-to-floats-non-functional
@@ -61,14 +63,14 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
 
 
 (defn convert-bgr-bytes-to-floats-by-hand
-  [input-tensor]
+  [input-tensor result-tensor]
   (let [^bytes ary-data (.data ^ByteArrayView (:buffer input-tensor))
         [height width n-channels] (ct/shape input-tensor)
         height (long height)
         width (long width)
         n-channels (long n-channels)
         n-elems (long (* height width 3))
-        retval (float-array (* 3 height width))]
+        ^floats retval (.data ^FloatArrayView (:buffer result-tensor))]
     (parallel/parallel-for idx n-elems
            (let [pixel (quot idx n-channels)
                  channel (rem idx n-channels)
@@ -81,10 +83,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                      (float (- (/ (aget ary-data idx)
                                   255.0)
                                0.5))))))
-    (compute-tensor/->Tensor (:device input-tensor)
-                             {:shape [3 height width]
-                              :strides [(* height width) width 1]}
-                             (dtype/->view retval))))
+    result-tensor))
 
 
 (defn convert-floats-to-bgr-bytes
@@ -152,9 +151,36 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (resource/track (opencv_imgcodecs/imread filepath)))
 
 
-(defn opencv-image-test
+(defn java-image-test
   []
   (resource/with-resource-context
     (let [mat (load-image "test/data/jen.jpg")
-          img-tensor (compute-tensor/->tensor mat :datatype :int8)]
-      img-tensor)))
+          img-tensor (compute-tensor/->tensor mat :datatype :int8)
+          result-tensor (compute-tensor/new-tensor (concat [3]
+                                                           (take 2 (mp/get-shape mat)))
+                                                   :datatype :float32
+                                                   :init-value nil)]
+      (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor)
+      (time (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor)))))
+
+
+(defn tvm-image-test
+  []
+  (resource/with-resource-context
+    (compute-tensor/with-stream (drv/default-stream
+                                 (comp-base/get-device :cpu 0))
+      (let [mat (load-image "test/data/jen.jpg")
+            ;;It would also be possible to do a zero-copy conversion using the
+            ;; opencl matrix ptr.
+            ;;Note that tvm supports unsigned datatypes.
+            img-tensor (compute-tensor/->tensor mat :datatype :uint8)
+            result-tensor (compute-tensor/new-tensor (concat [3]
+                                                             (take 2 (mp/get-shape mat)))
+                                                     :datatype :float32
+                                                     :init-value nil)
+            {:keys [inputs outputs fn!]} (compile-bgr-bytes)
+            ;;This is abit careless but I know the results of the compilation process
+            arg-map {(get-in inputs [0 :id]) img-tensor
+                     (get-in outputs [0 :id]) result-tensor}]
+        (time (fn! arg-map))
+        (tensor-take 10 result-tensor)))))
