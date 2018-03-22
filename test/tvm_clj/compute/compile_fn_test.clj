@@ -29,12 +29,11 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   [input-tensor]
   ;;Move to bgr instead of rgb  Also drop alpha if exists in first place.
   (-> (ct/select input-tensor :all :all [2 1 0])
-      ;;transpose to channels first.
-      (ct/transpose [2 0 1])
       ;;First actual operation that is compiled.
       ;;Rest of the work.  These should all get rolled into assignment step above.
+      (ct/transpose [2 0 1])
       (ct/static-cast :float32)
-      (ct/div 255)
+      (ct/div 255.0)
       (ct/sub 0.5)))
 
 
@@ -49,17 +48,6 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
         input-tensor (compiler/get-tensor graph :input)]
     (assoc (compiler/compile-fn (comp-base/get-driver driver-name) graph convert-bgr-bytes-to-floats input-tensor)
            :driver driver-name)))
-
-
-(defn convert-bgr-bytes-to-floats-non-functional
-  "In this case, copying isn't the biggest deal"
-  [input-tensor]
-  (let [input-tensor (-> (compute-tensor/select input-tensor :all :all (compute-tensor/->tensor [2 1 0] :datatype :int32))
-                         (compute-tensor/transpose [2 0 1]))
-        retval (compute-tensor/new-tensor (compute-tensor/shape input-tensor) :datatype :float32 :init-value nil)]
-    (-> (compute-tensor/assign! retval input-tensor)
-        (compute-tensor/binary-op! 1.0 retval 1.0 255.0 :/)
-        (compute-tensor/binary-op! 1.0 retval 1.0 0.5 :-))))
 
 
 (defn convert-bgr-bytes-to-floats-by-hand
@@ -85,19 +73,6 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                                0.5))))))
     result-tensor))
 
-
-(defn convert-floats-to-bgr-bytes
-  "Converts to bgr image"
-  [img-tensor]
-  (-> (ct/add 0.5)
-      (ct/mul 255.0)
-      (ct/clamp 0 255)
-      ;;rgb -> bgr
-      (ct/select [2 1 0] :all :all)
-      ;;Move channels to last from planar channels first
-      (ct/transpose [1 2 0])
-      ;;Last operation, uses sophisticated indexing + transposition
-      (ct/static-cast :uint8)))
 
 
 (defn tensor-take
@@ -151,7 +126,20 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (resource/track (opencv_imgcodecs/imread filepath)))
 
 
-(defn java-image-test
+(defn java-tensor-ops-image-test
+  []
+  (resource/with-resource-context
+    (let [mat (load-image "test/data/jen.jpg")
+          img-tensor (compute-tensor/->tensor mat :datatype :int8)
+          result-tensor (compute-tensor/new-tensor (concat [3]
+                                                           (take 2 (mp/get-shape mat)))
+                                                   :datatype :float32
+                                                   :init-value nil)]
+      (convert-bgr-bytes-to-floats img-tensor)
+      (time (convert-bgr-bytes-to-floats img-tensor)))))
+
+
+(defn java-by-hand-image-test
   []
   (resource/with-resource-context
     (let [mat (load-image "test/data/jen.jpg")
@@ -178,9 +166,29 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                                                              (take 2 (mp/get-shape mat)))
                                                      :datatype :float32
                                                      :init-value nil)
+            ;; result-tensor (compute-tensor/new-tensor (mp/get-shape mat)
+            ;;                                          :datatype :float32
+            ;;                                          :init-value nil)
             {:keys [inputs outputs fn!]} (compile-bgr-bytes)
             ;;This is abit careless but I know the results of the compilation process
             arg-map {(get-in inputs [0 :id]) img-tensor
                      (get-in outputs [0 :id]) result-tensor}]
         (time (fn! arg-map))
-        (tensor-take 10 result-tensor)))))
+        {:result (tensor-take 10 result-tensor)
+         :correct (->> (tensor-take 30 img-tensor)
+                       (partition 3)
+                       (map last)
+                       (map #(/ (double %) 255.0))
+                       (map #(- (double %) 0.5)))}))))
+
+
+(defn time-tests
+  []
+  (println "java tensor ops took: " (with-out-str
+                                      (java-tensor-ops-image-test)))
+
+  (println "hand-coded java took: " (with-out-str
+                                      (java-by-hand-image-test)))
+
+  (println "Compiled tensor took:" (with-out-str
+                                     (tvm-image-test))))

@@ -616,7 +616,7 @@ Dispatch on edge type."
                                                       n-dims)
                                           tens-stride (ct-dims/extend-strides
                                                        tens-shape
-                                                       (get-in tensor [:dimensions :shape]))]
+                                                       (get-in tensor [:dimensions :strides]))]
                                       ;;We bind the raw buffer as a one-dimensional buffer.
                                       (concat [(ct/tensor->buffer tensor)]
                                               (map int tens-shape)
