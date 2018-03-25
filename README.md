@@ -23,9 +23,9 @@ tvm leverages [Halide](http://halide-lang.org).  Halide takes algorithms structu
 
 tvm exposes a directed graph along with a declarative scheduling system to build high performance numerical systems for n-dimensional data.  In the example below, we dynamically create a function to add 2 vectors then compile that function for a cpu and gpu backend.  Note that the major difference between the backends lies in the scheduling; not in the algorithm itself.
 
-[clojure example](test/tvm_clj/api_test.clj)
+[very simple clojure example](test/tvm_clj/api_test.clj)
 
-
+[more involved example](test/tvm_clj/compute/compile_fn_test.clj)
 ## Getting all the source
 
 At top level:
