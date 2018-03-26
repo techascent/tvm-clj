@@ -161,7 +161,7 @@
                      :read-tensor-n-dims (count (ct/shape tensor))})))
 
   {:placeholder (tensor-read-placeholder tensor)
-   :shape-stride-tuples (n-dims->shape-stride-tuples n-dims)})
+   :shape-stride-tuples (n-dims->shape-stride-tuples n-dims arg-name)})
 
 
 (defn tensor-read
@@ -255,8 +255,7 @@ lhs = rhs"
                                             vec)
                                        {lhs result})))]
     (apply tvm-comp-base/call-function
-           stream assign-fn lhs (concat (map int (ct/shape lhs))
-                                        (explode-read-tensor rhs (count max-shape))))))
+           stream assign-fn lhs (explode-read-tensor rhs (count max-shape)))))
 
 
 (extend-protocol tm/TensorMath

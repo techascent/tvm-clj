@@ -29,10 +29,11 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   [input-tensor]
   ;;Move to bgr instead of rgb  Also drop alpha if exists in first place.
   (-> (ct/select input-tensor :all :all [2 1 0])
-      ;;First actual operation that is compiled.
-      ;;Rest of the work.  These should all get rolled into assignment step above.
+      ;;Image is now planar; so a plane of b, a plane of g, and a plane of r.
       (ct/transpose [2 0 1])
+      ;;First actual operation that is compiled.
       (ct/static-cast :float32)
+      ;;Rest of the work.  These should all get rolled into assignment step above.
       (ct/div 255.0)
       (ct/sub 0.5)))
 
