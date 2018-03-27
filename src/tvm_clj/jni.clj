@@ -1,4 +1,4 @@
-(ns tvm-clj.compile
+(ns tvm-clj.jni
   (:gen-class)
   (:import [org.bytedeco.javacpp.tools Builder]))
 
