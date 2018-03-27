@@ -20,9 +20,16 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   ^long []
   (tvm-core/device-type->device-type-int :rocm))
 
+
 (defprotocol PDeviceInfo
-  (device-type [item])
-  (device-id [item]))
+  (device-id [item]
+    "Return the tvm integer device of a given device, buffer or stream."))
+
+
+(defprotocol PDriverInfo
+  (device-type [item]
+    "Return the tvm integer device type of a given driver, device, buffer, or stream."))
+
 
 (defprotocol PDeviceIdToDevice
   (device-id->device [driver device-id]))

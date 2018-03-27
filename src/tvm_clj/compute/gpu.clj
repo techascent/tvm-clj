@@ -21,8 +21,10 @@
   tvm-base/PToTVM
   (->tvm [_] stream)
 
-  tvm-reg/PDeviceInfo
+  tvm-reg/PDriverInfo
   (device-type [_] (tvm-reg/device-type device))
+
+  tvm-reg/PDeviceInfo
   (device-id [_] (tvm-reg/device-id device))
 
   drv/PStream
@@ -71,8 +73,10 @@
 
 
 (defrecord GPUDevice [driver ^long device-id supports-create? default-stream resource-context]
-  tvm-reg/PDeviceInfo
+  tvm-reg/PDriverInfo
   (device-type [this] (:device-type driver))
+
+  tvm-reg/PDeviceInfo
   (device-id [this] device-id)
 
   drv/PDevice
@@ -123,6 +127,9 @@
 
 
 (defrecord GPUDriver [^long device-type]
+  tvm-reg/PDriverInfo
+  (device-type [this] device-type)
+
   drv/PDriver
   (get-devices [driver]
     (enumerate-devices driver))

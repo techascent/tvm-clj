@@ -173,7 +173,13 @@
   ;;The underlying tvm array is tracked by the system so there is no
   ;;need to release this resource.
   resource/PResource
-  (release-resource [_] ))
+  (release-resource [_] )
+
+  tvm-reg/PDeviceInfo
+  (device-id [_] (tvm-reg/device-id device))
+
+  tvm-reg/PDriverInfo
+  (device-type [_] (tvm-reg/device-type device)))
 
 
 (defn device-buffer->ptr

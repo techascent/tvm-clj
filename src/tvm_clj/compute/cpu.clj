@@ -49,6 +49,8 @@
 
   tvm-reg/PDeviceInfo
   (device-type [this] (tvm-reg/device-type (device-fn)))
+
+  tvm-reg/PDriverInfo
   (device-id [this] (tvm-reg/device-id (device-fn))))
 
 (defn is-main-thread-cpu-stream?
@@ -62,8 +64,10 @@
 
 (defrecord CPUDevice [error-atom default-stream]
   tvm-reg/PDeviceInfo
-  (device-type [this] (tvm-reg/cpu-device-type))
   (device-id [this] 0)
+
+  tvm-reg/PDriverInfo
+  (device-type [_] (tvm-reg/cpu-device-type))
 
   drv/PDevice
   (memory-info-impl [device]
@@ -108,6 +112,9 @@
     (when-not (= 0 dev-id)
       (throw (ex-info "CPU device types only have device id 0" {})))
     (first (drv/get-devices driver)))
+
+  tvm-reg/PDriverInfo
+  (device-type [_] (tvm-reg/cpu-device-type))
 
   tvm-reg/PCompileModule
   (gpu-scheduling? [driver] false)
