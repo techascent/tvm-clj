@@ -21,8 +21,11 @@
                                     "-Xcompiler"
                                     "-std=c++11"
                                     "-Xcompiler"
-                                    (str "-L" (System/getProperty "user.dir") "/tvm/lib")
-                                    ])))
+                                    (str "-Wl," "--no-as-needed")
+                                    "-Xcompiler"
+                                    (str "-Wl," "-ltvm_topi")
+                                    "-Xcompiler"
+                                    (str "-L" (System/getProperty "user.dir") "/tvm/lib")])))
 
 
 (defn -main
