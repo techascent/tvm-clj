@@ -1,7 +1,7 @@
 (ns tvm-clj.compute.device-buffer
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
-            [tvm-clj.compute.base :as tvm-comp-base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
             [tvm-clj.compute.host-buffer :as hbuf]
@@ -99,7 +99,7 @@
 
 (defn is-cpu-device?
   [device]
-  (= runtime/kDLCPU (tvm-comp-base/device-type device)))
+  (= runtime/kDLCPU (tvm-reg/device-type device)))
 
 
 (declare device-buffer->ptr)
@@ -119,8 +119,8 @@
           datatype (dtype/get-datatype buffer)]
       (->DeviceBuffer device
                       (pointer->tvm-ary base-ptr
-                                        (tvm-comp-base/device-type device)
-                                        (tvm-comp-base/device-id device)
+                                        (tvm-reg/device-type device)
+                                        (tvm-reg/device-id device)
                                         datatype
                                         length
                                         ;;add the byte offset where the new pointer should start
@@ -189,8 +189,8 @@
   [device datatype elem-count]
   (resource/track
    (->> (tvm-core/allocate-device-array [elem-count] datatype
-                                        (tvm-comp-base/device-type device)
-                                        (tvm-comp-base/device-id device))
+                                        (tvm-reg/device-type device)
+                                        (tvm-reg/device-id device))
         (->DeviceBuffer device))))
 
 
@@ -200,7 +200,7 @@ and device buffers for the cpu device."
   [datatype elem-count]
   (when-not (resolve 'tvm-clj.compute.cpu/driver)
     (require 'tvm-clj.compute.cpu))
-  (make-device-buffer-of-type (tvm-comp-base/get-device runtime/kDLCPU 0)
+  (make-device-buffer-of-type (tvm-reg/get-device runtime/kDLCPU 0)
                               datatype
                               elem-count))
 

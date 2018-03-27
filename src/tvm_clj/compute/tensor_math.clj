@@ -5,7 +5,7 @@
             [tvm-clj.api :as api]
             [tvm-clj.core :as core]
             [tvm-clj.base :as base]
-            [tvm-clj.compute.base :as tvm-comp-base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tech.compute.tensor.utils :as tens-utils]
             [think.resource.core :as resource]
@@ -88,12 +88,12 @@
 
 (defn get-or-create-fn
   [stream fn-name fn-create-fn]
-  (let [device-type (tvm-comp-base/device-type stream)
-        device-id (tvm-comp-base/device-id stream)]
+  (let [device-type (tvm-reg/device-type stream)
+        device-id (tvm-reg/device-id stream)]
     (if-let [retval (get @*fn-map* [device-type device-id fn-name])]
       retval
       (let [lowered-fn (fn-create-fn)
-            module (tvm-comp-base/->module (drv/get-driver stream) [lowered-fn])
+            module (tvm-reg/->module (drv/get-driver stream) [lowered-fn])
             retval (core/get-module-function module fn-name)]
         (swap! *fn-map* assoc fn-name retval)
         (resource/track (->PRemoveFunction device-type device-id fn-name))
@@ -103,7 +103,7 @@
 (defn compute->lowered-function
   [stream fn-name compute-op arg-list tensor-arg-map]
   (let [schedule (api/create-schedule compute-op)]
-    (when (tvm-comp-base/gpu-scheduling? (drv/get-driver stream))
+    (when (tvm-reg/gpu-scheduling? (drv/get-driver stream))
       (let [compute-stage (get-in schedule [:stage_map compute-op])
             [bx tx] (api/split-stage-by-factor compute-stage (get-in compute-op [:axis 0]) 64)]
         (api/stage-bind compute-stage bx (api/name->thread-axis-iterator "blockIdx.x"))
@@ -124,7 +124,7 @@
 
 (defn- get-scalar-datatype
   [device fn-datatype]
-  (if (tvm-comp-base/device-datatypes? device)
+  (if (tvm-reg/device-datatypes? device)
     (get device-datatype-map fn-datatype fn-datatype)
     fn-datatype))
 
@@ -218,7 +218,7 @@
                           result (first (api/output-tensors compute-op))]
                       (compute->lowered-function stream fn-name compute-op
                                                  [result const-var] {tensor result})))]
-    (tvm-comp-base/call-function stream assign-fn tensor (tens-utils/dtype-cast value scalar-datatype))))
+    (tvm-reg/call-function stream assign-fn tensor (tens-utils/dtype-cast value scalar-datatype))))
 
 
 (defn assign!
@@ -254,7 +254,7 @@ lhs = rhs"
                                                     (map second rhs-shape-stride-tuples))
                                             vec)
                                        {lhs result})))]
-    (apply tvm-comp-base/call-function
+    (apply tvm-reg/call-function
            stream assign-fn lhs (explode-read-tensor rhs (count max-shape)))))
 
 

@@ -12,7 +12,7 @@
             [tech.javacpp-datatype :as jcpp-dtype]
             [clojure.core.matrix.macros :refer [c-for]]
             [tvm-clj.compute.compile-fn :as compiler]
-            [tvm-clj.compute.base :as comp-base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
             [think.parallel.core :as parallel])
   (:import [org.bytedeco.javacpp opencv_core
@@ -47,7 +47,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                   (compiler/make-variable :image-channels)
                   (compiler/make-tensor-and-buffer :input [:image-height :image-width :image-channels] :dtype :uint8))
         input-tensor (compiler/get-tensor graph :input)]
-    (assoc (compiler/compile-fn (comp-base/get-driver driver-name) graph convert-bgr-bytes-to-floats input-tensor)
+    (assoc (compiler/compile-fn (tvm-reg/get-driver driver-name) graph convert-bgr-bytes-to-floats input-tensor)
            :driver driver-name)))
 
 
@@ -157,7 +157,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   []
   (resource/with-resource-context
     (compute-tensor/with-stream (drv/default-stream
-                                 (comp-base/get-device :cpu 0))
+                                 (tvm-reg/get-device :cpu 0))
       (let [mat (load-image "test/data/jen.jpg")
             ;;It would also be possible to do a zero-copy conversion using the
             ;; opencl matrix ptr.

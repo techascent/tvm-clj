@@ -3,7 +3,7 @@
             [tvm-clj.compute.test-utils :refer [def-all-dtype-test] :as cu]
             [tech.compute.verify.utils :refer [*datatype*] :as vu]
             [tvm-clj.compute.cpu :as tvm-cpu]
-            [tvm-clj.compute.base :as base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.base :as root]
             [tech.compute.driver :as drv]
             [tech.compute.tensor :as ct]
@@ -15,20 +15,20 @@
 
 
 (def-all-dtype-test assign-constant-cpu!
-  (vt/assign-constant! (base/get-driver :cpu) *datatype*))
+  (vt/assign-constant! (tvm-reg/get-driver :cpu) *datatype*))
 
 (def-all-dtype-test assign-constant-cuda!
-  (vt/assign-constant! (base/get-driver :cuda) *datatype*))
+  (vt/assign-constant! (tvm-reg/get-driver :cuda) *datatype*))
 
 (def-all-dtype-test assign-constant-opencl!
-  (vt/assign-constant! (base/get-driver :opencl) *datatype*))
+  (vt/assign-constant! (tvm-reg/get-driver :opencl) *datatype*))
 
 
 (def-all-dtype-test assign-cpu!
-  (vt/assign-marshal (base/get-driver :cpu) *datatype*))
+  (vt/assign-marshal (tvm-reg/get-driver :cpu) *datatype*))
 
 (def-all-dtype-test assign-cuda!
-  (vt/assign-marshal (base/get-driver :cuda) *datatype*))
+  (vt/assign-marshal (tvm-reg/get-driver :cuda) *datatype*))
 
 (def-all-dtype-test assign-opencl!
-  (vt/assign-marshal (base/get-driver :opencl) *datatype*))
+  (vt/assign-marshal (tvm-reg/get-driver :opencl) *datatype*))

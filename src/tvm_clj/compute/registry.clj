@@ -1,4 +1,6 @@
-(ns tvm-clj.compute.base
+(ns tvm-clj.compute.registry
+  "Additional protocols for tvm drivers, devices, and streams.
+Centralized registring of drivers allowing a symbolic name->driver table."
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.api :as tvm-api]))
 

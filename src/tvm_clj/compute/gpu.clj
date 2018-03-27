@@ -3,7 +3,7 @@
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as tvm-api]
             [tech.compute.driver :as drv]
-            [tvm-clj.compute.base :as tvm-comp-base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tech.datatype.base :as dtype]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
@@ -21,9 +21,9 @@
   tvm-base/PToTVM
   (->tvm [_] stream)
 
-  tvm-comp-base/PDeviceInfo
-  (device-type [_] (tvm-comp-base/device-type device))
-  (device-id [_] (tvm-comp-base/device-id device))
+  tvm-reg/PDeviceInfo
+  (device-type [_] (tvm-reg/device-type device))
+  (device-id [_] (tvm-reg/device-id device))
 
   drv/PStream
   (copy-host->device [_ host-buffer host-offset
@@ -38,25 +38,25 @@
     (tvm-shared/copy-device->device dev-a dev-a-off
                                     dev-b dev-b-off elem-count stream))
   (sync-with-host [_]
-    (tvm-core/sync-stream-with-host (tvm-comp-base/device-type device)
-                                    (tvm-comp-base/device-id device)
+    (tvm-core/sync-stream-with-host (tvm-reg/device-type device)
+                                    (tvm-reg/device-id device)
                                     stream))
   (sync-with-stream [src-stream dst-stream]
-    (when-not (= (tvm-comp-base/device-type src-stream) (tvm-comp-base/device-type dst-stream))
+    (when-not (= (tvm-reg/device-type src-stream) (tvm-reg/device-type dst-stream))
       (throw (ex-info "Cannot synchronize streams of two different device types"
                       {:src-device-type (tvm-core/device-type-int->device-type
-                                         (tvm-comp-base/device-type src-stream))
+                                         (tvm-reg/device-type src-stream))
                        :dst-device-type (tvm-core/device-type-int->device-type
-                                         (tvm-comp-base/device-type dst-stream))})))
-    (tvm-core/sync-stream-with-stream (tvm-comp-base/device-type device)
-                                      (tvm-comp-base/device-id device)
+                                         (tvm-reg/device-type dst-stream))})))
+    (tvm-core/sync-stream-with-stream (tvm-reg/device-type device)
+                                      (tvm-reg/device-id device)
                                       (tvm-base/->tvm src-stream)
                                       (tvm-base/->tvm dst-stream)))
-  tvm-comp-base/PTVMStream
+  tvm-reg/PTVMStream
   (call-function-impl [_ fn arg-list]
     (when (.address (tvm-base/->tvm stream))
-      (tvm-core/set-current-thread-stream (tvm-comp-base/device-type device)
-                                          (tvm-comp-base/device-id device)
+      (tvm-core/set-current-thread-stream (tvm-reg/device-type device)
+                                          (tvm-reg/device-id device)
                                           stream))
     (apply tvm-core/call-function fn arg-list))
 
@@ -71,7 +71,7 @@
 
 
 (defrecord GPUDevice [driver ^long device-id supports-create? default-stream resource-context]
-  tvm-comp-base/PDeviceInfo
+  tvm-reg/PDeviceInfo
   (device-type [this] (:device-type driver))
   (device-id [this] device-id)
 
@@ -129,7 +129,7 @@
   (allocate-host-buffer-impl [driver elem-count elem-type options]
     (dbuf/make-cpu-device-buffer elem-type elem-count))
 
-  tvm-comp-base/PDeviceIdToDevice
+  tvm-reg/PDeviceIdToDevice
   (device-id->device [driver dev-id]
     (if-let [retval (nth (drv/get-devices driver) dev-id)]
       retval
@@ -137,7 +137,7 @@
                       {:device-type (tvm-core/device-type-int->device-type device-type)
                        :device-id dev-id}))))
 
-  tvm-comp-base/PCompileModule
+  tvm-reg/PCompileModule
   (gpu-scheduling? [driver] true)
   (device-datatypes? [driver] true)
   (->module-impl [driver lowered-fn-seq build-config]
@@ -166,5 +166,5 @@
 
 
 (doseq [dev-type gpu-device-types]
-  (tvm-comp-base/add-device-type (tvm-core/device-type->device-type-int dev-type)
+  (tvm-reg/add-device-type (tvm-core/device-type->device-type-int dev-type)
                                  (driver dev-type)))

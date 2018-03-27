@@ -10,7 +10,6 @@
             [clojure.core.matrix :as m]
             [tech.compute.driver :as drv]
             [tvm-clj.base :as tvm-base]
-            [tvm-clj.compute.base :as tvm-comp-base]
             [tech.compute.tensor.utils :as tens-utils])
   (:import [org.bytedeco.javacpp BytePointer ShortPointer
             IntPointer LongPointer FloatPointer DoublePointer

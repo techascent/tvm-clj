@@ -1,6 +1,6 @@
 (ns tvm-clj.compute.cpu-test
   (:require [tvm-clj.compute.cpu]
-            [tvm-clj.compute.base :as base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.core :as tvm-core]
             [tvm-clj.api-test :as api-test]
             [tech.compute.driver :as drv]
@@ -24,7 +24,7 @@
       (dtype/copy-raw->item! test-data host-buf 0)
       (drv/copy-host->device stream host-buf 0 dev-buf-a 0 10)
       (drv/copy-host->device stream host-buf 0 dev-buf-b 0 10)
-      (base/call-function stream add-fn dev-buf-a dev-buf-b dev-buf-c)
+      (tvm-reg/call-function stream add-fn dev-buf-a dev-buf-b dev-buf-c)
       (drv/copy-device->host stream dev-buf-c 0 host-buf 0 10)
       (drv/sync-with-host stream)
       (dtype/copy! host-buf 0 result 0 10)
@@ -34,4 +34,4 @@
 
 (deftest cpu-basic-add
   (resource/with-resource-context
-    (test-add-fn (base/get-device :cpu 0) (api-test/create-myadd-fn-cpu))))
+    (test-add-fn (tvm-reg/get-device :cpu 0) (api-test/create-myadd-fn-cpu))))

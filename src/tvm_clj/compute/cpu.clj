@@ -3,7 +3,7 @@
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
-            [tvm-clj.compute.base :as tvm-comp-base]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
             [tech.compute.cpu.driver :as cpu-driver]
@@ -36,7 +36,7 @@
   resource/PResource
   (release-resource [_] )
 
-  tvm-comp-base/PTVMStream
+  tvm-reg/PTVMStream
   (call-function-impl [_ fn arg-list]
     (cpu-driver/with-stream-dispatch stream
       (apply tvm-core/call-function fn arg-list)))
@@ -47,9 +47,9 @@
   drv/PDeviceProvider
   (get-device [_] (device-fn))
 
-  tvm-comp-base/PDeviceInfo
-  (device-type [this] (tvm-comp-base/device-type (device-fn)))
-  (device-id [this] (tvm-comp-base/device-id (device-fn))))
+  tvm-reg/PDeviceInfo
+  (device-type [this] (tvm-reg/device-type (device-fn)))
+  (device-id [this] (tvm-reg/device-id (device-fn))))
 
 (defn is-main-thread-cpu-stream?
   [^CPUStream stream]
@@ -61,8 +61,8 @@
      ~@body))
 
 (defrecord CPUDevice [error-atom default-stream]
-  tvm-comp-base/PDeviceInfo
-  (device-type [this] (tvm-comp-base/cpu-device-type))
+  tvm-reg/PDeviceInfo
+  (device-type [this] (tvm-reg/cpu-device-type))
   (device-id [this] 0)
 
   drv/PDevice
@@ -103,13 +103,13 @@
   (allocate-host-buffer-impl [driver elem-count elem-type options]
     (dbuf/make-cpu-device-buffer elem-type elem-count))
 
-  tvm-comp-base/PDeviceIdToDevice
+  tvm-reg/PDeviceIdToDevice
   (device-id->device [driver dev-id]
     (when-not (= 0 dev-id)
       (throw (ex-info "CPU device types only have device id 0" {})))
     (first (drv/get-devices driver)))
 
-  tvm-comp-base/PCompileModule
+  tvm-reg/PCompileModule
   (gpu-scheduling? [driver] false)
   (device-datatypes? [driver] false)
   (schedule-injective [driver compute-op]
@@ -127,4 +127,4 @@
   (memoize
    (fn [] (->CPUDriver))))
 
-(tvm-comp-base/add-device-type (tvm-core/device-type->device-type-int :cpu) (driver))
+(tvm-reg/add-device-type (tvm-core/device-type->device-type-int :cpu) (driver))

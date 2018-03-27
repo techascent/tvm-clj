@@ -2,7 +2,7 @@
   (:require [tvm-clj.core :as c]
             [tvm-clj.api :as api]
             [tvm-clj.base :as b]
-            [tvm-clj.compute.base :as comp-b]
+            [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.tensor.functional-protocols :as fnp]
             [tech.compute.driver :as drv]
             [tech.compute.tensor.dimensions :refer [when-not-error] :as ct-dims]
@@ -793,7 +793,7 @@ and a description of the arguments to the function."
                                      (let [compiled-graph (create-tvm-operation device-op-graph)
                                            operation (:operation compiled-graph)
                                            op-schedule (condp = (:type operation)
-                                                         :injective (comp-b/schedule-injective driver
+                                                         :injective (tvm-reg/schedule-injective driver
                                                                                                (:operation operation)))]
                                        [idx
                                         (assoc-in compiled-graph [:operation :operation]
@@ -803,7 +803,7 @@ and a description of the arguments to the function."
                                                                                   :name (str "fn_" idx)
                                                                                   :bind-map (:bind-map operation)))]))))
         compiled-functions (map #(get-in % [1 :operation :operation]) device-op-graphs)
-        module (comp-b/->module driver compiled-functions)
+        module (tvm-reg/->module driver compiled-functions)
         call-functions  (->> device-op-graphs
                              (mapv (fn [[idx device-op-graph]]
                                      (assoc device-op-graph
