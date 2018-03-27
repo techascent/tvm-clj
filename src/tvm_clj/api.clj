@@ -1,4 +1,5 @@
 (ns tvm-clj.api
+  "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.core :as c]
             [tvm-clj.base :as b]
             [think.resource.core :as resource]

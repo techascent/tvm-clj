@@ -1,4 +1,5 @@
 (ns tvm-clj.core
+  "Complete bindings to the tvm runtime."
   (:require [clojure.reflect :as reflect]
             [tech.javacpp-datatype :as jcpp-dtype]
             [think.resource.core :as resource]
