@@ -36,7 +36,7 @@ git submodule update --init --recursive
 ## Building the TVM java bindings
 
 ```bash
-sudo apt install cmake llvm llvm-4.0-dev libblas-dev
+sudo apt install make g++ cmake llvm-dev libblas-dev nvidia-cuda-toolkit
 pushd tvm
 
 ## now edit make/config.mk to appropriate for your system; I built cuda and opencl with cublas support
