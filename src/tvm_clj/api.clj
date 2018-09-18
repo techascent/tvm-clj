@@ -22,12 +22,23 @@
   [item]
   (b/->node item))
 
+(defn- ->dtype
+  ^String [dtype-or-name]
+  (cond
+    (keyword? dtype-or-name)
+    (name dtype-or-name)
+    (string? dtype-or-name)
+    dtype-or-name
+    :else
+    (throw (ex-info "Invalid datatype detected"
+                    {:dtype dtype-or-name}))))
+
 
 (defn variable
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (c/global-node-function "_Var" name dtype))
+  (c/global-node-function "_Var" name (->dtype dtype)))
 
 
 (defn placeholder
@@ -38,7 +49,7 @@
   (let [shape (if-not (instance? clojure.lang.Seqable shape)
                 [shape]
                 shape)]
-    (c/global-node-function "_Placeholder" shape dtype name)))
+    (c/global-node-function "_Placeholder" shape (->dtype dtype) name)))
 
 
 (defn range
@@ -51,13 +62,16 @@
   "Convert an item to a const (immediate) value"
   [numeric-value & {:keys [dtype]
                     :or {dtype "float64"}}]
-  (c/global-node-function "_const" numeric-value dtype))
+  (let [dtype (->dtype dtype)]
+    (when (= dtype "float64")
+      (throw (ex-info "Bad dtype detected" {})))
+    (c/global-node-function "_const" numeric-value dtype)))
 
 
 (defn static-cast
   "Cast an item from one datatype to another"
   [dtype expr-node]
-  (c/global-node-function "make.Cast" dtype expr-node))
+  (c/global-node-function "make.Cast" (->dtype dtype) expr-node))
 
 
 (def iteration-variable-types
@@ -184,7 +198,7 @@ is calling a halide function with the tensor's generating-op and value index."
     (ex-info "Unrecognized call type"
              {:call-types call-type-set
               :call-type call-type}))
-  (c/global-node-function "make.Call" ret-dtype fn-name fn-args
+  (c/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
                           (call-types call-type) function-ref value-index))
 
 
@@ -441,7 +455,7 @@ for what it is worth but it is hard to me to see how this is useful.
         data (if data data (variable name :dtype "handle"))
         offset-factor 0]
     (c/global-node-function "_Buffer"
-                            data dtype shape strides elem-offset name scope
+                            data (->dtype dtype) shape strides elem-offset name scope
                             data-alignment offset-factor)))
 
 

@@ -168,30 +168,32 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (resource/with-resource-context
     (compute-tensor/with-stream (drv/default-stream
                                  (tvm-reg/get-device dev-type 0))
-      (let [mat (load-image "test/data/jen.jpg")
-            ;;It would also be possible to do a zero-copy conversion using the
-            ;; opencl matrix ptr.
-            ;;Note that tvm supports unsigned datatypes.
-            img-tensor (compute-tensor/->tensor mat :datatype :uint8)
-            result-tensor (compute-tensor/new-tensor (concat [3]
-                                                             (take 2 (mp/get-shape mat)))
-                                                     :datatype :float32
-                                                     :init-value nil)
-            ;; result-tensor (compute-tensor/new-tensor (mp/get-shape mat)
-            ;;                                          :datatype :float32
-            ;;                                          :init-value nil)
-            {:keys [inputs outputs fn!]} (compile-bgr-bytes dev-type)
-            ;;This is abit careless but I know the results of the compilation process
-            arg-map {(get-in inputs [0 :id]) img-tensor
-                     (get-in outputs [0 :id]) result-tensor}]
-        (time (fn! arg-map))
-        ;; {:result (tensor-take 10 result-tensor)
-        ;;  :correct (->> (tensor-take 30 img-tensor)
-        ;;                (partition 3)
-        ;;                (map last)
-        ;;                (map #(/ (double %) 255.0))
-        ;;                (map #(- (double %) 0.5)))}
-        ))))
+      (compute-tensor/with-datatype
+        :float32
+        (let [mat (load-image "test/data/jen.jpg")
+              ;;It would also be possible to do a zero-copy conversion using the
+              ;; opencl matrix ptr.
+              ;;Note that tvm supports unsigned datatypes.
+              img-tensor (compute-tensor/->tensor mat :datatype :uint8)
+              result-tensor (compute-tensor/new-tensor
+                             (concat [3]
+                                     (take 2 (mp/get-shape mat)))
+                             :datatype :float32
+                             :init-value nil)
+              ;; result-tensor (compute-tensor/new-tensor (mp/get-shape mat)
+              ;;                                          :datatype :float32
+              ;;                                          :init-value nil)
+              {:keys [inputs outputs fn!]} (compile-bgr-bytes dev-type)
+              ;;This is abit careless but I know the results of the compilation process
+              arg-map {(get-in inputs [0 :id]) img-tensor
+                       (get-in outputs [0 :id]) result-tensor}]
+          (time (fn! arg-map))
+          {:result (tensor-take 10 result-tensor)
+           :correct (->> (tensor-take 30 img-tensor)
+                         (partition 3)
+                         (map last)
+                         (map #(/ (double %) 255.0))
+                         (map #(- (double %) 0.5)))})))))
 
 
 (defn time-tests

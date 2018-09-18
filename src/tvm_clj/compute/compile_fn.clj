@@ -537,7 +537,7 @@ the same result bounds."
 (defn read-var
   [var res-dtype variable-map index-vars]
   (if (number? var)
-    (api/const (tens-utils/dtype-cast var res-dtype))
+    (api/const (tens-utils/dtype-cast var res-dtype) :dtype res-dtype)
     (let [read-op (get-in variable-map [(:id var) :read-operation])]
       (read-op index-vars))))
 
