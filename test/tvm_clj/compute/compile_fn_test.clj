@@ -39,15 +39,18 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
 
 
 (defn compile-bgr-bytes
-  [& {:keys [driver-name]
-      :or {driver-name :cpu}}]
+  [driver-name]
   (let [graph (-> (compiler/compute-graph)
                   (compiler/make-variable :image-width)
                   (compiler/make-variable :image-height)
                   (compiler/make-variable :image-channels)
-                  (compiler/make-tensor-and-buffer :input [:image-height :image-width :image-channels] :dtype :uint8))
+                  (compiler/make-tensor-and-buffer :input [:image-height
+                                                           :image-width
+                                                           :image-channels]
+                                                   :dtype :uint8))
         input-tensor (compiler/get-tensor graph :input)]
-    (assoc (compiler/compile-fn (tvm-reg/get-driver driver-name) graph convert-bgr-bytes-to-floats input-tensor)
+    (assoc (compiler/compile-fn (tvm-reg/get-driver driver-name) graph
+                                convert-bgr-bytes-to-floats input-tensor)
            :driver driver-name)))
 
 
@@ -69,7 +72,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
              (when (< channel 3)
                (aset retval (+ pixel
                                (* (- 2 channel) dest-channel-stride))
-                     (float (- (/ (aget ary-data idx)
+                     (float (- (/ (double (bit-and (int (aget ary-data idx))
+                                                   0xFF))
                                   255.0)
                                0.5))))))
     result-tensor))
@@ -150,14 +154,20 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                                                    :datatype :float32
                                                    :init-value nil)]
       (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor)
-      (time (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor)))))
+      (time (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor))
+      {:result (tensor-take 10 result-tensor)
+       :correct (->> (tensor-take 30 img-tensor)
+                     (partition 3)
+                     (map last)
+                     (map #(/ (double (bit-and (int %) 0xFF)) 255.0))
+                     (map #(- (double %) 0.5)))})))
 
 
 (defn tvm-image-test
-  []
+  [dev-type]
   (resource/with-resource-context
     (compute-tensor/with-stream (drv/default-stream
-                                 (tvm-reg/get-device :cpu 0))
+                                 (tvm-reg/get-device dev-type 0))
       (let [mat (load-image "test/data/jen.jpg")
             ;;It would also be possible to do a zero-copy conversion using the
             ;; opencl matrix ptr.
@@ -170,17 +180,18 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
             ;; result-tensor (compute-tensor/new-tensor (mp/get-shape mat)
             ;;                                          :datatype :float32
             ;;                                          :init-value nil)
-            {:keys [inputs outputs fn!]} (compile-bgr-bytes)
+            {:keys [inputs outputs fn!]} (compile-bgr-bytes dev-type)
             ;;This is abit careless but I know the results of the compilation process
             arg-map {(get-in inputs [0 :id]) img-tensor
                      (get-in outputs [0 :id]) result-tensor}]
         (time (fn! arg-map))
-        {:result (tensor-take 10 result-tensor)
-         :correct (->> (tensor-take 30 img-tensor)
-                       (partition 3)
-                       (map last)
-                       (map #(/ (double %) 255.0))
-                       (map #(- (double %) 0.5)))}))))
+        ;; {:result (tensor-take 10 result-tensor)
+        ;;  :correct (->> (tensor-take 30 img-tensor)
+        ;;                (partition 3)
+        ;;                (map last)
+        ;;                (map #(/ (double %) 255.0))
+        ;;                (map #(- (double %) 0.5)))}
+        ))))
 
 
 (defn time-tests
@@ -191,5 +202,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (println "hand-coded java took: " (with-out-str
                                       (java-by-hand-image-test)))
 
-  (println "Compiled tensor took:" (with-out-str
-                                     (tvm-image-test))))
+  (println "Compiled (cpu) tensor took:" (with-out-str
+                                           (tvm-image-test :cpu)))
+
+  (println "Compiled (opencl) tensor took:" (with-out-str
+                                              (tvm-image-test :opencl))))

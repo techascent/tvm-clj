@@ -12,7 +12,8 @@
             [clojure.set :as c-set]
             [tvm-clj.compute.tensor-math :as tm]
             [clojure.string :as c-str]
-            [tech.compute.tensor.utils :as tens-utils]))
+            [tech.compute.tensor.utils :as tens-utils]
+            [clojure.string :as s]))
 
 
 (defn compute-graph
@@ -579,9 +580,19 @@ Dispatch on edge type."
 
 
 (defmulti read-op->variable-map-entry
-  "Produce the necessary read operation and binding information for the roots of the graph."
+  "Produce the necessary read operation and binding information
+  for the roots of the graph."
   (fn [read-op & args]
     (:read-type read-op)))
+
+
+(defn- safe-str
+  [str-name]
+  (s/replace str-name "-" "_"))
+
+(defn- safe-node-name
+  [node]
+  (safe-str (name (:id node))))
 
 
 (defmethod read-op->variable-map-entry :custom-read
@@ -590,7 +601,7 @@ Dispatch on edge type."
         node-buffer (get-buffer operation-graph (:bufname node))
         datatype (dtype/get-datatype node)
         dtype-name (name datatype)
-        node-name (name (:id node))
+        node-name (safe-node-name node)
         buffer-ecount (api/variable (str node-name "_buffer_ecount") :dtype "int32")
         placeholder (api/placeholder [buffer-ecount]
                                      :dtype dtype-name :name (str node-name "_buffer"))
@@ -630,7 +641,7 @@ Dispatch on edge type."
   [read-op n-dims operation-graph]
   (let [node (:node read-op)
         node-buffer (get-buffer operation-graph (:bufname node))
-        node-name (name (:id node))
+        node-name (safe-node-name node)
         datatype (dtype/get-datatype node)
         dtype-name (name datatype)
         shape-vars (create-n-vars n-dims (str node-name "_shape") "int32")
@@ -688,7 +699,7 @@ Dispatch on edge type."
         ;;For now we only support injective operations.  But later we will need to
         ;;figure out how to work with a wider range of operations
         ;;(reduce, pooling, scanning)
-        output-name (name output-id)
+        output-name (safe-str (name output-id))
         output-shape (create-n-vars n-dims (str output-name "_shape") "int32")
         compute-op (api/compute
                     output-shape
@@ -781,27 +792,34 @@ and a description of the arguments to the function."
                               (map-indexed vector))
         roots-set (set (roots fn-graph))
         leaves-set (set (leaves fn-graph))
-        total-input-list (c-set/union roots-set
-                                      leaves-set
-                                      ;;Because select,transpose,reshap happen on the host, if there is a select operation
-                                      ;;on a piece of data that data buffer has to 'pop' out of the device graphs.
-                                      ;;Else the device graphs can communicate tensor buffers to each other.
-                                      (set (filter (set (roots host-graph))
-                                                   (mapcat leaves device-op-graphs))))
-        device-op-graphs (->> device-op-graphs
-                              (map (fn [[idx device-op-graph]]
-                                     (let [compiled-graph (create-tvm-operation device-op-graph)
-                                           operation (:operation compiled-graph)
-                                           op-schedule (condp = (:type operation)
-                                                         :injective (tvm-reg/schedule-injective driver
-                                                                                               (:operation operation)))]
-                                       [idx
-                                        (assoc-in compiled-graph [:operation :operation]
-                                                  (api/schedule->lowered-function op-schedule
-                                                                                  (:declaration-bind-list operation)
-                                                                                  api/default-build-config
-                                                                                  :name (str "fn_" idx)
-                                                                                  :bind-map (:bind-map operation)))]))))
+        total-input-list (c-set/union
+                          roots-set
+                          leaves-set
+                          ;;Because select,transpose,reshap happen on the host,
+                          ;;if there is a select operation
+                          ;;on a piece of data that data buffer has to 'pop' out
+                          ;;of the device graphs.
+                          ;;Else the device graphs can communicate tensor buffers
+                          ;;to each other.
+                          (set (filter (set (roots host-graph))
+                                       (mapcat leaves device-op-graphs))))
+        device-op-graphs
+        (->> device-op-graphs
+             (map (fn [[idx device-op-graph]]
+                    (let [compiled-graph (create-tvm-operation device-op-graph)
+                          operation (:operation compiled-graph)
+                          op-schedule (condp = (:type operation)
+                                        :injective (tvm-reg/schedule-injective
+                                                    driver
+                                                    (:operation operation)))]
+                      [idx
+                       (assoc-in compiled-graph [:operation :operation]
+                                 (api/schedule->lowered-function
+                                  op-schedule
+                                  (:declaration-bind-list operation)
+                                  api/default-build-config
+                                  :name (str "fn_" idx)
+                                  :bind-map (:bind-map operation)))]))))
         compiled-functions (map #(get-in % [1 :operation :operation]) device-op-graphs)
         module (tvm-reg/->module driver compiled-functions)
         call-functions  (->> device-op-graphs
@@ -836,5 +854,6 @@ and a description of the arguments to the function."
                                       id-list))]
     {:inputs (id->arg-definition-fn roots-set)
      :outputs (id->arg-definition-fn leaves-set)
-     :intermediates (id->arg-definition-fn (c-set/difference total-input-list roots-set leaves-set))
+     :intermediates (id->arg-definition-fn (c-set/difference total-input-list
+                                                             roots-set leaves-set))
      :fn! final-fn}))
