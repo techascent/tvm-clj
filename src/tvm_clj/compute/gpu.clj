@@ -1,7 +1,7 @@
 (ns tvm-clj.compute.gpu
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
-            [tvm-clj.api :as tvm-api]
+            [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.registry :as tvm-reg]
             [tech.datatype.base :as dtype]
@@ -147,9 +147,20 @@
   tvm-reg/PCompileModule
   (gpu-scheduling? [driver] true)
   (device-datatypes? [driver] true)
+  (schedule-injective [driver compute-op]
+    ;;For injective we fuse all dimensions and then run them all in parallel.
+    (let [schedule (api/create-schedule [compute-op])
+          stage (get-in schedule [:stage_map compute-op])
+          op-axis (:axis compute-op)
+          fused-axis (apply api/stage-fuse stage op-axis)
+          [bx tx] (api/split-stage-by-factor stage fused-axis 64)]
+      (api/stage-bind stage bx (api/name->thread-axis-iterator "blockIdx.x"))
+      (api/stage-bind stage tx (api/name->thread-axis-iterator "threadIdx.x"))
+      schedule))
   (->module-impl [driver lowered-fn-seq build-config]
-    (tvm-api/lowered-functions->module
-     lowered-fn-seq build-config :target-name (tvm-core/device-type-int->device-type device-type))))
+    (api/lowered-functions->module
+     lowered-fn-seq build-config
+     :target-name (tvm-core/device-type-int->device-type device-type))))
 
 
 (def gpu-device-types #{:cuda :opencl :rocm})
@@ -163,7 +174,8 @@
                                (tvm-core/device-type->device-type-int device-type)))]
        (when-not (gpu-device-types (tvm-core/device-type-int->device-type device-type))
          (throw (ex-info "Device type does not appear to be a gpu device"
-                         {:device-type (tvm-core/device-type-int->device-type device-type)})))
+                         {:device-type (tvm-core/device-type-int->device-type
+                                        device-type)})))
        (->GPUDriver device-type)))))
 
 

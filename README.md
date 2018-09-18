@@ -10,7 +10,7 @@ Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) libra
 tvm leverages [Halide](http://halide-lang.org).  Halide takes algorithms structured in specific ways and allows performance experimentation without affecting the output of the core algorithm.  A very solid justification for this is nicely put in these [slides](http://stellar.mit.edu/S/course/6/sp15/6.815/courseMaterial/topics/topic2/lectureNotes/14_Halide_print/14_Halide_print.pdf).  A Ph. D. was minted [here](http://people.csail.mit.edu/jrk/jrkthesis.pdf).  We also recommend watching the youtube [video](https://youtu.be/3uiEyEKji0M).
 
 
-## Goals 
+## Goals
 
 1.  Learn about Halide and tvm and enable very clear and simple exploration of the system in clojure.  Make clojure a first class language in the dmlc ecosystem.
 1.  Provide the tvm team with clear feedback and a second external implementation or a language binding on top of the C-ABI.
@@ -26,6 +26,17 @@ tvm exposes a directed graph along with a declarative scheduling system to build
 [very simple clojure example](test/tvm_clj/api_test.clj)
 
 [more involved example](test/tvm_clj/compute/compile_fn_test.clj)
+
+```clojure
+tvm-clj.compute.compile-fn-test> (time-tests)
+java tensor ops took:  "Elapsed time: 8775.659927 msecs"
+
+hand-coded java took:  "Elapsed time: 520.54155 msecs"
+
+Compiled (cpu) tensor took: "Elapsed time: 223.748329 msecs"
+
+Compiled (opencl) tensor took: "Elapsed time: 64.999564 msecs"
+```
 ## Getting all the source
 
 At top level:
@@ -36,7 +47,17 @@ git submodule update --init --recursive
 ## Building the TVM java bindings
 
 ```bash
-sudo apt install make g++ cmake llvm-dev libblas-dev nvidia-cuda-toolkit
+sudo apt install make g++ cmake llvm-dev libblas-dev
+
+## Cuda support
+sudo apt install  nvidia-cuda-toolkit
+
+## opencl support (nvidia-cuda includes this)
+sudo apt install ocl-icd-* opencl-headers
+
+## intel graphics adapter support
+sudo apt install beignet beignet-opencl-icd
+
 pushd tvm
 
 ## now edit make/config.mk to appropriate for your system; I built cuda and opencl with cublas support

@@ -28,10 +28,11 @@
       (drv/copy-device->host stream dev-buf-c 0 host-buf 0 10)
       (drv/sync-with-host stream)
       (dtype/copy! host-buf 0 result 0 10)
-      (is (m/equals (m/add test-data) (m/add test-data)
+      (is (m/equals (m/add test-data test-data)
                     (vec result))))))
 
 
 (deftest cpu-basic-add
   (resource/with-resource-context
-    (test-add-fn (tvm-reg/get-device :cpu 0) (api-test/create-myadd-fn-cpu))))
+    (test-add-fn (tvm-reg/get-device :cpu 0)
+                 (api-test/create-myadd-fn-cpu))))
