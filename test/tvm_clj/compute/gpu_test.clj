@@ -11,7 +11,7 @@
             [clojure.core.matrix :as m]))
 
 
-(deftest cuda-basic-add
+(deftest ^:cuda cuda-basic-add
   (resource/with-resource-context
     (cpu-test/test-add-fn (tvm-reg/get-device :cuda 0)
                           (api-test/create-myadd-fn-gpu :cuda))))

@@ -17,9 +17,6 @@
 (def-all-dtype-test assign-constant-cpu!
   (vt/assign-constant! (tvm-reg/get-driver :cpu) *datatype*))
 
-(def-all-dtype-test assign-constant-cuda!
-  (vt/assign-constant! (tvm-reg/get-driver :cuda) *datatype*))
-
 (def-all-dtype-test assign-constant-opencl!
   (vt/assign-constant! (tvm-reg/get-driver :opencl) *datatype*))
 
@@ -27,8 +24,10 @@
 (def-all-dtype-test assign-cpu!
   (vt/assign-marshal (tvm-reg/get-driver :cpu) *datatype*))
 
-(def-all-dtype-test assign-cuda!
-  (vt/assign-marshal (tvm-reg/get-driver :cuda) *datatype*))
-
 (def-all-dtype-test assign-opencl!
   (vt/assign-marshal (tvm-reg/get-driver :opencl) *datatype*))
+
+
+(defn manual-test
+  []
+  (vt/assign-marshal (tvm-reg/get-driver :opencl) :int16))

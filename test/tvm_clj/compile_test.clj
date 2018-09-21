@@ -1,4 +1,4 @@
-(ns tvm-clj.compute.compile-fn-test
+(ns tvm-clj.compile-test
   (:require [tvm-clj.compute.functional-tensor :as ct]
             [tvm-clj.compute.tensor.cpu-functional-tensor]
             ;;unsigned datatype support
@@ -11,10 +11,11 @@
             [tech.compute.tensor :as compute-tensor]
             [tech.javacpp-datatype :as jcpp-dtype]
             [clojure.core.matrix.macros :refer [c-for]]
-            [tvm-clj.compute.compile-fn :as compiler]
+            [tvm-clj.compiler :as compiler]
             [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
-            [think.parallel.core :as parallel])
+            [think.parallel.core :as parallel]
+            [clojure.core.matrix :as m])
   (:import [org.bytedeco.javacpp opencv_core
             opencv_imgcodecs opencv_core$Mat]
            [tech.datatype ByteArrayView FloatArrayView]))
@@ -152,15 +153,18 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
           result-tensor (compute-tensor/new-tensor (concat [3]
                                                            (take 2 (mp/get-shape mat)))
                                                    :datatype :float32
-                                                   :init-value nil)]
-      (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor)
-      (time (convert-bgr-bytes-to-floats-by-hand img-tensor result-tensor))
+                                                   :init-value nil)
+          time-str (with-out-str
+                     (time (convert-bgr-bytes-to-floats-by-hand img-tensor
+                                                                result-tensor)))]
+
       {:result (tensor-take 10 result-tensor)
        :correct (->> (tensor-take 30 img-tensor)
                      (partition 3)
                      (map last)
                      (map #(/ (double (bit-and (int %) 0xFF)) 255.0))
-                     (map #(- (double %) 0.5)))})))
+                     (map #(- (double %) 0.5)))
+       :time time-str})))
 
 
 (defn tvm-image-test
@@ -186,26 +190,37 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
               {:keys [inputs outputs fn!]} (compile-bgr-bytes dev-type)
               ;;This is abit careless but I know the results of the compilation process
               arg-map {(get-in inputs [0 :id]) img-tensor
-                       (get-in outputs [0 :id]) result-tensor}]
-          (time (fn! arg-map))
-          {:result (tensor-take 10 result-tensor)
+                       (get-in outputs [0 :id]) result-tensor}
+              time-str (with-out-str
+                         (time (do (fn! arg-map)
+                                   ;;Ensure it is really finished
+                                   (drv/sync-with-host compute-tensor/*stream*))))]
+          {:result (vec (tensor-take 10 result-tensor))
            :correct (->> (tensor-take 30 img-tensor)
                          (partition 3)
                          (map last)
                          (map #(/ (double %) 255.0))
-                         (map #(- (double %) 0.5)))})))))
+                         (mapv #(- (double %) 0.5)))
+           :time time-str})))))
 
 
-(defn time-tests
+(defn- is-correct
+  [{:keys [result correct] :as retval}]
+  (is (m/equals result correct 0.001))
+  retval)
+
+
+(defn- run-test
+  [test-fn]
+  (-> (test-fn)
+      is-correct
+      :time))
+
+
+(deftest time-tests
   []
-  (println "java tensor ops took: " (with-out-str
-                                      (java-tensor-ops-image-test)))
+  (println "hand-coded java took: " (run-test #(java-by-hand-image-test)))
 
-  (println "hand-coded java took: " (with-out-str
-                                      (java-by-hand-image-test)))
+  (println "Compiled (cpu) tensor took:" (run-test #(tvm-image-test :cpu)))
 
-  (println "Compiled (cpu) tensor took:" (with-out-str
-                                           (tvm-image-test :cpu)))
-
-  (println "Compiled (opencl) tensor took:" (with-out-str
-                                              (tvm-image-test :opencl))))
+  (println "Compiled (opencl) tensor took:" (run-test #(tvm-image-test :opencl))))
