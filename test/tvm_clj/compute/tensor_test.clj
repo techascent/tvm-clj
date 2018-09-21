@@ -1,6 +1,7 @@
 (ns tvm-clj.compute.tensor-test
   (:require [tech.compute.verify.tensor :as vt]
-            [tvm-clj.compute.test-utils :refer [def-all-dtype-test] :as cu]
+            [tvm-clj.compute.test-utils :refer [def-all-dtype-test
+                                                def-opencl-dtype-test] :as cu]
             [tech.compute.verify.utils :refer [*datatype*] :as vu]
             [tvm-clj.compute.cpu :as tvm-cpu]
             [tvm-clj.compute.registry :as tvm-reg]
@@ -17,17 +18,12 @@
 (def-all-dtype-test assign-constant-cpu!
   (vt/assign-constant! (tvm-reg/get-driver :cpu) *datatype*))
 
-(def-all-dtype-test assign-constant-opencl!
+(def-opencl-dtype-test assign-constant-opencl!
   (vt/assign-constant! (tvm-reg/get-driver :opencl) *datatype*))
 
 
 (def-all-dtype-test assign-cpu!
   (vt/assign-marshal (tvm-reg/get-driver :cpu) *datatype*))
 
-(def-all-dtype-test assign-opencl!
+(def-opencl-dtype-test assign-opencl!
   (vt/assign-marshal (tvm-reg/get-driver :opencl) *datatype*))
-
-
-(defn manual-test
-  []
-  (vt/assign-marshal (tvm-reg/get-driver :opencl) :int16))
