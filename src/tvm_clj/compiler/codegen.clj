@@ -10,8 +10,8 @@
             [tech.compute.tensor.utils :as tens-utils]
             [tech.compute.tensor.dimensions :refer [when-not-error] :as ct-dims]
             [clojure.core.matrix.protocols :as mp]
-            [clojure.set :as c-set]
-            [clojure.string :as s]))
+            [clojure.set :as c-set]))
+
 
 (defn input-fn->graph
   [input-fn graph & input-fn-args]
@@ -198,14 +198,9 @@ Dispatch on edge type."
     (:read-type read-op)))
 
 
-(defn- safe-str
-  [str-name]
-  (s/replace str-name "-" "_"))
-
-
 (defn- safe-node-name
   [node]
-  (safe-str (name (:id node))))
+  (api/safe-str (name (:id node))))
 
 
 (defmethod read-op->variable-map-entry :custom-read

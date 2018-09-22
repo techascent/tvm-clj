@@ -3,7 +3,8 @@
   (:require [tvm-clj.core :as c]
             [tvm-clj.base :as b]
             [think.resource.core :as resource]
-            [clojure.set :as c-set])
+            [clojure.set :as c-set]
+            [clojure.string :as s])
   (:import [tvm_clj.core NodeHandle]
            [tvm_clj.tvm runtime runtime$TVMModuleHandle]))
 
@@ -242,6 +243,8 @@ is calling a halide function with the tensor's generating-op and value index."
 (def-bin-op mul "make.Mul")
 (def-bin-op div "make.Div")
 (def-bin-op eq "make.EQ")
+(def-bin-op min "make.Min")
+(def-bin-op max "make.Max")
 
 
 (defn select
@@ -251,6 +254,34 @@ clojure 'if' statement."
   (c/global-node-function "make.Select" bool-stmt true-stmt false-stmt))
 
 
+(defn- get-for-type-idx
+  ^long [for-type]
+  (case for-type
+    :serial 0
+    :parallel 1
+    :vectorize 2
+    :unroll 3))
+
+
+(defn safe-str
+  [str-name]
+  (s/replace str-name "-" "_"))
+
+
+(defmacro for-range
+  [begin end varname {:keys [idx-dtype for-type]
+                      :or {idx-dtype :int32
+                           for-type :serial}}
+   & body]
+  `(let [for-type# (get-for-type-idx ~for-type)
+         ~varname (variable (safe-str (str ~varname)) :dtype idx-dtype)
+         expr# (do ~@body)]
+
+    )
+  )
+
+
+
 
 (defmacro tvm-fn
   "Like (fn) but retains the arglists.  Lambda in clojure unfortunately does not."
@@ -258,10 +289,6 @@ clojure 'if' statement."
   (let [retval `(fn ~arg-vec
                   ~@body)]
     (with-meta retval {:arglists `(quote ~arg-vec)})))
-
-(defn compute-raw
-  [shape compute-dims body-data]
-  (let []))
 
 
 (defn compute
@@ -289,6 +316,27 @@ clojure 'if' statement."
                       body-data)]
       (-> (c/g-fn "_ComputeOp" name tag compute-dim body-data)
           (c/unpack-node-fields :recurse false)))))
+
+
+(defn commutative-reduce
+  "1 left hand side, first var of reduce operation
+  N right hand sides, rest of the variables of the reduce operation
+  identity-val - initialization of left hand side.
+  expr-ary - one for each (const) right hand side.
+  dtype - datatype of all inputs to reduction"
+  [reduce-op identity-val dtype expr-seq axis-seq]
+  (let [fn-arglists (->> (meta reduce-op)
+                         :arglists
+                         (map clojure.core/name)
+                         (mapv #(variable % :dtype dtype)))
+        reduce-ast [(apply reduce-op fn-arglists)]
+        lhs-vars (take 1 fn-arglists)
+        rhs-vars (drop 1 fn-arglists)
+        comm-reducer (c/g-fn "make.CommReducer"
+                             lhs-vars rhs-vars
+                             (->node reduce-ast)
+                             (->node identity-val))]
+    (c/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0)))
 
 
 (defn output-tensors
