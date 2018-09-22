@@ -30,9 +30,10 @@
   [& body]
   `(let [ret# (int (do ~@body))]
      (when-not (= 0 ret#)
-       (throw (ex-info "Error during TVM call:"
-                       {:error-string (variable-byte-ptr->string (runtime/TVMGetLastError))
-                        :fn-name fn-name})))))
+       (let [byte-string# (variable-byte-ptr->string (runtime/TVMGetLastError))]
+         (throw (ex-info (format "Error during TVM call: %s" byte-string#)
+                         {:error-string byte-string#
+                          :fn-name fn-name}))))))
 
 
 (defn unsafe-read-byte

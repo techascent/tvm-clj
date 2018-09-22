@@ -268,19 +268,20 @@ clojure 'if' statement."
   (s/replace str-name "-" "_"))
 
 
-(defmacro for-range
-  [begin end varname {:keys [idx-dtype for-type]
-                      :or {idx-dtype :int32
-                           for-type :serial}}
-   & body]
-  `(let [for-type# (get-for-type-idx ~for-type)
-         ~varname (variable (safe-str (str ~varname)) :dtype idx-dtype)
-         expr# (do ~@body)]
-
-    )
-  )
-
-
+(defmacro tvm-let
+  "Lets in tvm must be nested.  This leads to an...exciting macro.
+  Pairs must be of the form var val-expr.  Body is *not* an implicit
+  do!!"
+  [expr-pairs body]
+  (->> expr-pairs
+       (partition 2)
+       reverse
+       (reduce (fn [data [var-symbol expr]]
+                 `(let [evaled-expr# ~expr
+                        ~var-symbol (variable ~(safe-str var-symbol)
+                                              :dtype (:dtype evaled-expr#))]
+                    (c/g-fn "make.Let" ~var-symbol evaled-expr# ~data)))
+               body)))
 
 
 (defmacro tvm-fn
@@ -335,7 +336,7 @@ clojure 'if' statement."
         comm-reducer (c/g-fn "make.CommReducer"
                              lhs-vars rhs-vars
                              (->node reduce-ast)
-                             (->node identity-val))]
+                             (->node [identity-val]))]
     (c/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0)))
 
 
