@@ -307,7 +307,7 @@ Dispatch on edge type."
         ;;For now we only support injective operations.  But later we will need to
         ;;figure out how to work with a wider range of operations
         ;;(reduce, pooling, scanning)
-        output-name (safe-str (name output-id))
+        output-name (api/safe-str (name output-id))
         output-shape (create-n-vars n-dims (str output-name "_shape") "int32")
         compute-op (api/compute
                     output-shape

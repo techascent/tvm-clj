@@ -114,10 +114,12 @@
     (let [^runtime$DLTensor jcpp-data (.tvm-jcpp-handle tvm-dev-ar)]
       (.strides jcpp-data (LongPointer. ))
       ;;Sub-buffers do not own their memory
-      (when-not (:owns-memory? tvm-dev-ar)
-        (.data jcpp-data (Pointer.))
-        (.shape jcpp-data (LongPointer.))))
-    (runtime/TVMArrayFree (.tvm-jcpp-handle tvm-dev-ar)))
+      (if-not (:owns-memory? tvm-dev-ar)
+        (do
+          (.data jcpp-data (Pointer.))
+          (.shape jcpp-data (LongPointer.))
+          (.deallocate jcpp-data))
+        (runtime/TVMArrayFree jcpp-data))))
   StreamHandle
   (release-resource [stream]
     (runtime/TVMStreamFree (.device stream) (.dev-id stream) (.tvm-hdl stream))))
@@ -666,10 +668,9 @@ explicitly; it is done for you."
    :vpi runtime/kDLVPI
    :rocm runtime/kDLROCM
    :vulkan runtime/kDLVulkan
-   :opengl runtime/kOpenGL
    ;; // Extension DRAM type, used for quickly test extension device
    ;; // The device api can differ depending on the xpu driver registered.
-   :ext-dev runtime/kExtDev
+   :ext-dev runtime/kDLExtDev
    ;; // AddExtraTVMType which is not in DLPack here
    })
 

@@ -249,7 +249,7 @@
                                 :init-value 0)
           red-fn (bilinear-reduction-reduce-fn :uint8 (drv/get-driver
                                                        drv/*current-compute-device*))]
-      (do-bilinear-reduction input output red-fn)
+      (do-bilinear-reduce-reduction input output red-fn)
       {:dst
        (m/array (->> (ct/to-float-array output)
                      (partition 2)))

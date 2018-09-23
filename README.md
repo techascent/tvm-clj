@@ -47,7 +47,7 @@ git submodule update --init --recursive
 ## Building the TVM java bindings
 
 ```bash
-sudo apt install make g++ cmake llvm-dev libblas-dev
+sudo apt install make g++ cmake llvm-dev libopenblas-dev
 
 ## Cuda support
 sudo apt install  nvidia-cuda-toolkit
@@ -60,9 +60,17 @@ sudo apt install beignet beignet-opencl-icd
 
 pushd tvm
 
-## now edit make/config.mk to appropriate for your system; I built cuda and opencl with cublas support
-## but without ROC support.  I also added in LLVM (required) and blas support.
+
+mkdir build
+cp cmake/make.config build 
+pushd build
+
+## now edit tvm/build/config.cmake to appropriate for your system. I have 
+## tested openblas cuda, opencl.
+cmake ..
+
 make -j8
+popd
 popd
 
 scripts/build-jni.sh
