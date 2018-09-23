@@ -2,6 +2,7 @@
   "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.core :as c]
             [tvm-clj.base :as b]
+            [tech.datatype.base :as dtype]
             [think.resource.core :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])
@@ -64,8 +65,6 @@
   [numeric-value & {:keys [dtype]
                     :or {dtype "float64"}}]
   (let [dtype (->dtype dtype)]
-    (when (= dtype "float64")
-      (throw (ex-info "Bad dtype detected" {})))
     (c/global-node-function "_const" numeric-value dtype)))
 
 
@@ -187,20 +186,81 @@ expressions,
    :pure-intrinsic 5 ;;< A side-effect-free version of the above.
    })
 
+(defn ->call-type
+  ^long [ctype]
+  (cond
+    (keyword? ctype)
+    (if-let [retval (get call-types ctype)]
+      retval
+      (throw (ex-info "Failed to find call type"
+                      {:call-type ctype})))
+    (number? ctype)
+    (long ctype)))
+
 
 (def call-type-set (set (keys call-types)))
 
 
 (defn call
-  "Call a 'function', which is basically executing a statement.  For instance, getting a value from the tensor
-is calling a halide function with the tensor's generating-op and value index."
+  "Call a 'function', which is basically executing a statement.  For instance, getting a
+  value from the tensor is calling a halide function with the tensor's generating-op and
+  value index."
   [ret-dtype fn-name fn-args call-type function-ref value-index]
-  (when-not-error (call-type-set call-type)
-    (ex-info "Unrecognized call type"
-             {:call-types call-type-set
-              :call-type call-type}))
   (c/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
-                          (call-types call-type) function-ref value-index))
+                          (->call-type call-type)
+                          function-ref value-index))
+
+
+(defn call-pure-intrin
+  "Build expression by calling a pure intrinsic function.
+
+    Intrinsics can be overloaded with multiple data types via
+    the intrinsic translation rule.
+
+    Parameters
+    ----------
+    dtype : str
+        The data type of the result.
+
+    func_name: str
+        The intrinsic function name.
+
+    args : list
+        Positional arguments.
+
+    Returns
+    -------
+    call : Expr
+        The call expression.
+    "
+  [dtype func-name & args]
+  (call dtype func-name (->node args) :pure-intrinsic nil 0))
+
+
+(defn call-intrin
+  "Build expression by calling an intrinsic function.
+
+    Intrinsics can be overloaded with multiple data types via
+    the intrinsic translation rule.
+
+    Parameters
+    ----------
+    dtype : str
+        The data type of the result.
+
+    func_name: str
+        The intrinsic function name.
+
+    args : list
+        Positional arguments.
+
+    Returns
+    -------
+    call : Expr
+        The call expression.
+    "
+  [dtype func-name & args]
+  (call dtype func-name (->node args) :intrinsic nil 0))
 
 
 (defn tget
@@ -236,6 +296,36 @@ is calling a halide function with the tensor's generating-op and value index."
        (c/global-node-function ~make-name ~lhs ~rhs))))
 
 
+(defmacro def-op
+  "Define a binary operation"
+  [op-name make-name]
+  (let [lhs (symbol "lhs")]
+    `(defn ~op-name
+       [~lhs]
+       (c/global-node-function ~make-name ~lhs))))
+
+
+(defmacro def-bin-intrin-op
+  [op-name]
+  (let [lhs (symbol "lhs")
+        rhs (symbol "rhs")]
+    `(defn ~op-name
+       [~lhs ~rhs]
+       (call-pure-intrin (dtype/get-datatype ~lhs)
+                         ~(str op-name)
+                         ~lhs
+                         ~rhs))))
+
+(defmacro def-intrin-op
+  [op-name]
+  (let [lhs (symbol "lhs")]
+    `(defn ~op-name
+       [~lhs]
+       (call-pure-intrin (dtype/get-datatype ~lhs)
+                         ~(str op-name)
+                         ~lhs))))
+
+
 
 (def-bin-op add "make.Add")
 (def-bin-op sub "make.Sub")
@@ -245,6 +335,19 @@ is calling a halide function with the tensor's generating-op and value index."
 (def-bin-op eq "make.EQ")
 (def-bin-op min "make.Min")
 (def-bin-op max "make.Max")
+(def-intrin-op exp)
+(def-intrin-op tanh)
+(def-intrin-op sigmoid)
+(def-intrin-op log)
+(def-intrin-op sqrt)
+(def-intrin-op floor)
+(def-intrin-op ceil)
+(def-intrin-op trunc)
+(def-op abs "make.abs")
+(def-intrin-op round)
+(def-bin-intrin-op power)
+(def-intrin-op popcount)
+
 
 
 (defn select

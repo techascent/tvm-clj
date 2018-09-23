@@ -1,4 +1,4 @@
-(ns tvm-clj.image.downsample
+(ns tvm-clj.image.bilinear-reduce
   (:require [tech.compute.tensor :as ct]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.cpu]
@@ -44,69 +44,6 @@
                               c])))
 
 
-(defn convolve-filter
-  "Assuming dense image tensors, convolve a 2d kernel that can be described by the
-  cartesian join(*) of two 1 dimensional kernel vectors over an image of indeterminate
-  dimensions to produce a result of indeterminate dimensions.  Input is clamped-to-edge,
-  intermediate type is uint16, kernels are float numbers, output is same datatype
-  as input.  Your convolve kernel needs to be linearly seperable in x and y."
-  [img-dtype driver]
-  (let [in-width (api/variable "in_width")
-        in-height (api/variable "in_height")
-        out-width (api/variable "out_width")
-        out-height (api/variable "out_height")
-        n-chans (api/variable "n_channels")
-        input (api/placeholder [in-height in-width n-chans] :dtype img-dtype)
-
-        ;;Clamp input to edge and convert to float.
-        rea-to-f32 (api/tvm-fn
-                      [input y x c]
-)
-        k-width (api/variable "k_width")
-        k-height (api/variable "k_height")
-        kern_x (api/placeholder [k-width] :dtype :float32)
-        kern_y (api/placeholder [k-height] :dtype :float32)
-        kern_x_axis (api/iteration-variable [0 k-width] "red_x" :communicative-reduce)
-        kern_y_axis (api/iteration-variable [0 k-height] "red_y" :communicative-reduce)
-        input-idx (api/tvm-fn
-                   [dest-idx kern-size kern-idx]
-                   (api/add dest-idx
-                            (api/sub kern-idx
-                                     (api/div
-                                      kern-size
-                                      (api/const 2 :dtype :int32)))))
-
-        compute-op (api/compute [out-height out-width n-chans]
-                                (api/tvm-fn
-                                 [y x c]
-                                 (api/static-cast
-                                  img-dtype
-                                  (api/commutative-reduce
-                                   (api/tvm-fn
-                                    [lhs rhs y_mul x_mul]
-                                    (api/add lhs (-> (api/mul rhs y_mul)
-                                                     (api/mul x_mul))))
-                                   (api/const 0 :dtype :float32)
-                                   :float32
-                                   [(read-clamped-f32
-                                     input in-height in-width
-                                     (input-idx y k-height kern_y_axis)
-                                     (input-idx x k-width kern_x_axis)
-                                     c)
-                                    (api/tget kern_y [kern_y_axis])
-                                    (api/tget kern_x [kern_x_axis])]
-                                   [kern_y_axis kern_x_axis]))))
-        output (first (api/output-tensors compute-op))
-        schedule (registry/schedule-injective driver compute-op)
-        fn-name (str "convolve_" (name img-dtype))
-        lowered-fn (api/schedule->lowered-function
-                    schedule [input output kern_y kern_x]
-                    api/default-build-config
-                    :name fn-name)
-        module (registry/->module driver [lowered-fn])]
-    (c/get-module-function module fn-name)))
-
-
 (defn- bilinear-filter-pixel-size
   ^long [in-size out-size]
   (let [temp (/ (double in-size)
@@ -136,11 +73,12 @@
   [start-pix start item-range item-idx]
   (api/select (api/eq (api/const 0 :dtype :int32)
                       item-idx)
-              (api/sub (api/add (api/const 1.0 :dtype :float32)
-                                (api/static-cast :float32 start-pix))
-                       start)
+              (clamp (api/sub (api/add (float 1) start-pix)
+                              start)
+                     (float 0.0)
+                     (float 1.0))
               (clamp (api/sub (api/add start item-range)
-                              (api/static-cast :float32 start-pix))
+                              start-pix)
                      (float 0.0)
                      (float 1.0))))
 
@@ -155,14 +93,27 @@
     top (api/mul dst-y y-ratio)
     ;;TVM has no floor function so we use the old trick of casting.
     ;;I am sure this is quite slow.
-    left-pix (api/add (api/static-cast :int32 left) kern-x)
-    top-pix (api/add (api/static-cast :int32 top) kern-y)
+    left-pix (api/floor (api/add left kern-x))
+    top-pix (api/floor (api/add top kern-y))
     left-mul (pixel-mul left-pix left x-ratio kern-x)
     top-mul (pixel-mul top-pix top y-ratio kern-y)]
    (api/mul
     (read-clamped-f32 input in-height in-width
-                      top-pix left-pix dst-c)
+                      (api/static-cast :int32 top-pix)
+                      (api/static-cast :int32 left-pix)
+                      dst-c)
     (api/mul left-mul top-mul))))
+
+
+(defn- simple-compile
+  [raw-fn fn-name bind-list driver]
+  (let [schedule (registry/schedule-injective driver raw-fn)
+        lowered-fn (api/schedule->lowered-function
+                    schedule bind-list
+                    api/default-build-config
+                    :name fn-name)
+        module (registry/->module driver [lowered-fn])]
+    (c/get-module-function module fn-name)))
 
 
 (defn- bilinear-reduction-reduce-fn
@@ -182,6 +133,7 @@
         intermediate-op (api/compute [out-height out-width n-chans]
                                 (api/tvm-fn
                                  [y x c]
+
                                  (api/commutative-reduce
                                   (api/tvm-fn
                                    [lhs rhs]
@@ -207,15 +159,10 @@
                                           (api/tget intermediate-output [y x c]))
                                          (float 0)
                                          (float 255)))))
-        schedule (registry/schedule-injective driver compute-op)
-        output (first (api/output-tensors compute-op))
-        fn-name (str "bilinear_downsample_" (name img-dtype))
-        lowered-fn (api/schedule->lowered-function
-                    schedule [input output k-height k-width y-ratio x-ratio]
-                    api/default-build-config
-                    :name fn-name)
-        module (registry/->module driver [lowered-fn])]
-    (c/get-module-function module fn-name)))
+        output (first (api/output-tensors compute-op))]
+    (simple-compile compute-op (str "bilinear_downsample_" (name img-dtype))
+                    [input output k-height k-width y-ratio x-ratio]
+                    driver)))
 
 
 (defn- do-bilinear-reduce-reduction
@@ -257,30 +204,140 @@
                  (partition 4))}))))
 
 
-(defn test-convolve-filter
-  []
-  (first
-   (verify-tensor/tensor-context
-    (registry/get-driver :cpu)
-    :uint8
-    (let [device drv/*current-compute-device*
-          driver (drv/get-driver device)
-          {:keys [bind-list fn!]} (convolve-filter :uint8)
-          schedule (registry/schedule-injective driver fn!)
-          lowered-fn (api/schedule->lowered-function
-                      schedule bind-list
-                      api/default-build-config
-                      :name "test_fn")
-          module (registry/->module driver [lowered-fn])
-          actual-fn (c/get-module-function module "test_fn")
-          input-seq (->> (range (* 4 4 1))
-                         (partition 1)
-                         (partition 4))
-          src-tensor (ct/->tensor input-seq)
-          dst-tensor (ct/new-tensor [2 2 1] :datatype :float32 :init-value 0)]
 
-      (c/call-function actual-fn src-tensor dst-tensor 2 1)
-      {:src-ary (m/array input-seq)
-       :dst-ary (m/array (->> (ct/to-float-array dst-tensor)
-                              (partition 1)
-                              (partition 2)))}))))
+(defn linear-reduce-transpose-fn
+  [img-dtype & {:keys [input]}]
+  (let [[in-rows in-cols n-chans] (if input
+                                    (:shape input)
+                                    [(api/variable "in_height")
+                                     (api/variable "in_width")
+                                     (api/variable "n_channels")
+                                     ])
+        out-cols (api/variable "out-cols")
+        input (or input (api/placeholder [in-rows in-cols n-chans] :dtype img-dtype))
+        ratio (api/variable "ratio" :dtype :float32)
+        k-size (api/variable "k_size")
+        kernel-op (api/compute
+                   [out-cols k-size]
+                   (api/tvm-fn
+                    [out-col-idx k-idx]
+                    (api/tvm-let
+                     [start (api/mul ratio out-col-idx)
+                      start-pix (api/floor (api/add start k-idx))]
+                     (api/div (pixel-mul start-pix start ratio k-idx)
+                              ratio))))
+        kernel-vec (first (api/output-tensors kernel-op))
+        kern-var (api/iteration-variable [0 k-size] "k_var" :communicative-reduce)
+        ->pixel (fn [out-col-idx k-idx]
+                  (api/static-cast
+                   :int32
+                   (-> (api/mul ratio out-col-idx)
+                       (api/add k-idx))))
+        combine-fn (api/tvm-fn
+                    [dst input]
+                    (api/add dst input))]
+    {:fn!
+     (api/compute
+      [out-cols in-rows n-chans]
+      (api/tvm-fn
+       [col-idx row-idx chan-idx]
+       (api/commutative-reduce
+        combine-fn
+        (api/const 0 :dtype :float32)
+        :float32
+        [(api/mul (read-clamped-f32 input in-rows in-cols
+                                    row-idx (->pixel col-idx kern-var)
+                                    chan-idx)
+                  (api/tget kernel-vec [col-idx kern-var]))]
+        [kern-var])))
+     :input input
+     :k-size k-size
+     :ratio ratio}))
+
+
+(defn final-cast-fn
+  [img-dtype input]
+  (let [[in-rows in-cols in-chan] (:shape input)]
+    (api/compute
+     [in-rows in-cols in-chan]
+     (api/tvm-fn
+      [y x c]
+      (api/static-cast
+       img-dtype
+       (api/add
+        (api/tget input [y x c])
+        (float 0.5)))))))
+
+
+(defn create-linear-reduce-fn
+  [img-dtype]
+  (let [{stage-1-fn! :fn!
+         stage-1-input :input
+         stage-1-k-size :k-size
+         stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype)
+        stage-output (first (api/output-tensors stage-1-fn!))
+        {stage-2-fn! :fn!
+         stage-2-input :input
+         stage-2-k-size :k-size
+         stage-2-ratio :ratio} (linear-reduce-transpose-fn :float32
+                                                           :input stage-output)
+        stage-2-output (first (api/output-tensors stage-2-fn!))
+        final-op (final-cast-fn img-dtype stage-2-output)
+        output (first (api/output-tensors final-op))
+        item-fn (simple-compile final-op "linear_reduce_uint8"
+                                [stage-1-input output
+                                 stage-1-k-size
+                                 stage-1-ratio
+                                 stage-2-k-size
+                                 stage-2-ratio]
+                                (drv/get-driver drv/*current-compute-device*))]
+    item-fn))
+
+
+(defn linear-reduce
+  [input output red-fn]
+  (let [[in-height in-width in-chan] (ct/shape input)
+        [out-height out-width out-chan] (ct/shape output)
+        filter-height (/ (double in-height)
+                         (double out-height))
+        filter-width (/ (double in-width)
+                        (double out-width))
+        kernel-height (bilinear-filter-pixel-size in-height out-height)
+        kernel-width (bilinear-filter-pixel-size in-width out-width)]
+    (c/call-function red-fn input output
+                     kernel-width filter-width
+                     kernel-height filter-height))
+  output)
+
+(defn seq-mean
+  [item-seq]
+  (long
+   (Math/round
+    (double
+     (/ (apply + item-seq)
+        (count item-seq))))))
+
+(defn test-linear-reduce
+  [& {:keys [device-type]
+      :or {device-type :cpu}}]
+  (let [img-dtype :uint8]
+    (first
+     (verify-tensor/tensor-context
+      (registry/get-driver device-type)
+      img-dtype
+      (let [input-data (->> (range (* 4 4))
+                            (partition 1)
+                            (partition 4))
+            input-tens (ct/->tensor input-data)
+            output-tens (ct/new-tensor [2 2 1] :datatype img-dtype)
+            reduce-fn (create-linear-reduce-fn img-dtype)]
+        (linear-reduce input-tens output-tens reduce-fn)
+        {:result (->> (ct/to-array-of-type output-tens :int64)
+                   vec)
+         :answer (->> (range (* 4 4))
+                      (partition 4)
+                      (partition 2)
+                      (map (comp (partial partition 4)
+                                 (partial apply interleave)))
+                      (apply concat)
+                      (mapv seq-mean))})))))

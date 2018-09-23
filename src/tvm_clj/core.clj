@@ -99,6 +99,12 @@
              :raw-ptr (.hashCode this))))
 
 
+(extend-protocol dtype/PDatatype
+  NodeHandle
+  (get-datatype [item]
+    (keyword (:dtype item))))
+
+
 (extend-protocol resource/PResource
   NodeHandle
   (release-resource [node]
