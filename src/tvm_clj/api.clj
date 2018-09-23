@@ -293,10 +293,34 @@ clojure 'if' statement."
 
 
 (defn compute
-  [shape fcompute & {:keys [name tag]
+  "Construct a new tensor by computing over the shape domain.
+
+    The compute rule is result[axis] = fcompute(axis)
+
+    Parameters
+    ----------
+    shape: Array of Expr
+        The shape of the tensor
+
+    fcompute: lambda function of indices-> value
+        Specifies the input source expression
+
+    name: str, optional
+        The name hint of the tensor
+
+    tag: str, optional
+        Additonal tag information about the compute.
+
+    attrs: dict, optional
+        The additional auxiliary attributes about the compute.
+
+    Returns
+    -------
+    The created compute node
+    "
+  [shape fcompute & {:keys [name tag attrs]
                      :or {name "compute"
                           tag ""}}]
-
   (let [fn-arglists (->> (meta fcompute)
                          :arglists
                          (mapv clojure.core/name))]
@@ -309,13 +333,14 @@ clojure 'if' statement."
                {:shape-rank (count shape)
                 :num-fn-args (count fn-arglists)}))
     (let [compute-dim (map (fn [arg-name shape-value]
-                             (iteration-variable [0 shape-value] arg-name :data-parallel))
+                             (iteration-variable [0 shape-value] arg-name
+                                                 :data-parallel))
                            fn-arglists shape)
           body-data (apply fcompute (map :var compute-dim))
           body-data (if-not (instance? clojure.lang.Sequential body-data)
                       [body-data]
                       body-data)]
-      (-> (c/g-fn "_ComputeOp" name tag compute-dim body-data)
+      (-> (c/g-fn "_ComputeOp" name tag attrs compute-dim body-data)
           (c/unpack-node-fields :recurse false)))))
 
 
@@ -376,7 +401,7 @@ clojure 'if' statement."
 (defn stage-fuse
   "Fuse n-axis together, returns single new axis"
   [stage & axis-args]
-  (reduce #(c/g-fn "_StageFuse" stage %1 %2) axis-args))
+  (c/g-fn "_StageFuse" stage axis-args))
 
 
 (defn stage-parallel
