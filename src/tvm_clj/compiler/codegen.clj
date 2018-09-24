@@ -420,7 +420,8 @@ and a description of the arguments to the function."
                           op-schedule (condp = (:type operation)
                                         :injective (tvm-reg/schedule-injective
                                                     driver
-                                                    (:operation operation)))]
+                                                    (:operation operation)
+                                                    nil))]
                       [idx
                        (assoc-in compiled-graph [:operation :operation]
                                  (api/schedule->lowered-function

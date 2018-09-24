@@ -45,7 +45,8 @@
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (c/global-node-function "_Var" (safe-str name) (->dtype dtype)))
+  (c/global-node-function "_Var" (safe-str name)
+                          (->dtype dtype)))
 
 
 (defn placeholder
@@ -501,6 +502,12 @@ clojure 'if' statement."
   (c/g-fn "_StageBind" stage iter-var thread-ivar))
 
 
+(defn stage-compute-at
+  "Compute src stage at dst stage dst axis"
+  [src-stage dst-stage dst-axis]
+  (c/g-fn "_StageComputeAt" src-stage dst-stage dst-axis))
+
+
 (defn stage-fuse
   "Fuse n-axis together, returns single new axis"
   [stage & axis-args]
@@ -697,7 +704,7 @@ the threading macro with the long set of ir pass possibilities."
         requirement of the function. By default, a new compact buffer is created
         for each tensor in the argument list.
 
-    simple_mode : bool, optional (not currently implemented)
+    simple-mode? : bool, optional (not currently implemented)
         Whether only output simple and compact statement, this will skip
         LoopPartition, api wrapper generation and Unrolling.
 
@@ -707,7 +714,7 @@ the threading macro with the long set of ir pass possibilities."
        The result function, if with_api_wrapper=False
        Then the Stmt before make api is returned.
     "
-  ^NodeHandle [schedule args build-config & {:keys [name bind-map]
+  ^NodeHandle [schedule args build-config & {:keys [name bind-map simple-mode?]
                                              :or {name "default_function"
                                                   bind-map {}}}]
   (let [schedule (c/g-fn "_ScheduleNormalize" schedule)
@@ -722,7 +729,11 @@ the threading macro with the long set of ir pass possibilities."
         (gfnr "ir_pass.StorageFlatten" bind-map cache-line-size)
         (gfnr "ir_pass.CanonicalSimplify")
         ;;Phase 2
-        (gfnr "ir_pass.LoopPartition" (:partition-const-loop? build-config))
+        ((fn [stmt]
+           (if simple-mode?
+             stmt
+             (gfnr stmt "ir_pass.LoopPartition"
+                   (:partition-const-loop? build-config)))))
         (gfnr "ir_pass.VectorizeLoop")
         (gfnr "ir_pass.InjectVirtualThread")
         (gfnr "ir_pass.InjectDoubleBuffer" (:double-buffer-split-loop build-config))
@@ -737,10 +748,20 @@ the threading macro with the long set of ir pass possibilities."
         (gfnr "ir_pass.LowerStorageAccessInfo")
         (gfnr "ir_pass.RemoveNoOp")
         (gfnr "ir_pass.RewriteUnsafeSelect")
-        ;;Exit
-        (gfnr "ir_pass.MakeAPI" name arg-list 0 (:restricted-func? build-config))
-        (c/unpack-node-fields :recurse false)
-        (update :func_type int->lowered-function-type-map))))
+        ((fn [stmt]
+           (if simple-mode?
+             stmt
+             (-> stmt
+                 ;;Exit
+                 (gfnr "ir_pass.MakeAPI" name arg-list 0
+                       (:restricted-func? build-config))
+                 (c/unpack-node-fields :recurse false)
+                 (update :func_type int->lowered-function-type-map))))))))
+
+
+(defn node->str
+  [node]
+  (c/g-fn "_format_str" node))
 
 
 (def target-name->props

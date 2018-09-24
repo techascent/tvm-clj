@@ -107,7 +107,7 @@
 
 (defn- simple-compile
   [raw-fn fn-name bind-list driver]
-  (let [schedule (registry/schedule-injective driver raw-fn)
+  (let [schedule (registry/schedule-injective driver raw-fn nil)
         lowered-fn (api/schedule->lowered-function
                     schedule bind-list
                     api/default-build-config
@@ -150,7 +150,7 @@
                                             (api/mul x-ratio y-ratio))]
                                   [kern_y_axis kern_x_axis])))
         intermediate-output (first (api/output-tensors intermediate-op))
-        int-schedule (registry/schedule-injective driver intermediate-op)
+        int-schedule (registry/schedule-injective driver intermediate-op nil)
         compute-op (api/compute [out-height out-width n-chans]
                                 (api/tvm-fn
                                  [y x c]
@@ -208,7 +208,8 @@
 
 
 (defn linear-reduce-transpose-fn
-  [img-dtype & {:keys [input]}]
+  [img-dtype & {:keys [input name]
+                :or {name "trans_fn"}}]
   (let [[in-rows in-cols n-chans] (if input
                                     (:shape input)
                                     [(api/variable "in_height")
@@ -227,7 +228,8 @@
                      [start (api/mul ratio out-col-idx)
                       start-pix (api/floor (api/add start k-idx))]
                      (api/div (pixel-mul start-pix start ratio k-idx)
-                              ratio))))
+                              ratio)))
+                   :name (str name "_kernel"))
         kernel-vec (first (api/output-tensors kernel-op))
         kern-var (api/iteration-variable [0 k-size] "k_var" :communicative-reduce)
         ->pixel (fn [out-col-idx k-idx]
@@ -251,7 +253,10 @@
                                     row-idx (->pixel col-idx kern-var)
                                     chan-idx)
                   (api/tget kernel-vec [col-idx kern-var]))]
-        [kern-var])))
+        [kern-var]))
+      :name name)
+     :kernel-op kernel-op
+     :kernel kernel-vec
      :input input
      :k-size k-size
      :ratio ratio}))
@@ -275,17 +280,20 @@
   [img-dtype]
   (let [{stage-1-fn! :fn!
          stage-1-input :input
+         stage-1-kernel :kernel
          stage-1-k-size :k-size
-         stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype)
+         stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype :name
+                                                           "bilinear_stage_1")
         stage-output (first (api/output-tensors stage-1-fn!))
 
         {stage-2-fn! :fn!
          stage-2-input :input
          stage-2-k-size :k-size
          stage-2-ratio :ratio} (linear-reduce-transpose-fn :float32
-                                                           :input stage-output)
+                                                           :input stage-output
+                                                           :name "bilinear_stage_2")
         stage-2-output (first (api/output-tensors stage-2-fn!))
-        final-op (final-cast-fn img-dtype stage-2-output)
+        final-op (final-cast-fn img-dtype stage-2-output "bilinear_stage_3")
         output (first (api/output-tensors final-op))
         _ (println (drv/get-driver drv/*current-compute-device*))
         item-fn (simple-compile final-op "linear_reduce_uint8"
@@ -325,10 +333,11 @@
 (defn test-linear-reduce
   [& {:keys [device-type]
       :or {device-type :opencl}}]
-  (let [img-dtype :uint8]
+  (let [img-dtype :uint8
+        driver (registry/get-driver device-type)]
     (first
      (verify-tensor/tensor-context
-      (registry/get-driver device-type)
+      driver
       img-dtype
       (let [input-data (->> (range (* 4 4))
                             (partition 1)
@@ -337,13 +346,40 @@
             output-tens (ct/new-tensor [2 4 1] :datatype :float32)
             {stage-1-fn! :fn!
              stage-1-input :input
+             stage-1-kernel :kernel
+             stage-1-kernel-op :kernel-op
              stage-1-k-size :k-size
              stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype)
             stage-output (first (api/output-tensors stage-1-fn!))
-            reduce-fn (simple-compile stage-1-fn! "stage_1"
-                                      [stage-1-input stage-output
-                                       stage-1-k-size stage-1-ratio]
-                                      (drv/get-driver drv/*current-compute-device*))]
-        (c/call-function reduce-fn input-tens output-tens 2 (float 2))
-        {:result (->> (ct/to-array-of-type output-tens :float32)
-                   vec)})))))
+            main-sched (api/create-schedule stage-1-fn!)
+            kern-stage (get (:stage_map main-sched) stage-1-kernel-op)
+            final-stage (get (:stage_map main-sched) stage-1-fn!)
+            stage-axis (get stage-1-fn! :axis)
+            block-axis (first stage-axis)
+            ;;Fuse the other 2 axis
+            thread-axis (apply api/stage-fuse final-stage (drop 1 stage-axis))
+            _ (api/stage-compute-at kern-stage final-stage block-axis)
+            _ (if (= device-type :cpu)
+                (api/stage-parallel final-stage thread-axis)
+                (do
+                  (api/stage-bind final-stage block-axis
+                                  (api/name->thread-axis-iterator "blockIdx.x"))
+                  (api/stage-bind final-stage thread-axis
+                                  (api/name->thread-axis-iterator "threadIdx.x"))))
+            fn-name "test"
+            lowered-fn (api/schedule->lowered-function
+                        main-sched
+                        [stage-1-input stage-output
+                         stage-1-k-size stage-1-ratio]
+                        api/default-build-config
+                        :name fn-name)
+
+            module (api/lowered-functions->module
+                    [lowered-fn]
+                    api/default-build-config
+                    :target-name device-type)
+            reduce-fn (c/get-module-function module fn-name)
+            ]
+        (c/call-function reduce-fn input-tens output-tens
+                         2 (float 2))
+        (vec (ct/to-float-array output-tens)))))))

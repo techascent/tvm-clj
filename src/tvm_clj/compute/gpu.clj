@@ -147,9 +147,9 @@
   tvm-reg/PCompileModule
   (gpu-scheduling? [driver] true)
   (device-datatypes? [driver] true)
-  (schedule-injective [driver compute-op]
+  (schedule-injective [driver compute-op schedule]
     ;;For injective we fuse all dimensions and then run them all in parallel.
-    (let [schedule (api/create-schedule [compute-op])
+    (let [schedule (or schedule (api/create-schedule [compute-op]))
           stage (get-in schedule [:stage_map compute-op])
           op-axis (:axis compute-op)
           fused-axis (apply api/stage-fuse stage op-axis)

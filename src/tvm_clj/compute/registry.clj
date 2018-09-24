@@ -64,7 +64,7 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   (gpu-scheduling? [driver])
   ;;https://github.com/dmlc/tvm/issues/984
   (device-datatypes? [driver])
-  (schedule-injective [driver op])
+  (schedule-injective [driver compute-op schedule])
   (->module-impl [driver lowered-function-seq build-config]))
 
 (defn ->module
