@@ -294,7 +294,7 @@
     item-fn))
 
 
-(defn linear-reduce
+(defn linear-reduce!
   [input output red-fn]
   (let [[in-height in-width in-chan] (ct/shape input)
         [out-height out-width out-chan] (ct/shape output)
@@ -331,7 +331,7 @@
             input-tens (ct/->tensor input-data)
             output-tens (ct/new-tensor [2 2 1] :datatype img-dtype)
             reduce-fn (create-linear-reduce-fn img-dtype)]
-        (linear-reduce input-tens output-tens reduce-fn)
+        (linear-reduce! input-tens output-tens reduce-fn)
         {:result (->> (ct/to-array-of-type output-tens :int64)
                    vec)
          :answer (->> (range (* 4 4))

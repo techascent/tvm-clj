@@ -2,12 +2,14 @@
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
+            [tvm-clj.compute.host-buffer :as hbuf]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
             [tech.compute.cpu.driver :as cpu-driver]
-            [think.resource.core :as resource]))
+            [think.resource.core :as resource]
+            [tech.datatype.base :as dtype]))
 
 
 (declare driver)
@@ -135,3 +137,12 @@
    (fn [] (->CPUDriver))))
 
 (tvm-reg/add-device-type (tvm-core/device-type->device-type-int :cpu) (driver))
+
+(defn ptr->host-buffer
+  [ptr & {:keys [dtype]}]
+  (let [dtype (or dtype (dtype/get-datatype ptr))
+        shape [(dtype/ecount ptr)]
+        device-type (tvm-core/device-type->device-type-int :cpu)
+        device-id 0]
+    (->> (tvm-base/pointer->tvm-ary ptr device-type device-id dtype shape nil 0)
+         (dbuf/->DeviceBuffer (first (cpu-devices))))))

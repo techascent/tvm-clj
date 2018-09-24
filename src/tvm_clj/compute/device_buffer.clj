@@ -37,65 +37,6 @@
     (jcpp-dtype/set-pointer-limit-and-capacity retval elem-count)))
 
 
-(defn datatype->dl-type-code
-  ^long [datatype]
-  (condp = datatype
-    :uint8 runtime/kDLUInt
-    :uint16 runtime/kDLUInt
-    :uint32 runtime/kDLUInt
-    :uint64 runtime/kDLUInt
-    :int8 runtime/kDLInt
-    :int16 runtime/kDLInt
-    :int32 runtime/kDLInt
-    :int64 runtime/kDLInt
-    :float32 runtime/kDLFloat
-    :float64 runtime/kDLFloat))
-
-
-(defn datatype->dl-bits
-  ^long [datatype]
-  (* 8 (dtype/datatype->byte-size datatype)))
-
-
-(defn raw-create-tvm-ary
-  [^Pointer ptr device-type device-id datatype byte-offset
-   ^LongPointer shape-ptr & {:keys [strides-ptr]}]
-  (let [tens-data (runtime$DLTensor. 1)
-        n-dims (.capacity shape-ptr)
-        ctx (.ctx tens-data)
-        dtype (.dtype tens-data)]
-    (.data tens-data ptr)
-    (.ndim tens-data n-dims)
-    (.byte_offset tens-data (long byte-offset))
-    (.device_type ctx (int device-type))
-    (.device_id ctx (int device-id))
-    (.code dtype (datatype->dl-type-code datatype))
-    (.bits dtype (datatype->dl-bits datatype))
-    (.lanes dtype 1)
-    (.shape tens-data shape-ptr)
-    (if strides-ptr
-      (.strides tens-data strides-ptr)
-      (.strides tens-data (LongPointer.)))
-    tens-data))
-
-
-(defn pointer->tvm-ary
-  "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
-  have a byte_offset member that you can use to make an array not start at the pointer's
-  base address."
-  ^ArrayHandle [^Pointer ptr device-type device-id datatype elem-count byte-offset]
-  (let [^LongPointer shape (let [shape (LongPointer. 1)]
-                             (.put shape 0 elem-count)
-                             (resource/track shape))
-        elem-count (long elem-count)]
-    (.put shape 0 elem-count)
-    (resource/track
-     (merge (tvm-base/->ArrayHandle
-             (raw-create-tvm-ary ptr device-type device-id datatype byte-offset shape))
-            {:shape [elem-count]
-             :datatype datatype
-             :owns-memory? false}))))
-
 
 (defn is-cpu-device?
   [device]
@@ -118,14 +59,15 @@
           base-ptr (.data tvm-tensor)
           datatype (dtype/get-datatype buffer)]
       (->DeviceBuffer device
-                      (pointer->tvm-ary base-ptr
-                                        (tvm-reg/device-type device)
-                                        (tvm-reg/device-id device)
-                                        datatype
-                                        length
-                                        ;;add the byte offset where the new pointer should start
-                                        (* (long offset) (long (dtype/datatype->byte-size
-                                                                datatype)))))))
+                      (tvm-base/pointer->tvm-ary
+                       base-ptr
+                       (tvm-reg/device-type device)
+                       (tvm-reg/device-id device)
+                       datatype
+                       length
+                       ;;add the byte offset where the new pointer should start
+                       (* (long offset) (long (dtype/datatype->byte-size
+                                               datatype)))))))
   (alias? [lhs rhs]
     (hbuf/jcpp-pointer-alias? (tvm-ary->pointer dev-ary)
                               (:dev-ary rhs)))
@@ -227,19 +169,17 @@ and device buffers for the cpu device."
 (extend-type Tensor
   tvm-base/PJVMTypeToTVMValue
   (->tvm-value [item]
-    (let [src-dl-tensor (device-buffer->tvm-array (ct/tensor->buffer item))
+    (let [^runtime$DLTensor src-dl-tensor
+          (device-buffer->tvm-array (ct/tensor->buffer item))
           ^runtime$DLContext ctx (.ctx src-dl-tensor)
           dims (ct/tensor->dimensions item)
-          shape-data (resource/track (jcpp-dtype/make-pointer-of-type :int64 (:shape dims)))
           stride-data (when-not (ct/dense? item)
-                        (resource/track
-                         (jcpp-dtype/make-pointer-of-type
-                          :int64
-                          (mapv #(long  %)
-                                (:strides dims)))))
-          ^runtime$DLTensor new-ary (raw-create-tvm-ary (.data src-dl-tensor) (.device_type ctx) (.device_id ctx)
-                                                        (ct/get-datatype item) (.byte_offset src-dl-tensor)
-                                                        shape-data :strides-ptr stride-data)]
-
-      (tvm-base/->tvm-value
-       (resource/track (tvm-base/->ArrayHandle new-ary))))))
+                        (:strides dims))]
+      (-> (tvm-base/pointer->tvm-ary (.data src-dl-tensor)
+                                     (.device_type ctx)
+                                     (.device_id ctx)
+                                     (ct/get-datatype item)
+                                     (:shape dims)
+                                     stride-data
+                                     (.byte_offset src-dl-tensor))
+          tvm-base/->tvm-value))))

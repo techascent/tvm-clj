@@ -214,11 +214,14 @@
                                                        (fn [& args]
                                                          (if (= scalar-datatype datatype)
                                                            const-var
-                                                           (api/static-cast (name datatype) const-var))))
+                                                           (api/static-cast
+                                                            (name datatype)
+                                                            const-var))))
                           result (first (api/output-tensors compute-op))]
                       (compute->lowered-function stream fn-name compute-op
                                                  [result const-var] {tensor result})))]
-    (tvm-reg/call-function stream assign-fn tensor (tens-utils/dtype-cast value scalar-datatype))))
+    (tvm-reg/call-function stream assign-fn tensor
+                           (tens-utils/dtype-cast value scalar-datatype))))
 
 
 (defn assign!
