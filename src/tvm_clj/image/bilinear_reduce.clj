@@ -113,6 +113,8 @@
                     api/default-build-config
                     :name fn-name)
         module (registry/->module driver [lowered-fn])]
+    (comment (println "module-source\n"
+                      (c/get-module-source module {:format "cl"})))
     (c/get-module-function module fn-name)))
 
 
@@ -276,6 +278,7 @@
          stage-1-k-size :k-size
          stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype)
         stage-output (first (api/output-tensors stage-1-fn!))
+
         {stage-2-fn! :fn!
          stage-2-input :input
          stage-2-k-size :k-size
@@ -284,6 +287,7 @@
         stage-2-output (first (api/output-tensors stage-2-fn!))
         final-op (final-cast-fn img-dtype stage-2-output)
         output (first (api/output-tensors final-op))
+        _ (println (drv/get-driver drv/*current-compute-device*))
         item-fn (simple-compile final-op "linear_reduce_uint8"
                                 [stage-1-input output
                                  stage-1-k-size
@@ -304,10 +308,11 @@
                         (double out-width))
         kernel-height (bilinear-filter-pixel-size in-height out-height)
         kernel-width (bilinear-filter-pixel-size in-width out-width)]
+
     (c/call-function red-fn input output
                      kernel-width filter-width
-                     kernel-height filter-height))
-  output)
+                     kernel-height filter-height)
+    output))
 
 (defn seq-mean
   [item-seq]
@@ -319,7 +324,7 @@
 
 (defn test-linear-reduce
   [& {:keys [device-type]
-      :or {device-type :cpu}}]
+      :or {device-type :opencl}}]
   (let [img-dtype :uint8]
     (first
      (verify-tensor/tensor-context
@@ -329,15 +334,16 @@
                             (partition 1)
                             (partition 4))
             input-tens (ct/->tensor input-data)
-            output-tens (ct/new-tensor [2 2 1] :datatype img-dtype)
-            reduce-fn (create-linear-reduce-fn img-dtype)]
-        (linear-reduce! input-tens output-tens reduce-fn)
-        {:result (->> (ct/to-array-of-type output-tens :int64)
-                   vec)
-         :answer (->> (range (* 4 4))
-                      (partition 4)
-                      (partition 2)
-                      (map (comp (partial partition 4)
-                                 (partial apply interleave)))
-                      (apply concat)
-                      (mapv seq-mean))})))))
+            output-tens (ct/new-tensor [2 4 1] :datatype :float32)
+            {stage-1-fn! :fn!
+             stage-1-input :input
+             stage-1-k-size :k-size
+             stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype)
+            stage-output (first (api/output-tensors stage-1-fn!))
+            reduce-fn (simple-compile stage-1-fn! "stage_1"
+                                      [stage-1-input stage-output
+                                       stage-1-k-size stage-1-ratio]
+                                      (drv/get-driver drv/*current-compute-device*))]
+        (c/call-function reduce-fn input-tens output-tens 2 (float 2))
+        {:result (->> (ct/to-array-of-type output-tens :float32)
+                   vec)})))))

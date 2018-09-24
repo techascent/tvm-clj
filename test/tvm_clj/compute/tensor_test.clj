@@ -4,6 +4,7 @@
                                                 def-opencl-dtype-test] :as cu]
             [tech.compute.verify.utils :refer [*datatype*] :as vu]
             [tvm-clj.compute.cpu :as tvm-cpu]
+            [tvm-clj.compute.gpu :as gpu]
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.base :as root]
             [tech.compute.driver :as drv]

@@ -64,7 +64,8 @@
                        (tvm-reg/device-type device)
                        (tvm-reg/device-id device)
                        datatype
-                       length
+                       [length]
+                       nil
                        ;;add the byte offset where the new pointer should start
                        (* (long offset) (long (dtype/datatype->byte-size
                                                datatype)))))))

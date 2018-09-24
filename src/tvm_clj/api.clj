@@ -36,11 +36,16 @@
                     {:dtype dtype-or-name}))))
 
 
+(defn safe-str
+  [str-name]
+  (s/replace str-name "-" "_"))
+
+
 (defn variable
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (c/global-node-function "_Var" name (->dtype dtype)))
+  (c/global-node-function "_Var" (safe-str name) (->dtype dtype)))
 
 
 (defn placeholder
@@ -51,7 +56,7 @@
   (let [shape (if-not (instance? clojure.lang.Seqable shape)
                 [shape]
                 shape)]
-    (c/global-node-function "_Placeholder" shape (->dtype dtype) name)))
+    (c/global-node-function "_Placeholder" shape (->dtype dtype) (safe-str name))))
 
 
 (defn range
@@ -364,11 +369,6 @@ clojure 'if' statement."
     :parallel 1
     :vectorize 2
     :unroll 3))
-
-
-(defn safe-str
-  [str-name]
-  (s/replace str-name "-" "_"))
 
 
 (defmacro tvm-let

@@ -428,6 +428,10 @@ https://github.com/dmlc/tvm/issues/918"
   (->tvm-value [value]
     [(.address ^runtime$DLTensor (.tvm-jcpp-handle ^ArrayHandle value)) runtime/kArrayHandle])
 
+  runtime$TVMModuleHandle
+  (->tvm-value [value]
+    [(.address value) runtime/kModuleHandle])
+
   Object
   (->tvm-value [value]
     (cond
@@ -609,6 +613,12 @@ explicitly; it is done for you."
       (throw (ex-info "Could not find module function"
                       {:fn-name fn-name})))
     (resource/track retval)))
+
+
+(defn get-module-source
+  [^runtime$TVMModuleHandle module {:keys [format]
+                                    :or {format ""}}]
+  (global-function "module._GetSource" module format))
 
 
 (def datatype->tvm-datatype-data-map
