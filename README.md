@@ -52,7 +52,7 @@ Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilin
 
 tvm (32 ms): ![tvm-results](docs/images/test.jpg)
 
-opecnv (110 ms): ![opencv-results](docs/images/ref.jpg)
+opencv (110 ms): ![opencv-results](docs/images/ref.jpg)
 
 * [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
