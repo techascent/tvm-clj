@@ -126,11 +126,13 @@
     (let [schedule (or schedule (api/create-schedule [compute-op]))
           stage (get-in schedule [:stage_map compute-op])
           op-axis (:axis compute-op)
-          fused-axis (apply api/stage-fuse stage op-axis)]
+          fused-axis (api/stage-fuse stage op-axis)]
       (api/stage-parallel stage fused-axis)
       schedule))
   (->module-impl [driver lowered-fn-seq build-config]
-    (api/lowered-functions->module lowered-fn-seq build-config :target-name :llvm)))
+    (api/lowered-functions->module lowered-fn-seq
+                                   :target-name :llvm
+                                   :build-config build-config)))
 
 (def driver
   (memoize

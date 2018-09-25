@@ -152,14 +152,14 @@
     (let [schedule (or schedule (api/create-schedule [compute-op]))
           stage (get-in schedule [:stage_map compute-op])
           op-axis (:axis compute-op)
-          fused-axis (apply api/stage-fuse stage op-axis)
+          fused-axis (api/stage-fuse stage op-axis)
           [bx tx] (api/split-stage-by-factor stage fused-axis 64)]
-      (api/stage-bind stage bx (api/name->thread-axis-iterator "blockIdx.x"))
-      (api/stage-bind stage tx (api/name->thread-axis-iterator "threadIdx.x"))
+      (api/bind-gpu-axis stage [bx] [tx])
       schedule))
   (->module-impl [driver lowered-fn-seq build-config]
     (api/lowered-functions->module
-     lowered-fn-seq build-config
+     lowered-fn-seq
+     :build-config build-config
      :target-name (tvm-core/device-type-int->device-type device-type))))
 
 

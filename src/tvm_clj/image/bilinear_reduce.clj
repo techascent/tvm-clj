@@ -135,7 +135,6 @@
         intermediate-op (api/compute [out-height out-width n-chans]
                                 (api/tvm-fn
                                  [y x c]
-
                                  (api/commutative-reduce
                                   (api/tvm-fn
                                    [lhs rhs]
@@ -206,64 +205,22 @@
                  (partition 4))}))))
 
 
-
-(defn linear-reduce-transpose-fn
-  [img-dtype & {:keys [input name]
-                :or {name "trans_fn"}}]
-  (let [[in-rows in-cols n-chans] (if input
-                                    (:shape input)
-                                    [(api/variable "in_height")
-                                     (api/variable "in_width")
-                                     (api/variable "n_channels")
-                                     ])
-        out-cols (api/variable "out-cols")
-        input (or input (api/placeholder [in-rows in-cols n-chans] :dtype img-dtype))
-        ratio (api/variable "ratio" :dtype :float32)
-        k-size (api/variable "k_size")
-        kernel-op (api/compute
-                   [out-cols k-size]
-                   (api/tvm-fn
-                    [out-col-idx k-idx]
-                    (api/tvm-let
-                     [start (api/mul ratio out-col-idx)
-                      start-pix (api/floor (api/add start k-idx))]
-                     (api/div (pixel-mul start-pix start ratio k-idx)
-                              ratio)))
-                   :name (str name "_kernel"))
-        kernel-vec (first (api/output-tensors kernel-op))
-        kern-var (api/iteration-variable [0 k-size] "k_var" :communicative-reduce)
-        ->pixel (fn [out-col-idx k-idx]
-                  (api/static-cast
-                   :int32
-                   (-> (api/mul ratio out-col-idx)
-                       (api/add k-idx))))
-        combine-fn (api/tvm-fn
-                    [dst input]
-                    (api/add dst input))]
-    {:fn!
-     (api/compute
-      [out-cols in-rows n-chans]
-      (api/tvm-fn
-       [col-idx row-idx chan-idx]
-       (api/commutative-reduce
-        combine-fn
-        (api/const 0 :dtype :float32)
-        :float32
-        [(api/mul (read-clamped-f32 input in-rows in-cols
-                                    row-idx (->pixel col-idx kern-var)
-                                    chan-idx)
-                  (api/tget kernel-vec [col-idx kern-var]))]
-        [kern-var]))
-      :name name)
-     :kernel-op kernel-op
-     :kernel kernel-vec
-     :input input
-     :k-size k-size
-     :ratio ratio}))
+(defn create-kernel-op
+  [out-cols k-size ratio k-name]
+  (api/compute
+   [out-cols k-size]
+   (api/tvm-fn
+    [out-col-idx k-idx]
+    (api/tvm-let
+     [start (api/mul ratio out-col-idx)
+      start-pix (api/floor (api/add start k-idx))]
+     (api/div (pixel-mul start-pix start ratio k-idx)
+              ratio)))
+   k-name))
 
 
 (defn final-cast-fn
-  [img-dtype input]
+  [img-dtype input fn-name]
   (let [[in-rows in-cols in-chan] (:shape input)]
     (api/compute
      [in-rows in-cols in-chan]
@@ -273,41 +230,128 @@
        img-dtype
        (api/add
         (api/tget input [y x c])
-        (float 0.5)))))))
+        (float 0.5))))
+     fn-name)))
 
 
-(defn create-linear-reduce-fn
+(defn input-coord
+  [dest-coord ratio kernel-idx]
+  (->> (api/mul dest-coord ratio)
+       (api/static-cast :int32)
+       (api/add kernel-idx)))
+
+
+(defn bilinear-reduction-kernel-reduce-fn
+  "Instead of computing the kernels inline we abstract them into vectors"
   [img-dtype]
-  (let [{stage-1-fn! :fn!
-         stage-1-input :input
-         stage-1-kernel :kernel
-         stage-1-k-size :k-size
-         stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype :name
-                                                           "bilinear_stage_1")
-        stage-output (first (api/output-tensors stage-1-fn!))
+  (let [in-width (api/variable "in_width")
+        in-height (api/variable "in_height")
+        out-width (api/variable "out_width")
+        out-height (api/variable "out_height")
+        n-chans (api/variable "n_channels")
+        x-ratio (api/variable "x_ratio" :dtype :float32)
+        y-ratio (api/variable "y_ratio" :dtype :float32)
+        k-width (api/variable "k_width")
+        k-height (api/variable "k_height")
+        kern-x-op (create-kernel-op out-width k-width x-ratio "kernel-x-op")
+        kern-y-op (create-kernel-op out-height k-height y-ratio "kernel-y-op")
+        kern-x-vec (first (api/output-tensors kern-x-op))
+        kern-y-vec (first (api/output-tensors kern-y-op))
+        kern_x_axis (api/iteration-variable [0 k-width] "red_x" :communicative-reduce)
+        kern_y_axis (api/iteration-variable [0 k-height] "red_y" :communicative-reduce)
+        input (api/placeholder [in-height in-width n-chans] "input" :dtype img-dtype)
+        intermediate-op (api/compute
+                         [out-height out-width n-chans]
+                         (api/tvm-fn
+                          [y x c]
+                          (api/commutative-reduce
+                           (api/tvm-fn
+                            [lhs rhs]
+                            (api/add lhs rhs))
+                           (api/const 0 :dtype :float32)
+                           :float32
+                           [(api/mul
+                             (read-clamped-f32
+                              input in-height in-width
+                              (input-coord y y-ratio kern_y_axis)
+                              (input-coord x x-ratio kern_x_axis)
+                              c)
+                             (api/mul
+                              (api/tget kern-x-vec [x kern_x_axis])
+                              (api/tget kern-y-vec [y kern_y_axis])))]
+                           [kern_y_axis kern_x_axis]))
+                         "bilinear_reduction")
+        intermediate-output (first (api/output-tensors intermediate-op))
+        compute-op (final-cast-fn img-dtype intermediate-output "bilinear_cast")
+        output (first (api/output-tensors compute-op))]
+    {:input input
+     :output output
+     :kern-width k-width
+     :kern-height k-height
+     :x-ratio x-ratio
+     :y-ratio y-ratio
+     :reduce-op intermediate-op
+     :final-op compute-op
+     :kern-x-op kern-x-op
+     :kern-y-op kern-y-op}))
 
-        {stage-2-fn! :fn!
-         stage-2-input :input
-         stage-2-k-size :k-size
-         stage-2-ratio :ratio} (linear-reduce-transpose-fn :float32
-                                                           :input stage-output
-                                                           :name "bilinear_stage_2")
-        stage-2-output (first (api/output-tensors stage-2-fn!))
-        final-op (final-cast-fn img-dtype stage-2-output "bilinear_stage_3")
-        output (first (api/output-tensors final-op))
-        _ (println (drv/get-driver drv/*current-compute-device*))
-        item-fn (simple-compile final-op "linear_reduce_uint8"
-                                [stage-1-input output
-                                 stage-1-k-size
-                                 stage-1-ratio
-                                 stage-2-k-size
-                                 stage-2-ratio]
-                                (drv/get-driver drv/*current-compute-device*))]
-    item-fn))
+
+(defn schedule-bilinear-reduce-fn
+  [& {:keys [device-type
+             img-dtype
+             print-schedule?]
+      :or {device-type :cpu
+           img-dtype :uint8
+           print-schedule? false}}]
+  (let [{:keys [input
+                output
+                kern-width
+                kern-height
+                x-ratio
+                y-ratio
+                reduce-op
+                final-op
+                kern-x-op
+                kern-y-op]}
+        (bilinear-reduction-kernel-reduce-fn img-dtype)
+
+        arglist [input output
+                 kern-width x-ratio
+                 kern-height y-ratio]
+        fn-name "bilinear_reduce"
+        schedule (api/create-schedule [final-op])
+        reduce-axis (:axis reduce-op)
+        [reduce-y-axis reduce-x-axis reduce-channels] reduce-axis
+        stage-map (get schedule :stage_map)
+        kern-x-stage (get stage-map kern-x-op)
+        kern-y-stage (get stage-map kern-y-op)
+        reduce-stage (get stage-map reduce-op)
+        [y-outer x-outer y-inner x-inner]
+        (api/stage-tile reduce-stage reduce-y-axis reduce-x-axis 16 32)
+        _ (api/stage-compute-at kern-y-stage reduce-stage y-outer)
+        _ (api/stage-compute-at kern-x-stage reduce-stage x-outer)
+        _ (api/stage-parallel reduce-stage x-outer)
+        final-op-stage (get stage-map final-op)
+        fused (api/stage-fuse final-op-stage (:axis final-op))
+        _ (api/stage-parallel final-op-stage fused)
+
+        input-seq (range (* 4 4))
+        input-tens (ct/->tensor (->> input-seq
+                                     (partition 1)
+                                     (partition 4)))
+        output-tens (ct/new-tensor [2 2 1])]
+    (if print-schedule?
+      (api/schedule->str schedule arglist fn-name)
+      (let [module-data (api/schedules->fns [{:schedule schedule
+                                              :name :bilinear-reduce
+                                              :arglist arglist}]
+                                            :target-name device-type)
+            bilinear-fn (get-in module-data [:fn-map :bilinear-reduce])]
+        bilinear-fn))))
 
 
-(defn linear-reduce!
-  [input output red-fn]
+(defn bilinear-reduce!
+  [input output bilinear-fn]
   (let [[in-height in-width in-chan] (ct/shape input)
         [out-height out-width out-chan] (ct/shape output)
         filter-height (/ (double in-height)
@@ -316,10 +360,9 @@
                         (double out-width))
         kernel-height (bilinear-filter-pixel-size in-height out-height)
         kernel-width (bilinear-filter-pixel-size in-width out-width)]
-
-    (c/call-function red-fn input output
-                     kernel-width filter-width
-                     kernel-height filter-height)
+    (bilinear-fn input output
+                 kernel-width filter-width
+                 kernel-height filter-height)
     output))
 
 (defn seq-mean
@@ -330,56 +373,23 @@
      (/ (apply + item-seq)
         (count item-seq))))))
 
-(defn test-linear-reduce
-  [& {:keys [device-type]
-      :or {device-type :opencl}}]
-  (let [img-dtype :uint8
-        driver (registry/get-driver device-type)]
+
+(defn test-bilinear-reduce
+  []
+  (let [device-type :cpu
+        img-dtype :uint8]
     (first
      (verify-tensor/tensor-context
-      driver
+      (registry/get-driver device-type)
       img-dtype
-      (let [input-data (->> (range (* 4 4))
-                            (partition 1)
-                            (partition 4))
-            input-tens (ct/->tensor input-data)
-            output-tens (ct/new-tensor [2 4 1] :datatype :float32)
-            {stage-1-fn! :fn!
-             stage-1-input :input
-             stage-1-kernel :kernel
-             stage-1-kernel-op :kernel-op
-             stage-1-k-size :k-size
-             stage-1-ratio :ratio} (linear-reduce-transpose-fn img-dtype)
-            stage-output (first (api/output-tensors stage-1-fn!))
-            main-sched (api/create-schedule stage-1-fn!)
-            kern-stage (get (:stage_map main-sched) stage-1-kernel-op)
-            final-stage (get (:stage_map main-sched) stage-1-fn!)
-            stage-axis (get stage-1-fn! :axis)
-            block-axis (first stage-axis)
-            ;;Fuse the other 2 axis
-            thread-axis (apply api/stage-fuse final-stage (drop 1 stage-axis))
-            _ (api/stage-compute-at kern-stage final-stage block-axis)
-            _ (if (= device-type :cpu)
-                (api/stage-parallel final-stage thread-axis)
-                (do
-                  (api/stage-bind final-stage block-axis
-                                  (api/name->thread-axis-iterator "blockIdx.x"))
-                  (api/stage-bind final-stage thread-axis
-                                  (api/name->thread-axis-iterator "threadIdx.x"))))
-            fn-name "test"
-            lowered-fn (api/schedule->lowered-function
-                        main-sched
-                        [stage-1-input stage-output
-                         stage-1-k-size stage-1-ratio]
-                        api/default-build-config
-                        :name fn-name)
-
-            module (api/lowered-functions->module
-                    [lowered-fn]
-                    api/default-build-config
-                    :target-name device-type)
-            reduce-fn (c/get-module-function module fn-name)
-            ]
-        (c/call-function reduce-fn input-tens output-tens
-                         2 (float 2))
-        (vec (ct/to-float-array output-tens)))))))
+      (let [bilinear-fn (schedule-bilinear-reduce-fn
+                         :device-type :cpu
+                         :img-dtype :uint8)
+            input-tens (ct/->tensor (->> (range (* 4 4))
+                                         (partition 1)
+                                         (partition 4)))
+            output-tens (ct/new-tensor [2 2 1])]
+        (bilinear-fn input-tens output-tens
+                     2 (float 2)
+                     2 (float 2))
+        (vec (ct/to-array-of-type output-tens :int32)))))))

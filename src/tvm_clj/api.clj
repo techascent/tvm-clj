@@ -35,25 +35,29 @@
     (throw (ex-info "Invalid datatype detected"
                     {:dtype dtype-or-name}))))
 
+(def ^:dynamic *varname-prefix* "")
 
 (defn safe-str
   [str-name]
-  (s/replace str-name "-" "_"))
+  (let [str-name (if (keyword? str-name)
+                   (name str-name)
+                   (str str-name))]
+    (s/replace (str *varname-prefix* str-name) "-" "_")))
 
 
 (defn variable
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (c/global-node-function "_Var" (safe-str name)
+  (c/global-node-function "_Var"
+                          (safe-str name)
                           (->dtype dtype)))
 
 
 (defn placeholder
   "Create a user-supplied tensor variable"
-  [shape & {:keys [dtype name]
-            :or {dtype "float32"
-                 name "placeholder"}}]
+  [shape name & {:keys [dtype]
+                 :or {dtype "float32"}}]
   (let [shape (if-not (instance? clojure.lang.Seqable shape)
                 [shape]
                 shape)]
@@ -68,9 +72,9 @@
 
 (defn const
   "Convert an item to a const (immediate) value"
-  [numeric-value & {:keys [dtype]
-                    :or {dtype "float64"}}]
-  (let [dtype (->dtype dtype)]
+  [numeric-value & {:keys [dtype]}]
+  (let [dtype (->dtype (or dtype
+                           (dtype/get-datatype numeric-value)))]
     (c/global-node-function "_const" numeric-value dtype)))
 
 
@@ -179,7 +183,9 @@ expressions,
                    domain
                    (range (first domain) (second domain))))
         v (variable name)]
-    (c/global-node-function "_IterVar" domain v (iteration-variable-types iteration-type) thread-tag)))
+    (c/global-node-function "_IterVar" domain v
+                            (iteration-variable-types iteration-type)
+                            thread-tag)))
 
 
 (def call-types
@@ -277,17 +283,18 @@ expressions,
     (ex-info "Num indices must match tensor rank"
              {:tensor-range (count (:shape tensor))
               :index-count (count indices)}))
-  (let [indices (mapv (fn [index-val]
-                        (let [node-data (->node index-val)]
-                          (cond
-                            (= :iteration-variable (c/get-node-type node-data))
-                            (:var node-data)
-                            (c/is-expression-node? node-data)
-                            node-data
-                            :else
-                            (throw (ex-info "Index must be either iteration variable or expression"
-                                            {:node-type (c/get-node-type node-data)})))))
-                      indices)]
+  (let [indices
+        (mapv (fn [index-val]
+                (let [node-data (->node index-val)]
+                  (cond
+                    (= :iteration-variable (c/get-node-type node-data))
+                    (:var node-data)
+                    (c/is-expression-node? node-data)
+                    node-data
+                    :else
+                    (throw (ex-info "Must be iteration variable or expression"
+                                    {:node-type (c/get-node-type node-data)})))))
+              indices)]
     (call (:dtype tensor) (get-in tensor [:op :name]) indices
           :halide (:op tensor) (:value_index tensor))))
 
@@ -373,7 +380,7 @@ clojure 'if' statement."
 
 
 (defmacro tvm-let
-  "Lets in tvm must be nested.  This leads to an...exciting macro.
+  "Lets in tvm must be nested.  This leads to an exciting macro.
   Pairs must be of the form var val-expr.  Body is *not* an implicit
   do!!"
   [expr-pairs body]
@@ -422,12 +429,11 @@ clojure 'if' statement."
     -------
     The created compute node
     "
-  [shape fcompute & {:keys [name tag attrs]
-                     :or {name "compute"
-                          tag ""}}]
+  [shape fcompute name & {:keys [tag attrs]
+                     :or {tag ""}}]
   (let [fn-arglists (->> (meta fcompute)
                          :arglists
-                         (mapv clojure.core/name))]
+                         (mapv (comp safe-str clojure.core/name)))]
     (when-not-error fn-arglists
       (ex-info "Functions passed into compute must have the arglists in their metadata"
                {}))
@@ -444,7 +450,7 @@ clojure 'if' statement."
           body-data (if-not (instance? clojure.lang.Sequential body-data)
                       [body-data]
                       body-data)]
-      (-> (c/g-fn "_ComputeOp" name tag attrs compute-dim body-data)
+      (-> (c/g-fn "_ComputeOp" (safe-str name) tag attrs compute-dim body-data)
           (c/unpack-node-fields :recurse false)))))
 
 
@@ -510,8 +516,11 @@ clojure 'if' statement."
 
 (defn stage-fuse
   "Fuse n-axis together, returns single new axis"
-  [stage & axis-args]
-  (c/g-fn "_StageFuse" stage axis-args))
+  [stage axis-args]
+  ;;If there is only one axis, then fusing is pointless
+  (if (= 1 (count axis-args))
+    (first axis-args)
+    (c/g-fn "_StageFuse" stage axis-args)))
 
 
 (defn stage-parallel
@@ -520,11 +529,52 @@ clojure 'if' statement."
   (c/g-fn "_StageParallel" stage axis))
 
 
+(defn stage-inline
+  [stage]
+  (c/g-fn "_StageComputeInline" stage))
+
+
+(defn stage-tile
+  [stage outer-axis inner-axis outer-dim inner-dim]
+  (->
+   (c/g-fn "_StageTile" stage outer-axis inner-axis outer-dim inner-dim)
+   c/tvm-array->jvm))
+
+
 (defn name->thread-axis-iterator
   "Create a thread iter-var from a thread axis name"
   [axis-name]
   (iteration-variable nil axis-name :thread-index :thread-tag axis-name))
 
+(defn bind-gpu-axis
+  "Bind the gpu-defined axis to the tvm axis.
+  GPU (cuda, opencl) define a roughly 2 stage breakdown of axis, block and thread.
+  Threads run on the same block and can share a special kind of memory (called shared
+  memory).  There can be up to 3 tvm axis per block or thread and these are labeled
+  (outer iterator to inner iterator):
+  [z y x]"
+  [stage block-axis-seq thread-axis-seq]
+  (let [axis-names ["z" "y" "x"]
+        full-info-fn (fn [grp-name axis-seq]
+                         (map vector
+                              (repeat grp-name)
+                              axis-seq
+                              ;;map to axis such that if you have one, it becomes
+                              ;;the x axis.  If you have 2, first is y and second
+                              ;;is x, etc.
+                              (drop (- 3 (count axis-seq)) axis-names)))]
+    (when-not (and (<= (count block-axis-seq) 3)
+                   (<= (count thread-axis-seq) 3))
+      (throw (ex-info "Block, threads can have up to 3 axis"
+                      {:thread-axis-count (count thread-axis-seq)
+                       :block-axis-count (count block-axis-seq)})))
+    (->> (concat (full-info-fn "blockIdx" block-axis-seq)
+                 (full-info-fn "threadIdx" thread-axis-seq))
+         (map (fn [[grp-name axis gpu-axis-name]]
+                (stage-bind stage axis
+                            (name->thread-axis-iterator
+                             (str grp-name "." gpu-axis-name)))))
+         dorun)))
 
 
 (def default-build-config
@@ -600,16 +650,17 @@ clojure 'if' statement."
         The alignment of data pointer in bytes.
         If -1 is passed, the alignment will be set to TVM's internal default.
 
-    --CN - REMOVED - No one understands what this does.  It is only referenced in the code
-in order to perform a check during argument binding.  So the description below is accurate
-for what it is worth but it is hard to me to see how this is useful.
+    --CN - REMOVED - No one understands what this does.  It is only referenced in the
+  code in order to perform a check during argument binding.  So the description below is
+  accurate for what it is worth but it is hard to me to see how this is useful.
 
 
     offset_factor: int, optional
         The factor of elem_offset field, when set,
         elem_offset is required to be multiple of offset_factor.
         If 0 is pssed, the alignment will be set to 1.
-        if non-zero is passed, we will created a Var for elem_offset if elem_offset is not None.
+        if non-zero is passed, we will created a Var for elem_offset if elem_offset is
+  not None.
 
      --CN - END-REMOVED --
 
@@ -639,7 +690,8 @@ for what it is worth but it is hard to me to see how this is useful.
         data (if data data (variable name :dtype "handle"))
         offset-factor 0]
     (c/global-node-function "_Buffer"
-                            data (->dtype dtype) shape strides elem-offset name scope
+                            data (->dtype dtype) shape strides elem-offset
+                            (safe-str name) scope
                             data-alignment offset-factor)))
 
 
@@ -656,8 +708,9 @@ a different buffer type than this then you need to bind it yourself."
               (if-let [buf (bind-map arg)]
                 [(conj arg-list buf) bind-map]
                 (let [shape (:shape arg)
-                      new-buf (declare-buffer (:shape arg) :dtype (:dtype arg)
-                                              :data-alignment (:data-alignment build-config))]
+                      new-buf (declare-buffer
+                               (:shape arg) :dtype (:dtype arg)
+                               :data-alignment (:data-alignment build-config))]
                   [(conj arg-list new-buf) (assoc bind-map arg new-buf)]))
               :buffer
               [(conj arg-list arg) bind-map]
@@ -700,7 +753,8 @@ the threading macro with the long set of ir pass possibilities."
         The name of result function.
 
     bind-map: map of {:tensor :buffer}, optional
-        mapping fuction or hash-map that maps the Tensor to Buffer which specified the data layout
+        mapping fuction or hash-map that maps the Tensor to Buffer which specified the
+  data layout
         requirement of the function. By default, a new compact buffer is created
         for each tensor in the argument list.
 
@@ -714,9 +768,11 @@ the threading macro with the long set of ir pass possibilities."
        The result function, if with_api_wrapper=False
        Then the Stmt before make api is returned.
     "
-  ^NodeHandle [schedule args build-config & {:keys [name bind-map simple-mode?]
-                                             :or {name "default_function"
-                                                  bind-map {}}}]
+  ^NodeHandle [schedule args name
+               & {:keys [build-config bind-map simple-mode?]
+                  :or {bind-map {}
+                       build-config
+                       default-build-config}}]
   (let [schedule (c/g-fn "_ScheduleNormalize" schedule)
         [arg-list bind-map] (bind-arguments args bind-map build-config)
         bounds (c/g-fn "schedule.InferBound" schedule)
@@ -764,6 +820,12 @@ the threading macro with the long set of ir pass possibilities."
   (c/g-fn "_format_str" node))
 
 
+(defn schedule->str
+  [schedule arg-list fn-name]
+  (-> (schedule->lowered-function schedule arg-list fn-name :simple-mode? true)
+      node->str))
+
+
 (def target-name->props
   [[#{:llvm :cpu} {:keys #{:cpu}}]
    [#{:cuda :nvptx} (fn [target-name]
@@ -801,9 +863,10 @@ the threading macro with the long set of ir pass possibilities."
 
 (defn lowered-functions->module
   ^runtime$TVMModuleHandle
-  [lowered-function-seq build-config & {:keys [target-name target-host]
-                                        :or {target-name :llvm
-                                             target-host :llvm}}]
+  [lowered-function-seq & {:keys [build-config target-name target-host]
+                           :or {target-name :llvm
+                                target-host :llvm
+                                build-config default-build-config}}]
   (let [arg-type-list (map c/get-node-type lowered-function-seq)]
     (when-not-error (= #{:lowered-function} (set arg-type-list))
       (ex-info "Argumentis not a sequence of lowered functions"
@@ -814,37 +877,86 @@ the threading macro with the long set of ir pass possibilities."
                              (count arg-name-set))
             (ex-info "Arguments have duplicate names or are themselves duplicated"
                      {:arg-names (mapv :name lowered-function-seq)}))
-        [host-fns device-fns] (reduce (fn [[host-fns device-fns] lowered-fn]
-                                        (condp = (:func_type lowered-fn)
-                                          :host-function
-                                          [(conj host-fns lowered-fn) device-fns]
-                                          :device-function
-                                          [host-fns (conj device-fns lowered-fn)]
-                                          :mixed-function
-                                          (let [warp-size (long (target-name->thread-warp-size target-name))
-                                                fsplits (-> (if (:detect-global-barrier? build-config)
-                                                              (c/g-fn "ir_pass.ThreadSync" lowered-fn "global")
-                                                              lowered-fn)
-                                                            (gfnr "ir_pass.LowerThreadAllreduce" warp-size)
-                                                            (gfnr "ir_pass.SplitHostDevice")
-                                                            (c/tvm-array->jvm))]
-                                            [(conj host-fns (first fsplits))
-                                             (concat device-fns (rest fsplits))])))
-                                      [[] []]
-                                      lowered-function-seq)
-        host-fns (mapv (fn [host-fn]
-                         (c/g-fn "ir_pass.BindDeviceType" host-fn (c/device-type->device-type-int target-host))
-                         (-> (c/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
-                             (gfnr "ir_pass.LowerIntrin" (name target-host))
-                             (gfnr "ir_pass.CombineContextCall")))
-                       host-fns)
-        ^runtime$TVMModuleHandle mhost (c/g-fn "codegen._Build" host-fns (name target-host))]
+        [host-fns device-fns]
+        (reduce (fn [[host-fns device-fns] lowered-fn]
+                  (condp = (:func_type lowered-fn)
+                    :host-function
+                    [(conj host-fns lowered-fn) device-fns]
+                    :device-function
+                    [host-fns (conj device-fns lowered-fn)]
+                    :mixed-function
+                    (let [warp-size (long (target-name->thread-warp-size target-name))
+                          fsplits (-> (if (:detect-global-barrier? build-config)
+                                        (c/g-fn "ir_pass.ThreadSync" lowered-fn "global")
+                                        lowered-fn)
+                                      (gfnr "ir_pass.LowerThreadAllreduce" warp-size)
+                                      (gfnr "ir_pass.SplitHostDevice")
+                                      (c/tvm-array->jvm))]
+                      [(conj host-fns (first fsplits))
+                       (concat device-fns (rest fsplits))])))
+                [[] []]
+                lowered-function-seq)
+        host-fns
+        (mapv (fn [host-fn]
+                (c/g-fn "ir_pass.BindDeviceType" host-fn
+                        (c/device-type->device-type-int target-host))
+                (-> (c/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
+                    (gfnr "ir_pass.LowerIntrin" (name target-host))
+                    (gfnr "ir_pass.CombineContextCall")))
+              host-fns)
+        ^runtime$TVMModuleHandle mhost (c/g-fn "codegen._Build" host-fns
+                                               (name target-host))]
     (when (seq device-fns)
       (resource/with-resource-context
         (->> (mapv #(c/g-fn "ir_pass.LowerIntrin" % (name target-name)) device-fns)
              (#(c/g-fn "codegen._Build" % (name target-name)))
              (runtime/TVMModImport mhost))))
     mhost))
+
+
+(defn schedules->fns
+  "Given a sequence of schedule-data, return a map of name to clojure
+  callable function.
+  A module is created and added to the resource context transparently.
+  Schedule data:
+  {:name :fn-name
+   :arglist arguments
+   :schedule schedule
+   :bind-map (optional) bind-map
+  }
+  returns:
+  {:module module
+   :fn-map map of name->IFn (clojure callable function.)"
+  [sched-data-seq & {:keys [build-config
+                            target-name
+                            target-host]
+                     :or {build-config default-build-config
+                          target-name :llvm
+                          target-host :llvm}}]
+  (let [sched-data-seq (map (fn [{:keys [name] :as entry}]
+                              (assoc entry :c-name
+                                     (safe-str name)))
+                            sched-data-seq)
+        lowered-functions
+        (mapv (fn [{:keys [c-name arglist schedule bind-map]}]
+                             (schedule->lowered-function
+                              schedule arglist c-name
+                              :build-config build-config
+                              :bind-map (or bind-map {})))
+                           sched-data-seq)
+        module (lowered-functions->module
+                lowered-functions
+                :build-config build-config
+                :target-name target-name
+                :target-host target-host)]
+    {:module module
+     :fn-map
+     (->> sched-data-seq
+          (map (fn [{:keys [c-name name] :as seq}]
+                 (let [mod-fn (c/get-module-function module c-name)]
+                   [name (fn [& args]
+                           (apply c/call-function mod-fn args))])))
+          (into {}))}))
 
 
 (extend-protocol b/PConvertToNode

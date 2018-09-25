@@ -36,7 +36,7 @@
   []
   (first
    (vf/tensor-context
-    (registry/get-driver :opencl)
+    (registry/get-driver :cpu)
     :uint8
     (let [mat (compile-test/load-image "test/data/jen.jpg")
           img-tensor (ct/->tensor mat :datatype :uint8)
@@ -45,14 +45,13 @@
           ratio (/ (double new-width) width)
           new-height (long (Math/round (* (double height) ratio)))
           result (ct/new-tensor [new-height new-width n-chans] :datatype :uint8)
-          downsample-fn (bilinear/create-linear-reduce-fn :uint8)
-          _ (println "got functions")
+          downsample-fn (bilinear/schedule-bilinear-reduce-fn
+                         :device-type :cpu
+                         :img-dtype :uint8)
           ds-time (with-out-str
                     (time
-                     (bilinear/linear-reduce! img-tensor result downsample-fn)))
-          _ (println "have result")
+                     (bilinear/bilinear-reduce! img-tensor result downsample-fn)))
           opencv-res (result-tensor->opencv result)
-          _ (println "reference")
           reference (resource/track (opencv_core$Mat. new-height new-width
                                                       opencv_core/CV_8UC3))
           ref-time (with-out-str
@@ -63,6 +62,5 @@
                                              0.0 0.0 (opencv_imgproc/CV_INTER_LINEAR))))]
       (opencv_imgcodecs/imwrite "test.jpg" opencv-res)
       (opencv_imgcodecs/imwrite "ref.jpg" reference)
-      (println "unwinde")
       {:tvm-time ds-time
        :opencv-time ref-time}))))

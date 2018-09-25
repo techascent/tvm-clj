@@ -65,18 +65,21 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
         n-elems (long (* height width 3))
         ^floats retval (.data ^FloatArrayView (:buffer result-tensor))]
     (parallel/parallel-for idx n-elems
-           (let [pixel (quot idx n-channels)
-                 channel (rem idx n-channels)
-                 x-pos (rem pixel width)
-                 y-pos (quot pixel width)
-                 dest-channel-stride (* x-pos y-pos)]
-             (when (< channel 3)
-               (aset retval (+ pixel
-                               (* (- 2 channel) dest-channel-stride))
-                     (float (- (/ (double (bit-and (int (aget ary-data idx))
-                                                   0xFF))
-                                  255.0)
-                               0.5))))))
+                           (let [pixel (quot idx n-channels)
+                                 channel (rem idx n-channels)
+                                 x-pos (rem pixel width)
+                                 y-pos (quot pixel width)
+                                 dest-channel-stride (* x-pos y-pos)]
+                             (when (< channel 3)
+                               (aset retval (+ pixel
+                                               (* (- 2 channel) dest-channel-stride))
+                                     ;;Make up for lack of unsigned byte support with
+                                     ;;bit-and, casting
+                                     (float (- (/ (-> (aget ary-data idx)
+                                                      int
+                                                      (bit-and 0xFF))
+                                                  255.0)
+                                               0.5))))))
     result-tensor))
 
 
@@ -191,6 +194,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
               ;;This is abit careless but I know the results of the compilation process
               arg-map {(get-in inputs [0 :id]) img-tensor
                        (get-in outputs [0 :id]) result-tensor}
+              ;;run fn twice because some platforms delay some compilation
+              _ (fn! arg-map)
               time-str (with-out-str
                          (time (do (fn! arg-map)
                                    ;;Ensure it is really finished

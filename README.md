@@ -22,10 +22,25 @@ tvm leverages [Halide](http://halide-lang.org).  Halide takes algorithms structu
 
 
 tvm exposes a directed graph along with a declarative scheduling system to build high performance numerical systems for n-dimensional data.  In the example below, we dynamically create a function to add 2 vectors then compile that function for a cpu and gpu backend.  Note that the major difference between the backends lies in the scheduling; not in the algorithm itself.
-
 [very simple clojure example](test/tvm_clj/api_test.clj)
 
+Built a small compiler that takes a statement of vector math and compiles to tvm.  This is extremely incomplete and not very efficient in terms of what is possible but
+shows some possibilities.
 [more involved example](test/tvm_clj/compute/compile_fn_test.clj)
+
+
+Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in both time and quality.
+[tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
+
+[opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
+
+```clojure
+{:opencv-time "\"Elapsed time: 110.547302 msecs\"\n",
+ :tvm-time "\"Elapsed time: 32.366161 msecs\"\n"}
+```
+[tvm-results](docs/images/test.jpg)
+[opencv-results](docs/images/ref.jpg)
+
 
 ```clojure
 tvm-clj.compute.compile-fn-test> (time-tests)
@@ -62,10 +77,10 @@ pushd tvm
 
 
 mkdir build
-cp cmake/make.config build 
+cp cmake/make.config build
 pushd build
 
-## now edit tvm/build/config.cmake to appropriate for your system. I have 
+## now edit tvm/build/config.cmake to appropriate for your system. I have
 ## tested openblas cuda, opencl.
 cmake ..
 

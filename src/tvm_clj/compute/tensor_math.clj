@@ -78,7 +78,8 @@
                            :name (or (:name variable) "unnamed")
                            :strides (if (ct/dense? tensor)
                                       nil
-                                      (mapv #(api/variable (str "_stride_" %) :dtype "int32")
+                                      (mapv #(api/variable (str "_stride_" %)
+                                                           :dtype "int32")
                                             (clojure.core/range (count shape))))
                            :elem-offset (if (dbuf/has-byte-offset? tensor)
                                           (api/variable "_elem_offset")
@@ -102,16 +103,12 @@
 
 (defn compute->lowered-function
   [stream fn-name compute-op arg-list tensor-arg-map]
-  (let [schedule (api/create-schedule compute-op)]
-    (when (tvm-reg/gpu-scheduling? (drv/get-driver stream))
-      (let [compute-stage (get-in schedule [:stage_map compute-op])
-            [bx tx] (api/split-stage-by-factor compute-stage (get-in compute-op [:axis 0]) 64)]
-        (api/stage-bind compute-stage bx (api/name->thread-axis-iterator "blockIdx.x"))
-        (api/stage-bind compute-stage tx (api/name->thread-axis-iterator "threadIdx.x"))))
-    (api/schedule->lowered-function schedule arg-list
-                                    api/default-build-config
-                                    :name fn-name
-                                    :bind-map (build-bind-map tensor-arg-map))))
+  (-> (tvm-reg/schedule-injective (drv/get-driver stream)
+                                  compute-op
+                                  nil)
+      (api/schedule->lowered-function arg-list fn-name
+                                      :bind-map (build-bind-map tensor-arg-map))))
+
 
 (def device-datatype-map
   "https://github.com/dmlc/tvm/issues/984"
@@ -137,7 +134,7 @@
                     (mapv (fn [idx]
                             (api/variable (str name "_i" idx)))))
                (y-dim-tvm-fn n-dims compute-fn)
-               :name name))
+               name))
 
 
 (defn n-dims->shape-stride-tuples
@@ -149,8 +146,9 @@
 
 
 (defn tensor-read-placeholder
-  [tensor]
-  (api/placeholder [(api/variable "_tens_ecount")] :dtype (name (ct/get-datatype tensor))))
+  [tensor arg-name]
+  (api/placeholder [(api/variable "_tens_ecount")] arg-name
+                   :dtype (name (ct/get-datatype tensor))))
 
 
 (defn tensor-read-dims->vars
@@ -160,7 +158,7 @@
                     {:write-tensor-n-dims n-dims
                      :read-tensor-n-dims (count (ct/shape tensor))})))
 
-  {:placeholder (tensor-read-placeholder tensor)
+  {:placeholder (tensor-read-placeholder tensor arg-name)
    :shape-stride-tuples (n-dims->shape-stride-tuples n-dims arg-name)})
 
 
@@ -209,7 +207,8 @@
         scalar-datatype (get-scalar-datatype (drv/get-driver stream) datatype)
         assign-fn (get-or-create-fn
                    stream fn-name
-                   #(let [const-var (api/variable "const_val" :dtype (name scalar-datatype))
+                   #(let [const-var (api/variable "const_val"
+                                                  :dtype (name scalar-datatype))
                           compute-op (n-dim-compute-op (count (ct/shape tensor))
                                                        (fn [& args]
                                                          (if (= scalar-datatype datatype)

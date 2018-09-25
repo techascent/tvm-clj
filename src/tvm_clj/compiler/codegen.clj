@@ -212,7 +212,8 @@ Dispatch on edge type."
         node-name (safe-node-name node)
         buffer-ecount (api/variable (str node-name "_buffer_ecount") :dtype "int32")
         placeholder (api/placeholder [buffer-ecount]
-                                     :dtype dtype-name :name (str node-name "_buffer"))
+                                     (str node-name "_buffer")
+                                     :dtype dtype-name)
         shape-vars (create-n-vars n-dims (str node-name "_shape") "int32")
         stride-vars (create-n-vars n-dims (str node-name "_stride") "int32")
         elem-offset (if (:byte-offset? node-buffer)
@@ -324,7 +325,7 @@ Dispatch on edge type."
                                                   (:edges operation-graph))
                              last-output-op (get-in variable-map [output-id :read-operation])]
                          (last-output-op index-vars))))
-                    :name output-name)
+                    output-name)
         output-node (g/get-tensor operation-graph output-id)
         output-node-buffer (ast/get-buffer operation-graph (:bufname output-node))
         output-tensor (first (api/output-tensors compute-op))
@@ -427,8 +428,7 @@ and a description of the arguments to the function."
                                  (api/schedule->lowered-function
                                   op-schedule
                                   (:declaration-bind-list operation)
-                                  api/default-build-config
-                                  :name (str "fn_" idx)
+                                  (str "fn_" idx)
                                   :bind-map (:bind-map operation)))]))))
         compiled-functions (map #(get-in % [1 :operation :operation]) device-op-graphs)
         module (tvm-reg/->module driver compiled-functions)
