@@ -26,21 +26,6 @@ tvm exposes a directed graph along with a declarative scheduling system to build
 
 Built a small compiler that takes a statement of vector math and compiles to tvm.  This is extremely incomplete and not very efficient in terms of what is possible but
 shows some possibilities.
-[more involved example](test/tvm_clj/compute/compile_fn_test.clj)
-
-
-Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in both time and quality.
-[tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
-
-[opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
-
-```clojure
-{:opencv-time "\"Elapsed time: 110.547302 msecs\"\n",
- :tvm-time "\"Elapsed time: 32.366161 msecs\"\n"}
-```
-[tvm-results](docs/images/test.jpg)
-[opencv-results](docs/images/ref.jpg)
-
 
 ```clojure
 tvm-clj.compute.compile-fn-test> (time-tests)
@@ -52,6 +37,23 @@ Compiled (cpu) tensor took: "Elapsed time: 223.748329 msecs"
 
 Compiled (opencl) tensor took: "Elapsed time: 64.999564 msecs"
 ```
+[more involved example](test/tvm_clj/compute/compile_fn_test.clj)
+
+
+Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in both time and quality.
+
+```clojure
+{:opencv-time "\"Elapsed time: 110.547302 msecs\"\n",
+ :tvm-time "\"Elapsed time: 32.366161 msecs\"\n"}
+ ```
+tvm: ![tvm-results](docs/images/test.jpg)
+
+opecnv: ![opencv-results](docs/images/ref.jpg)
+
+* [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
+* [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
+
+
 ## Getting all the source
 
 At top level:
