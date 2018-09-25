@@ -21,11 +21,16 @@ tvm leverages [Halide](http://halide-lang.org).  Halide takes algorithms structu
 ## What, Concretely, Are You Talking About?
 
 
+### Simple Example
+
 tvm exposes a directed graph along with a declarative scheduling system to build high performance numerical systems for n-dimensional data.  In the example below, we dynamically create a function to add 2 vectors then compile that function for a cpu and gpu backend.  Note that the major difference between the backends lies in the scheduling; not in the algorithm itself.
-[very simple clojure example](test/tvm_clj/api_test.clj)
+[source](test/tvm_clj/api_test.clj)
+
+
+### Vector Math Compiler Example
 
 Built a small compiler that takes a statement of vector math and compiles to tvm.  This is extremely incomplete and not very efficient in terms of what is possible but
-shows some possibilities.
+shows a vision of doing potentially entire neural network functions.
 
 ```clojure
 tvm-clj.compute.compile-fn-test> (time-tests)
@@ -37,18 +42,17 @@ Compiled (cpu) tensor took: "Elapsed time: 223.748329 msecs"
 
 Compiled (opencl) tensor took: "Elapsed time: 64.999564 msecs"
 ```
-[more involved example](test/tvm_clj/compute/compile_fn_test.clj)
+[source](test/tvm_clj/compute/compile_fn_test.clj)
 
 
-Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in both time and quality.
+### Image Scaling (TVM vs OpenCV)
 
-```clojure
-{:opencv-time "\"Elapsed time: 110.547302 msecs\"\n",
- :tvm-time "\"Elapsed time: 32.366161 msecs\"\n"}
- ```
-tvm: ![tvm-results](docs/images/test.jpg)
+Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in time, quality, and code readability.
 
-opecnv: ![opencv-results](docs/images/ref.jpg)
+
+tvm (32 ms): ![tvm-results](docs/images/test.jpg)
+
+opecnv (110 ms): ![opencv-results](docs/images/ref.jpg)
 
 * [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
