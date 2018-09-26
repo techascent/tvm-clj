@@ -33,10 +33,11 @@
 
 
 (defn downsample-img
-  []
+  [& {:keys [device-type]
+      :or {device-type :cpu}}]
   (first
    (vf/tensor-context
-    (registry/get-driver :cpu)
+    (registry/get-driver device-type)
     :uint8
     (let [mat (compile-test/load-image "test/data/jen.jpg")
           img-tensor (ct/->tensor mat :datatype :uint8)
@@ -46,11 +47,15 @@
           new-height (long (Math/round (* (double height) ratio)))
           result (ct/new-tensor [new-height new-width n-chans] :datatype :uint8)
           downsample-fn (bilinear/schedule-bilinear-reduce-fn
-                         :device-type :cpu
+                         :device-type device-type
                          :img-dtype :uint8)
+          ;; Call once to take out compilation time
+          _ (bilinear/bilinear-reduce! img-tensor result downsample-fn)
           ds-time (with-out-str
                     (time
-                     (bilinear/bilinear-reduce! img-tensor result downsample-fn)))
+                     (do
+                       (bilinear/bilinear-reduce! img-tensor result downsample-fn)
+                       (drv/sync-with-host ct/*stream*))))
           opencv-res (result-tensor->opencv result)
           reference (resource/track (opencv_core$Mat. new-height new-width
                                                       opencv_core/CV_8UC3))

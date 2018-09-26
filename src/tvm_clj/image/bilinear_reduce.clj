@@ -173,6 +173,12 @@
      :kern-x-op kern-x-op
      :kern-y-op kern-y-op}))
 
+(defn- gpu-injective
+  [stage op & {:keys [thread-count]
+               :or {thread-count 32}}]
+  (let [fused-axis (api/stage-fuse stage (:axis op))
+        [bx tx] (api/split-stage-by-factor stage fused-axis thread-count)]
+    (api/bind-gpu-axis stage [bx] [tx])))
 
 (defn schedule-bilinear-reduce-fn
   [& {:keys [device-type
@@ -198,26 +204,56 @@
                  kern-height y-ratio]
         fn-name "bilinear_reduce"
         schedule (api/create-schedule [final-op])
-        reduce-axis (:axis reduce-op)
-        [reduce-y-axis reduce-x-axis reduce-channels] reduce-axis
         stage-map (get schedule :stage_map)
         kern-x-stage (get stage-map kern-x-op)
         kern-y-stage (get stage-map kern-y-op)
         reduce-stage (get stage-map reduce-op)
-        [y-outer x-outer y-inner x-inner]
-        (api/stage-tile reduce-stage reduce-y-axis reduce-x-axis 16 32)
-        _ (api/stage-compute-at kern-y-stage reduce-stage y-outer)
-        _ (api/stage-compute-at kern-x-stage reduce-stage x-outer)
-        _ (api/stage-parallel reduce-stage x-outer)
         final-op-stage (get stage-map final-op)
-        fused (api/stage-fuse final-op-stage (:axis final-op))
-        _ (api/stage-parallel final-op-stage fused)
+        intermediate-axis (:axis reduce-op)
+        [int-y-axis int-x-axis int-channels] intermediate-axis
+        reduce-result (first (api/output-tensors reduce-op))]
+    (if (= device-type :cpu)
+      ;;Caching shown for demonstration.  Made no difference on test machine.
+      (let [{cached-output :tensor
+             schedule :schedule
+             cache-write-op :tensor-op} (api/schedule-cache-write
+                                         schedule
+                                         reduce-result "local")
+            stage-map (:stage_map schedule)
+            reduce-stage (get stage-map reduce-op)
+            kern-x-stage (get stage-map kern-x-op)
+            kern-y-stage (get stage-map kern-y-op)
+            cache-write-stage (get stage-map cache-write-op)
+            [y-outer x-outer y-inner x-inner] (api/stage-tile reduce-stage
+                                                              int-y-axis
+                                                              int-x-axis
+                                                              64 64)]
+        ;;CPU reduction is simple really.  Tile the result and parallelize
+        ;;over the image with large enough tiles that each thread gets some
+        ;;significant work before a context switch but without thrashing l1.
+        (api/stage-compute-at kern-y-stage reduce-stage y-outer)
+        (api/stage-compute-at kern-x-stage reduce-stage x-outer)
+        ;; (api/stage-compute-at kern-x-stage reduce-stage x-outer)
+        (api/stage-compute-at cache-write-stage reduce-stage x-outer)
+        (api/stage-parallel reduce-stage x-outer)
+        (api/stage-parallel final-op-stage (api/stage-fuse
+                                            final-op-stage
+                                            (:axis final-op))))
 
-        input-seq (range (* 4 4))
-        input-tens (ct/->tensor (->> input-seq
-                                     (partition 1)
-                                     (partition 4)))
-        output-tens (ct/new-tensor [2 2 1])]
+      ;;Each gpu block gets a 16x16 grid
+      ;;each gpu thread gets 1 pixel
+      ;;This allows the reduction summation to be simple *and* gives the
+      ;;caching mechanism of the GPU a chance.
+      (let [[y-outer x-outer y-inner x-inner] (api/stage-tile reduce-stage
+                                                              int-y-axis
+                                                              int-x-axis
+                                                              8 8)
+            reduce-block-axis (api/stage-fuse reduce-stage [y-outer x-outer])
+            reduce-thread-axis (api/stage-fuse reduce-stage [y-inner x-inner])]
+        (api/bind-gpu-axis reduce-stage [reduce-block-axis] [reduce-thread-axis])
+        (gpu-injective final-op-stage final-op)
+        (gpu-injective kern-x-stage kern-x-op)
+        (gpu-injective kern-y-stage kern-y-op)))
     (if print-schedule?
       (api/schedule->str schedule arglist fn-name)
       (let [module-data (api/schedules->fns [{:schedule schedule

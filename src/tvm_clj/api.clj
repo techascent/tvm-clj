@@ -541,6 +541,31 @@ clojure 'if' statement."
    c/tvm-array->jvm))
 
 
+(defn stage-reorder
+  [stage & args]
+  (c/g-fn "_StageReorder" stage args))
+
+
+(defn stage-vectorize
+  [stage axis]
+  (c/g-fn "_StageVectorize" stage axis))
+
+(defn schedule-cache-write
+  "Returns a new tensor"
+  [schedule tensor cache-type]
+  (let [retval (-> (c/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)
+                   (c/unpack-node-fields :recurse false))
+        schedule (c/unpack-node-fields schedule :recurse false)]
+    {:tensor retval
+     :tensor-op (:op retval)
+     :schedule schedule}))
+
+
+(defn schedule-cache-read
+  [schedule tensor cache-type readers]
+  (c/g-fn "_ScheduleCacheRead" schedule tensor cache-type))
+
+
 (defn name->thread-axis-iterator
   "Create a thread iter-var from a thread axis name"
   [axis-name]
