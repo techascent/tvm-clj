@@ -16,7 +16,7 @@ kernel = tvm.compute((cols,chans)
                      , name="kern_vec")
 
 result = tvm.compute((rows,cols,chans)
-                     , lambda y, x, c: input_vec[y,x,c] * kernel[x, c]
+                     , lambda y, x, c: input_vec[y,x,c] * kernel[x, tvm.min(max_chans, tvm.max(0, c))]
                      , name="answer")
 
 sched = tvm.create_schedule(result.op)
@@ -25,11 +25,7 @@ kernel_stage = sched[kernel]
 
 arglist=[input_vec,result]
 
-print_schedule(sched, arglist)
-
-[co,ci] = result_stage.split(result.op.axis[2], 5)
-
-kernel_stage.compute_at(result_stage, co)
+kernel_stage.compute_at(result_stage, result.op.axis[0])
 
 print_schedule(sched, arglist)
 
