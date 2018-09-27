@@ -244,9 +244,10 @@
       ;;each gpu thread gets 1 pixel
       ;;This allows the reduction summation to be simple *and* gives the
       ;;caching mechanism of the GPU a chance.
-      (let [[y-outer x-outer y-inner x-inner] (api/stage-tile reduce-stage
+      (let [x-chan-fused (api/stage-fuse reduce-stage [int-x-axis int-channels])
+            [y-outer x-outer y-inner x-inner] (api/stage-tile reduce-stage
                                                               int-y-axis
-                                                              int-x-axis
+                                                              x-chan-fused
                                                               8 8)
             reduce-block-axis (api/stage-fuse reduce-stage [y-outer x-outer])
             reduce-thread-axis (api/stage-fuse reduce-stage [y-inner x-inner])]

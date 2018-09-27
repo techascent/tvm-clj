@@ -59,6 +59,10 @@
           opencv-res (result-tensor->opencv result)
           reference (resource/track (opencv_core$Mat. new-height new-width
                                                       opencv_core/CV_8UC3))
+          _ (opencv_imgproc/resize mat reference (opencv_core$Size.
+                                                  new-width
+                                                  new-height)
+                                   0.0 0.0 (opencv_imgproc/CV_INTER_LINEAR))
           ref-time (with-out-str
                      (time
                       (opencv_imgproc/resize mat reference (opencv_core$Size.

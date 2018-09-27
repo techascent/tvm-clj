@@ -47,12 +47,14 @@ Compiled (opencl) tensor took: "Elapsed time: 64.999564 msecs"
 
 ### Image Scaling (TVM vs OpenCV)
 
-Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in time, quality, and code readability.
+Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in quality and code readability.
 
 
 tvm (32 ms): ![tvm-results](docs/images/test.jpg)
 
-opecnv (110 ms): ![opencv-results](docs/images/ref.jpg)
+-- Update --
+-- Need to test this timing on a machine that does not throttle the cpu --
+opecnv (?? ms): ![opencv-results](docs/images/ref.jpg)
 
 * [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
