@@ -65,7 +65,7 @@ Implementing the exact same bilinear algorithm as opencv using the same tvm sche
 tvm-correct (40 ms): ![tvm-results](docs/images/test.jpg)
 
 
-opecnv-classic (20 ms): ![opencv-results](docs/images/ref.jpg)
+opencv-classic (20 ms): ![opencv-results](docs/images/ref.jpg)
 
 
 * [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
