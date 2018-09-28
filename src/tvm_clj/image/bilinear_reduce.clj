@@ -119,7 +119,7 @@
        (api/add kernel-idx)))
 
 
-(defn bilinear-reduction-kernel-reduce-fn
+(defn correct-reduction-fn
   "Instead of computing the kernels inline we abstract them into vectors"
   [img-dtype]
   (let [in-width (api/variable "in_width")
@@ -180,7 +180,7 @@
         [bx tx] (api/split-stage-by-factor stage fused-axis thread-count)]
     (api/bind-gpu-axis stage [bx] [tx])))
 
-(defn schedule-bilinear-reduce-fn
+(defn schedule-correct-reduction
   [& {:keys [device-type
              img-dtype
              print-schedule?]
@@ -197,7 +197,7 @@
                 final-op
                 kern-x-op
                 kern-y-op]}
-        (bilinear-reduction-kernel-reduce-fn img-dtype)
+        (correct-reduction-fn img-dtype)
 
         arglist [input output
                  kern-width x-ratio
@@ -249,7 +249,7 @@
         bilinear-fn))))
 
 
-(defn bilinear-reduce!
+(defn correct-linear-reduction!
   [input output bilinear-fn]
   (let [[in-height in-width in-chan] (ct/shape input)
         [out-height out-width out-chan] (ct/shape output)
@@ -265,25 +265,7 @@
     output))
 
 
-(defn test-bilinear-reduce
-  []
-  (let [device-type :cpu
-        img-dtype :uint8]
-    (first
-     (verify-tensor/tensor-context
-      (registry/get-driver device-type)
-      img-dtype
-      (let [bilinear-fn (schedule-bilinear-reduce-fn
-                         :device-type :cpu
-                         :img-dtype :uint8)
-            input-tens (ct/->tensor (->> (range (* 4 4))
-                                         (partition 1)
-                                         (partition 4)))
-            output-tens (ct/new-tensor [2 2 1])]
-        (bilinear-fn input-tens output-tens
-                     2 (float 2)
-                     2 (float 2))
-        (vec (ct/to-array-of-type output-tens :int32)))))))
+
 
 (defn bilinear-filter-start
   [dest-idx ratio]

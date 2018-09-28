@@ -46,16 +46,16 @@
           ratio (/ (double new-width) width)
           new-height (long (Math/round (* (double height) ratio)))
           result (ct/new-tensor [new-height new-width n-chans] :datatype :uint8)
-          downsample-fn (bilinear/schedule-bilinear-reduce-fn
+          downsample-fn (bilinear/schedule-correct-reduction
                          :device-type device-type
                          :img-dtype :uint8)
           ;; Call once to take out compilation time
-          _ (bilinear/bilinear-reduce! img-tensor result downsample-fn)
+          _ (bilinear/correct-linear-reduction! img-tensor result downsample-fn)
           ds-time (with-out-str
                     (time
                      (do
                        (dotimes [iter 10]
-                         (bilinear/bilinear-reduce! img-tensor result downsample-fn)
+                         (bilinear/correct-linear-reduction! img-tensor result downsample-fn)
                          (drv/sync-with-host ct/*stream*)))))
           opencv-res (result-tensor->opencv result)
           reference (resource/track (opencv_core$Mat. new-height new-width
