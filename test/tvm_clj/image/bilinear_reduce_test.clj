@@ -54,22 +54,33 @@
           ds-time (with-out-str
                     (time
                      (do
-                       (bilinear/bilinear-reduce! img-tensor result downsample-fn)
-                       (drv/sync-with-host ct/*stream*))))
+                       (dotimes [iter 10]
+                         (bilinear/bilinear-reduce! img-tensor result downsample-fn)
+                         (drv/sync-with-host ct/*stream*)))))
           opencv-res (result-tensor->opencv result)
           reference (resource/track (opencv_core$Mat. new-height new-width
                                                       opencv_core/CV_8UC3))
-          _ (opencv_imgproc/resize mat reference (opencv_core$Size.
-                                                  new-width
-                                                  new-height)
-                                   0.0 0.0 (opencv_imgproc/CV_INTER_LINEAR))
           ref-time (with-out-str
                      (time
-                      (opencv_imgproc/resize mat reference (opencv_core$Size.
-                                                            new-width
-                                                            new-height)
-                                             0.0 0.0 (opencv_imgproc/CV_INTER_LINEAR))))]
-      (opencv_imgcodecs/imwrite "test.jpg" opencv-res)
-      (opencv_imgcodecs/imwrite "ref.jpg" reference)
-      {:tvm-time ds-time
-       :opencv-time ref-time}))))
+                      (dotimes [iter 10]
+                        (opencv_imgproc/resize mat reference (opencv_core$Size.
+                                                              new-width
+                                                              new-height)
+                                               0.0 0.0 (opencv_imgproc/CV_INTER_LINEAR)))))
+          filter-fn (bilinear/schedule-bilinear-filter-fn
+                     :device-type device-type
+                     :img-dtype :uint8)
+          _ (bilinear/bilinear-filter! img-tensor result filter-fn)
+          classic-time (with-out-str
+                         (time
+                          (do
+                            (dotimes [iter 10]
+                              (bilinear/bilinear-filter! img-tensor result filter-fn)
+                              (drv/sync-with-host ct/*stream*)))))
+          class-res (result-tensor->opencv result)]
+      (opencv_imgcodecs/imwrite "tvm_correct.jpg" opencv-res)
+      (opencv_imgcodecs/imwrite "tvm_classic.jpg" class-res)
+      (opencv_imgcodecs/imwrite "opencv_classic.jpg" reference)
+      {:tvm-correct-time ds-time
+       :opencv-classic-time ref-time
+       :tvm-classic-time classic-time}))))

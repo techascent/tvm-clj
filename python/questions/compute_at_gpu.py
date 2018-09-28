@@ -25,7 +25,7 @@ kernel_stage = sched[kernel]
 
 arglist=[input_vec,result]
 
-kernel_stage.compute_at(result_stage, result.op.axis[0])
+kernel_stage.compute_at(result_stage, result.op.axis[1])
 
 print_schedule(sched, arglist)
 

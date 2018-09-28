@@ -48,14 +48,26 @@ Compiled (opencl) tensor took: "Elapsed time: 64.999564 msecs"
 ### Image Scaling (TVM vs OpenCV)
 
 Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilinear in quality and code readability.
+Implementing the exact binlinear algorithm using the same tvm schedule nets about an order of magnitude improvement
+
+```clojure
+;; cpu, algorithm run 10 times
+{:opencv-classic-time "\"Elapsed time: 228.972125 msecs",
+ :tvm-classic-time "\"Elapsed time: 20.679482 msecs",
+ :tvm-correct-time "\"Elapsed time: 395.130024 msecs"}
+
+;;opencl (NVIDIA 1070), algorithn run 10 times
+{:tvm-classic-time "\"Elapsed time: 3.236186 msecs",
+ :tvm-correct-time "\"Elapsed time: 30.282632 msecs"}
+```
 
 
-tvm (32 ms): ![tvm-results](docs/images/test.jpg)
+tvm-correct (40 ms): ![tvm-results](docs/images/test.jpg)
 
 
 -- Update --
--- Need to test this timing on a machine that does not throttle the cpu --
-opecnv (?? ms): ![opencv-results](docs/images/ref.jpg)
+
+opecnv-classic (20 ms): ![opencv-results](docs/images/ref.jpg)
 
 
 * [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
