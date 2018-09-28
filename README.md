@@ -56,7 +56,7 @@ Implementing the exact same bilinear algorithm as opencv using the same tvm sche
  :tvm-classic-time "\"Elapsed time: 20.679482 msecs",
  :tvm-correct-time "\"Elapsed time: 395.130024 msecs"}
 
-;;opencl (NVIDIA 1070), algorithn run 10 times
+;;opencl (NVIDIA 1070), algorithm run 10 times
 {:tvm-classic-time "\"Elapsed time: 3.236186 msecs",
  :tvm-correct-time "\"Elapsed time: 30.282632 msecs"}
 ```
