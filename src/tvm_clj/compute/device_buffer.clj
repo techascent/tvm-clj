@@ -122,7 +122,10 @@
   (device-id [_] (tvm-reg/device-id device))
 
   tvm-reg/PDriverInfo
-  (device-type [_] (tvm-reg/device-type device)))
+  (device-type [_] (tvm-reg/device-type device))
+
+  drv/PDeviceProvider
+  (get-device [_] device))
 
 
 (defn device-buffer->ptr

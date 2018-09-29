@@ -35,4 +35,4 @@
 (deftest cpu-basic-add
   (resource/with-resource-context
     (test-add-fn (tvm-reg/get-device :cpu 0)
-                 (api-test/create-myadd-fn-cpu))))
+                 (api-test/create-myadd-fn :cpu))))

@@ -60,7 +60,7 @@
       (tvm-core/set-current-thread-stream (tvm-reg/device-type device)
                                           (tvm-reg/device-id device)
                                           stream))
-    (apply tvm-core/call-function fn arg-list))
+    (apply fn arg-list))
 
   drv/PDeviceProvider
   (get-device [_] device)
@@ -147,20 +147,18 @@
   tvm-reg/PCompileModule
   (gpu-scheduling? [driver] true)
   (device-datatypes? [driver] true)
-  (schedule-injective [driver compute-op schedule]
-    ;;For injective we fuse all dimensions and then run them all in parallel.
-    (let [schedule (or schedule (api/create-schedule [compute-op]))
-          stage (get-in schedule [:stage_map compute-op])
-          op-axis (:axis compute-op)
-          fused-axis (api/stage-fuse stage op-axis)
-          [bx tx] (api/split-stage-by-factor stage fused-axis 64)]
-      (api/bind-gpu-axis stage [bx] [tx])
-      schedule))
-  (->module-impl [driver lowered-fn-seq build-config]
-    (api/lowered-functions->module
-     lowered-fn-seq
-     :build-config build-config
-     :target-name (tvm-core/device-type-int->device-type device-type))))
+  (schedule-injective! [driver stage compute-op {:keys [thread-count]}]
+    ;;TODO - query device api for details like max thread count
+    (let [device-max-thread-count 16]
+      (api/stage-gpu-injective stage compute-op
+                               :thread-count (or thread-count
+                                                 device-max-thread-count))))
+
+  (->module-impl [driver sched-data-seq options]
+    (api/schedules->fns sched-data-seq
+                        :build-config (:build-config options)
+                        :target-host (:target-host options)
+                        :target-name (tvm-core/device-type-int->device-type device-type))))
 
 
 (def gpu-device-types #{:cuda :opencl :rocm})

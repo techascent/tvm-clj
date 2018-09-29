@@ -9,13 +9,17 @@
             [tech.datatype.marshal :as marshal]
             [clojure.core.matrix.protocols :as mp]
             [tech.compute.tensor :as compute-tensor]
+            [tech.compute.tensor.dimensions :as ct-dims]
             [tech.javacpp-datatype :as jcpp-dtype]
             [clojure.core.matrix.macros :refer [c-for]]
-            [tvm-clj.compiler :as compiler]
             [tvm-clj.compute.registry :as tvm-reg]
+            [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [think.parallel.core :as parallel]
-            [clojure.core.matrix :as m])
+            [clojure.core.matrix :as m]
+            [tvm-clj.compute.cpu :as cpu]
+            [tvm-clj.compute.tensor-math :as tvm-tm]
+            [tvm-clj.base :as tvm-base])
   (:import [org.bytedeco.javacpp opencv_core
             opencv_imgcodecs opencv_core$Mat]
            [tech.datatype ByteArrayView FloatArrayView]))
@@ -37,22 +41,6 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
       ;;Rest of the work.  These should all get rolled into assignment step above.
       (ct/div 255.0)
       (ct/sub 0.5)))
-
-
-(defn compile-bgr-bytes
-  [driver-name]
-  (let [graph (-> (compiler/compute-graph)
-                  (compiler/make-variable :image-width)
-                  (compiler/make-variable :image-height)
-                  (compiler/make-variable :image-channels)
-                  (compiler/make-tensor-and-buffer :input [:image-height
-                                                           :image-width
-                                                           :image-channels]
-                                                   :dtype :uint8))
-        input-tensor (compiler/get-tensor graph :input)]
-    (assoc (compiler/compile-fn (tvm-reg/get-driver driver-name) graph
-                                convert-bgr-bytes-to-floats input-tensor)
-           :driver driver-name)))
 
 
 (defn convert-bgr-bytes-to-floats-by-hand
@@ -81,6 +69,41 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                                                   255.0)
                                                0.5))))))
     result-tensor))
+
+
+(defn bgr-bytes-custom-tvm
+  [driver]
+  (let [img-width (api/variable "image-width")
+        img-height (api/variable "image-height")
+        n-channels (api/variable "n-channels")
+        input-tensor (api/placeholder [img-height img-width n-channels] "input-tensor" :dtype :uint8)
+        operation (api/compute
+                   [(api/min n-channels (int 3)) img-height img-width]
+                   (api/tvm-fn
+                    [chan y x]
+                    (-> (api/tget input-tensor [y x (api/sub 2 chan)])
+                        (api/cast :float32)
+                        (api/div (float 255.0))
+                        (api/sub (float 0.5))))
+                   "bgr-types-op")
+
+        schedule (api/create-schedule [operation])
+        [chan-axis y-axis x-axis] (:axis operation)
+        op-stage (api/->stage schedule operation)
+        [y-outer x-outer y-inner x-inner] (api/stage-tile op-stage y-axis x-axis 32 32)
+        arglist [input-tensor (first (api/output-tensors operation))]]
+    (api/stage-vectorize op-stage x-inner)
+    (if (= :cpu (tvm-reg/device-type-kwd driver))
+      (api/stage-parallel op-stage chan-axis)
+      (api/bind-gpu-axis op-stage
+                         [chan-axis y-outer x-outer]
+                         [y-inner x-inner]))
+    ;;There are a lot of assumptions in this step.  We aren't providing a bind-map which means we expect
+    ;;input to be dense and simple input dimensions
+    (println (api/schedule->str schedule arglist :bgr-convert))
+    (tvm-reg/schedule->fn driver {:schedule schedule
+                                  :arglist arglist
+                                  :name :bgr-convert})))
 
 
 
@@ -127,6 +150,19 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (copy-raw->item! [item dest dest-offset]
     (marshal/copy! item 0 dest dest-offset (mp/element-count item))
     [dest (+ (long dest-offset) (long (mp/element-count item)))]))
+
+
+(defn opencv-mat->tensor
+  [mat]
+  (let [device (drv/get-device compute-tensor/*stream*)]
+    (if (= :cpu (-> (tvm-reg/device-type-kwd device)))
+      ;;For cpu, we have a direct, zero-copy conversion.  We can read/write directly to
+      ;;opencv's data storage
+      (-> mat
+          hbuf/->ptr
+          (cpu/ptr->device-buffer :dtype (dtype/get-datatype mat))
+          (tvm-tm/device-buffer->tensor (ct-dims/dimensions (m/shape mat))))
+      (compute-tensor/->tensor mat :datatype (dtype/get-datatype mat)))))
 
 
 
@@ -181,7 +217,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
               ;;It would also be possible to do a zero-copy conversion using the
               ;; opencl matrix ptr.
               ;;Note that tvm supports unsigned datatypes.
-              img-tensor (compute-tensor/->tensor mat :datatype :uint8)
+
+              img-tensor (opencv-mat->tensor mat)
               result-tensor (compute-tensor/new-tensor
                              (concat [3]
                                      (take 2 (mp/get-shape mat)))
@@ -190,16 +227,15 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
               ;; result-tensor (compute-tensor/new-tensor (mp/get-shape mat)
               ;;                                          :datatype :float32
               ;;                                          :init-value nil)
-              {:keys [inputs outputs fn!]} (compile-bgr-bytes dev-type)
+              tvm-convert-fn (bgr-bytes-custom-tvm (drv/get-driver compute-tensor/*stream*))
               ;;This is abit careless but I know the results of the compilation process
-              arg-map {(get-in inputs [0 :id]) img-tensor
-                       (get-in outputs [0 :id]) result-tensor}
               ;;run fn twice because some platforms delay some compilation
-              _ (fn! arg-map)
+              _ (tvm-convert-fn img-tensor result-tensor)
               time-str (with-out-str
-                         (time (do (fn! arg-map)
-                                   ;;Ensure it is really finished
-                                   (drv/sync-with-host compute-tensor/*stream*))))]
+                         (time
+                          (do
+                            (tvm-convert-fn img-tensor result-tensor)
+                            (drv/sync-with-host compute-tensor/*stream*))))]
           {:result (vec (tensor-take 10 result-tensor))
            :correct (->> (tensor-take 30 img-tensor)
                          (partition 3)

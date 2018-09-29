@@ -32,15 +32,43 @@ tvm exposes a directed graph along with a declarative scheduling system to build
 Built a small compiler that takes a statement of vector math and compiles to tvm.  This is extremely incomplete and not very efficient in terms of what is possible but
 shows a vision of doing potentially entire neural network functions.
 
-```clojure
-tvm-clj.compute.compile-fn-test> (time-tests)
-java tensor ops took:  "Elapsed time: 8775.659927 msecs"
+```
+hand-coded java took:  "Elapsed time: 558.662639 msecs"
 
-hand-coded java took:  "Elapsed time: 520.54155 msecs"
+produce bgr_types_op {
+  parallel (chan, 0, min(n_channels, 3)) {
+    for (y.outer, 0, ((image_height + 31)/32)) {
+      for (x.outer, 0, ((image_width + 31)/32)) {
+        for (y.inner, 0, 32) {
+          if (likely(((y.outer*32) < (image_height - y.inner)))) {
+            for (x.inner.s, 0, 32) {
+              if (likely(((x.outer*32) < (image_width - x.inner.s)))) {
+                buffer[(((x.outer*32) + ((((chan*image_height) + (y.outer*32)) + y.inner)*image_width)) + x.inner.s)] = ((float32(buffer[((((((x.outer*32) + (((y.outer*32) + y.inner)*image_width)) + x.inner.s)*n_channels) - chan) + 2)])*0.003922f) + -0.500000f)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
-Compiled (cpu) tensor took: "Elapsed time: 223.748329 msecs"
+Compiled (cpu) tensor took: "Elapsed time: 31.712205 msecs"
 
-Compiled (opencl) tensor took: "Elapsed time: 64.999564 msecs"
+produce bgr_types_op {
+  // attr [iter_var(blockIdx.z, , blockIdx.z)] thread_extent = min(n_channels, 3)
+  // attr [iter_var(blockIdx.y, , blockIdx.y)] thread_extent = ((image_height + 31)/32)
+  // attr [iter_var(blockIdx.x, , blockIdx.x)] thread_extent = ((image_width + 31)/32)
+  // attr [iter_var(threadIdx.y, , threadIdx.y)] thread_extent = 32
+  // attr [iter_var(threadIdx.x, , threadIdx.x)] thread_extent = 32
+  if (likely(((blockIdx.y*32) < (image_height - threadIdx.y)))) {
+    if (likely(((blockIdx.x*32) < (image_width - threadIdx.x)))) {
+      buffer[(((blockIdx.x*32) + ((((blockIdx.z*image_height) + (blockIdx.y*32)) + threadIdx.y)*image_width)) + threadIdx.x)] = ((float32(buffer[((((((blockIdx.x*32) + (((blockIdx.y*32) + threadIdx.y)*image_width)) + threadIdx.x)*n_channels) - blockIdx.z) + 2)])*0.003922f) + -0.500000f)
+    }
+  }
+}
+
+Compiled (opencl) tensor took: "Elapsed time: 4.641527 msecs"
 ```
 [source](test/tvm_clj/compute/compile_fn_test.clj)
 

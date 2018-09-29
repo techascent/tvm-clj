@@ -84,6 +84,12 @@
   (c/global-node-function "make.Cast" (->dtype dtype) expr-node))
 
 
+(defn cast
+  "See static cast redone to allow usage in ->"
+  [expr-node dtype]
+  (static-cast dtype expr-node))
+
+
 (def iteration-variable-types
   "Iteration variable types defined in tvm/include/Expr.h"
   {
@@ -601,6 +607,55 @@ clojure 'if' statement."
                              (str grp-name "." gpu-axis-name)))))
          dorun)))
 
+(defn throw-nil
+  [item key-val]
+  (if-let [retval (get item key-val)]
+    retval
+    (throw (ex-info "Expected object but got nil"
+                    {:item item
+                     :key key-val}))))
+
+
+(defn ->operation
+  [tens-or-op]
+  (case (:tvm-type-kwd tens-or-op)
+    :tensor (throw-nil tens-or-op :op)
+    :compute-operation tens-or-op
+    :scan-operation tens-or-op
+    :placeholder-operation tens-or-op
+    :external-operation tens-or-op))
+
+
+(defn ->stage
+  [stage-or-schedule operation]
+  (case (:tvm-type-kwd stage-or-schedule)
+    :stage stage-or-schedule
+    :schedule (throw-nil (:stage_map stage-or-schedule)
+                         (->operation operation))))
+
+
+(defn stage-gpu-injective
+  [stage op & {:keys [thread-count axis]
+               :or {thread-count 16}}]
+
+  (let [retval stage
+        op (->operation op)
+        stage (->stage stage op)
+        fused-axis (stage-fuse stage (or axis (:axis op)))
+        [bx tx] (split-stage-by-factor stage fused-axis thread-count)]
+    (bind-gpu-axis stage [bx] [tx])
+    retval))
+
+
+(defn stage-cpu-injective
+  [stage op & {:keys [axis]}]
+  (let [retval stage
+        op (->operation op)
+        stage (->stage stage op)
+        fused-axis (stage-fuse stage (or axis (:axis op)))]
+    (stage-parallel stage fused-axis)
+    retval))
+
 
 (def default-build-config
   "Comments from tvm/build_module.h"
@@ -752,6 +807,7 @@ the threading macro with the long set of ir pass possibilities."
   [item fn-name & args]
   ;;These are all nodes but don't upack fields; this causes too much unnecessary unpacking.
   (apply c/g-fn fn-name item args))
+
 
 
 (def lowered-function-type->int-map

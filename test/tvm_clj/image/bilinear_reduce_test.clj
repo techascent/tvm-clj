@@ -22,7 +22,7 @@
         out-img (resource/track
                  (opencv_core$Mat. height width opencv_core/CV_8UC3))
 
-        host-buffer (cpu/ptr->host-buffer (hbuf/->ptr out-img) :dtype :uint8)
+        host-buffer (cpu/ptr->device-buffer (hbuf/->ptr out-img) :dtype :uint8)
         device-buffer (ct/tensor->buffer result-tens)]
     (drv/copy-device->host ct/*stream*
                            device-buffer 0

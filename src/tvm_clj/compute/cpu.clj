@@ -41,7 +41,7 @@
   tvm-reg/PTVMStream
   (call-function-impl [_ fn arg-list]
     (cpu-driver/with-stream-dispatch stream
-      (apply tvm-core/call-function fn arg-list)))
+      (apply fn arg-list)))
 
   drv/PDriverProvider
   (get-driver [_] (drv/get-driver (device-fn)))
@@ -121,18 +121,14 @@
   tvm-reg/PCompileModule
   (gpu-scheduling? [driver] false)
   (device-datatypes? [driver] false)
-  (schedule-injective [driver compute-op schedule]
-    ;;For injective we fuse all dimensions and then run them all in parallel.
-    (let [schedule (or schedule (api/create-schedule [compute-op]))
-          stage (get-in schedule [:stage_map compute-op])
-          op-axis (:axis compute-op)
-          fused-axis (api/stage-fuse stage op-axis)]
-      (api/stage-parallel stage fused-axis)
-      schedule))
-  (->module-impl [driver lowered-fn-seq build-config]
-    (api/lowered-functions->module lowered-fn-seq
-                                   :target-name :llvm
-                                   :build-config build-config)))
+  (schedule-injective! [driver stage compute-op options]
+    (apply api/stage-cpu-injective stage compute-op options))
+
+  (->module-impl [driver sched-data-seq options]
+    (api/schedules->fns sched-data-seq
+                        :build-config (:build-config options)
+                        :target-host (:target-host options)
+                        :target-name :llvm)))
 
 (def driver
   (memoize
@@ -140,11 +136,12 @@
 
 (tvm-reg/add-device-type (tvm-core/device-type->device-type-int :cpu) (driver))
 
-(defn ptr->host-buffer
+(defn ptr->device-buffer
   [ptr & {:keys [dtype]}]
   (let [dtype (or dtype (dtype/get-datatype ptr))
         shape [(dtype/ecount ptr)]
-        device-type (tvm-core/device-type->device-type-int :cpu)
-        device-id 0]
+        device (first (cpu-devices))
+        device-type (tvm-reg/device-type device)
+        device-id (tvm-reg/device-id device)]
     (->> (tvm-base/pointer->tvm-ary ptr device-type device-id dtype shape nil 0)
-         (dbuf/->DeviceBuffer (first (cpu-devices))))))
+         (dbuf/->DeviceBuffer device))))

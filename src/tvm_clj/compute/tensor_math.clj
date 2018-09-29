@@ -93,21 +93,10 @@
         device-id (tvm-reg/device-id stream)]
     (if-let [retval (get @*fn-map* [device-type device-id fn-name])]
       retval
-      (let [lowered-fn (fn-create-fn)
-            module (tvm-reg/->module (drv/get-driver stream) [lowered-fn])
-            retval (core/get-module-function module fn-name)]
+      (let [retval (fn-create-fn)]
         (swap! *fn-map* assoc fn-name retval)
         (resource/track (->PRemoveFunction device-type device-id fn-name))
         retval))))
-
-
-(defn compute->lowered-function
-  [stream fn-name compute-op arg-list tensor-arg-map]
-  (-> (tvm-reg/schedule-injective (drv/get-driver stream)
-                                  compute-op
-                                  nil)
-      (api/schedule->lowered-function arg-list fn-name
-                                      :bind-map (build-bind-map tensor-arg-map))))
 
 
 (def device-datatype-map
@@ -195,6 +184,17 @@
             (map int tens-stride))))
 
 
+(defn- compile-operation
+  [driver fn-name compute-op arglist bind-map]
+  (let [schedule (api/create-schedule compute-op)
+        _ (tvm-reg/schedule-injective! driver schedule compute-op {})
+        mod-fns (tvm-reg/->module driver [{:schedule schedule
+                                           :name fn-name
+                                           :arglist arglist
+                                           :bind-map (build-bind-map bind-map)}])]
+    (get-in mod-fns [:fn-map fn-name])))
+
+
 
 
 (defn assign-constant!
@@ -203,7 +203,7 @@
                  (ct/as-vector tensor)
                  tensor)
         datatype (ct/get-datatype tensor)
-        fn-name (get-fn-name "assign_constant" tensor)
+        fn-name (keyword (get-fn-name "assign_constant" tensor))
         scalar-datatype (get-scalar-datatype (drv/get-driver stream) datatype)
         assign-fn (get-or-create-fn
                    stream fn-name
@@ -217,8 +217,11 @@
                                                             (name datatype)
                                                             const-var))))
                           result (first (api/output-tensors compute-op))]
-                      (compute->lowered-function stream fn-name compute-op
-                                                 [result const-var] {tensor result})))]
+                      (compile-operation (drv/get-driver stream)
+                                         fn-name compute-op
+                                         [result const-var]
+                                         {tensor result})))]
+
     (tvm-reg/call-function stream assign-fn tensor
                            (tens-utils/dtype-cast value scalar-datatype))))
 
@@ -229,7 +232,7 @@ lhs = rhs"
   [stream lhs rhs]
   (let [lhs-dtype (ct/get-datatype lhs)
         rhs-dtype (ct/get-datatype rhs)
-        fn-name (get-fn-name "assign" lhs rhs)
+        fn-name (keyword (get-fn-name "assign" lhs rhs))
         dest-datatype (ct/get-datatype lhs)
         n-dims (count (ct/shape lhs))
         max-shape (ct/shape lhs)
@@ -249,13 +252,14 @@ lhs = rhs"
                                                             index-vars
                                                             rhs-shape-stride-tuples))))
                 result (first (api/output-tensors compute-op))]
-            (compute->lowered-function stream fn-name compute-op
-                                       (->> (concat [result]
-                                                    [rhs-placeholder]
-                                                    (map first rhs-shape-stride-tuples)
-                                                    (map second rhs-shape-stride-tuples))
-                                            vec)
-                                       {lhs result})))]
+            (compile-operation (drv/get-driver stream)
+                               fn-name compute-op
+                               (->> (concat [result]
+                                            [rhs-placeholder]
+                                            (map first rhs-shape-stride-tuples)
+                                            (map second rhs-shape-stride-tuples))
+                                    vec)
+                               {lhs result})))]
     (apply tvm-reg/call-function
            stream assign-fn lhs (explode-read-tensor rhs (count max-shape)))))
 
@@ -272,3 +276,10 @@ lhs = rhs"
     (assign-constant! stream tensor value))
   (assign! [stream lhs rhs]
     (assign! stream lhs rhs)))
+
+
+(defn device-buffer->tensor
+  [dev-buf dimensions]
+  (ct/construct-tensor (drv/get-device dev-buf)
+                       dimensions
+                       dev-buf))

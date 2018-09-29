@@ -173,12 +173,6 @@
      :kern-x-op kern-x-op
      :kern-y-op kern-y-op}))
 
-(defn- gpu-injective
-  [stage op & {:keys [thread-count]
-               :or {thread-count 32}}]
-  (let [fused-axis (api/stage-fuse stage (:axis op))
-        [bx tx] (api/split-stage-by-factor stage fused-axis thread-count)]
-    (api/bind-gpu-axis stage [bx] [tx])))
 
 (defn schedule-correct-reduction
   [& {:keys [device-type
@@ -237,8 +231,8 @@
             reduce-thread-axis (api/stage-fuse final-op-stage [y-inner x-inner])]
         (api/stage-compute-at reduce-stage final-op-stage reduce-thread-axis)
         (api/bind-gpu-axis final-op-stage [reduce-block-axis] [reduce-thread-axis])
-        (gpu-injective kern-x-stage kern-x-op)
-        (gpu-injective kern-y-stage kern-y-op)))
+        (api/stage-gpu-injective kern-x-stage kern-x-op)
+        (api/stage-gpu-injective kern-y-stage kern-y-op)))
     (if print-schedule?
       (api/schedule->str schedule arglist fn-name)
       (let [module-data (api/schedules->fns [{:schedule schedule
@@ -404,8 +398,8 @@
             reduce-thread-axis (api/stage-fuse final-op-stage [y-inner x-inner])]
         (api/stage-compute-at reduce-stage final-op-stage reduce-thread-axis)
         (api/bind-gpu-axis final-op-stage [reduce-block-axis] [reduce-thread-axis])
-        (gpu-injective kern-x-stage kern-x-op)
-        (gpu-injective kern-y-stage kern-y-op)))
+        (api/stage-gpu-injective kern-x-stage kern-x-op)
+        (api/stage-gpu-injective kern-y-stage kern-y-op)))
     (if print-schedule?
       (api/schedule->str schedule arglist (name fn-name))
       (let [module-data (api/schedules->fns [{:schedule schedule
