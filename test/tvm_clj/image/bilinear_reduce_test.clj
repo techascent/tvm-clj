@@ -40,7 +40,7 @@
     (registry/get-driver device-type)
     :uint8
     (let [mat (compile-test/load-image "test/data/jen.jpg")
-          img-tensor (ct/->tensor mat :datatype :uint8)
+          img-tensor (compile-test/opencv-mat->tensor mat)
           [height width n-chans] (take-last 3 (m/shape img-tensor))
           new-width 512
           ratio (/ (double new-width) width)
