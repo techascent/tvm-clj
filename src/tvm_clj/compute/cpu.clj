@@ -2,7 +2,6 @@
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
-            [tvm-clj.compute.host-buffer :as hbuf]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]

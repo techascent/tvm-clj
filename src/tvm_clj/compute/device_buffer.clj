@@ -4,7 +4,8 @@
             [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
-            [tvm-clj.compute.host-buffer :as hbuf]
+            [tvm-clj.compute.typed-pointer :as hbuf]
+            [tech.typed-pointer :as typed-pointer]
             [think.resource.core :as resource]
             [clojure.core.matrix.protocols :as mp]
             [tech.javacpp-datatype :as jcpp-dtype]
@@ -22,9 +23,9 @@
 
 (defn base-ptr-dtype
   [datatype]
-  (if (hbuf/signed-datatype? datatype)
+  (if (typed-pointer/signed-datatype? datatype)
     datatype
-    (hbuf/direct-conversion-map datatype)))
+    (typed-pointer/direct-conversion-map datatype)))
 
 (defn tvm-ary->pointer
   ^Pointer [^ArrayHandle ten-ary ^long elem-count datatype]
@@ -91,27 +92,18 @@
 
   dtype/PAccess
   (set-value! [item offset value]
-    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :to])
-          value (if conv-fn (conv-fn value) value)]
-      (dtype/set-value! (device-buffer->ptr item) offset value)))
+    (dtype/set-value! (typed-pointer/->typed-pointer item) offset value))
   (set-constant! [item offset value elem-count]
-    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table [(dtype/get-datatype item) :to])
-          value (if conv-fn (conv-fn value) value)]
-      (dtype/set-constant! (device-buffer->ptr item) offset value elem-count)))
+    (dtype/set-constant! (typed-pointer/->typed-pointer item) offset value elem-count))
   (get-value [item offset]
-    (let [conv-fn (get-in hbuf/unsigned-scalar-conversion-table
-                          [(dtype/get-datatype item) :from])
-          ptr (device-buffer->ptr item)]
-      (if conv-fn
-        (conv-fn (dtype/get-value ptr offset))
-        (dtype/get-value ptr offset))))
+    (dtype/get-value (typed-pointer/->typed-pointer item) offset))
 
-  hbuf/PToPtr
+  typed-pointer/PToPtr
   (->ptr [item] (device-buffer->ptr item))
 
   ;;Efficient bulk copy is provided by this line and implementing the PToPtr protocol
   marshal/PContainerType
-  (container-type [this] :tvm-host-buffer)
+  (container-type [this] :typed-pointer)
 
   ;;The underlying tvm array is tracked by the system so there is no
   ;;need to release this resource.

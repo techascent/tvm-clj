@@ -7,10 +7,10 @@
             [tvm-clj.compile-test :as compile-test]
             [clojure.core.matrix :as m]
             [tech.compute.tensor :as ct]
-            [tvm-clj.compute.host-buffer :as hbuf]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
-            [think.resource.core :as resource])
+            [think.resource.core :as resource]
+            [tech.typed-pointer :as typed-pointer])
   (:import [org.bytedeco.javacpp opencv_core
             opencv_imgcodecs opencv_core$Mat
             opencv_imgproc opencv_core$Size]))
@@ -22,7 +22,7 @@
         out-img (resource/track
                  (opencv_core$Mat. height width opencv_core/CV_8UC3))
 
-        host-buffer (cpu/ptr->device-buffer (hbuf/->ptr out-img) :dtype :uint8)
+        host-buffer (cpu/ptr->device-buffer (typed-pointer/->ptr out-img) :dtype :uint8)
         device-buffer (ct/tensor->buffer result-tens)]
     (drv/copy-device->host ct/*stream*
                            device-buffer 0
@@ -66,7 +66,7 @@
                         (opencv_imgproc/resize mat reference (opencv_core$Size.
                                                               new-width
                                                               new-height)
-                                               0.0 0.0 (opencv_imgproc/CV_INTER_LINEAR)))))
+                                               0.0 0.0 opencv_imgproc/CV_INTER_LINEAR))))
           filter-fn (bilinear/schedule-bilinear-filter-fn
                      :device-type device-type
                      :img-dtype :uint8)

@@ -1,11 +1,11 @@
 (ns tvm-clj.compile-test
   (:require [tvm-clj.compute.functional-tensor :as ct]
             [tvm-clj.compute.tensor.cpu-functional-tensor]
-            ;;unsigned datatype support
-            [tvm-clj.compute.host-buffer :as hbuf]
+
             [clojure.test :refer :all]
             [think.resource.core :as resource]
             [tech.datatype.base :as dtype]
+            [tech.typed-pointer :as typed-pointer]
             [tech.datatype.marshal :as marshal]
             [clojure.core.matrix.protocols :as mp]
             [tech.compute.tensor :as compute-tensor]
@@ -141,15 +141,14 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (container-type [item] :tvm-host-buffer)
 
   ;;This allows bulk read/write into the object
-  hbuf/PToPtr
+  typed-pointer/PToPtr
   (->ptr [item] (jcpp-dtype/set-pointer-limit-and-capacity
                  (.ptr item)
                  (mp/element-count item)))
 
   dtype/PCopyRawData
   (copy-raw->item! [item dest dest-offset]
-    (marshal/copy! item 0 dest dest-offset (mp/element-count item))
-    [dest (+ (long dest-offset) (long (mp/element-count item)))]))
+    (dtype/copy-raw->item! (typed-pointer/->typed-pointer item) dest dest-offset)))
 
 
 (defn opencv-mat->tensor
@@ -159,7 +158,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
       ;;For cpu, we have a direct, zero-copy conversion.  We can read/write directly to
       ;;opencv's data storage
       (-> mat
-          hbuf/->ptr
+          typed-pointer/->ptr
           (cpu/ptr->device-buffer :dtype (dtype/get-datatype mat))
           (tvm-tm/device-buffer->tensor (ct-dims/dimensions (m/shape mat))))
       (compute-tensor/->tensor mat :datatype (dtype/get-datatype mat)))))
