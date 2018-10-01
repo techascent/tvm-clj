@@ -90,110 +90,6 @@
   (static-cast dtype expr-node))
 
 
-(def iteration-variable-types
-  "Iteration variable types defined in tvm/include/Expr.h"
-  {
-   ;; /*!
-   ;; * \brief Data parallel iteration.
-   ;; *  This normally corresponds to axis of Tensor.
-   ;; *  Allow all IterVar manipulations.
-   ;; *
-   ;; * \note This does not mean the loop
-   ;; *  have to be executed in parallel fashion.
-   ;; */
-   :data-parallel 0
-   ;; /*!
-   ;; * \brief The IterVar itself is a thread-index
-   ;; *  of a fixed thread launching group.
-   ;; *  Note that this is already assumed to be parallelized.
-   ;; *
-   ;; *  Disallow: split/fuse/vectorize/parallel
-   ;; */
-   :thread-index 1
-   ;; /*!
-   ;; * \brief Communicative reduction.
-   ;; *  Cannot be directly parallelized.
-   ;; *
-   ;; *  Disallow: parallel/vectorize
-   ;; */
-   :communicative-reduce 2
-   ;; /*!
-   ;; * \brief Serial loops with loop carry dependency,
-   ;; *  the iteration must execute in order.
-   ;; *  Cannot be re-ordered.
-   ;; *
-   ;; *  Disallow: reorder/parallel/vectorize
-   ;; */
-   :ordered 3
-   ;; /*!
-   ;; * \brief IterVar is opaque,
-   ;; *
-   ;; *  May not corresponds to any generated loop
-   ;; *  Disallow all IterVar manipulations and compute_at
-   ;; *
-   ;; * \note This is usually used to implement composite op
-   ;; *  or external op, where the
-   ;; */
-   :opaque 4
-   ;; // The following are possible additional
-   ;; // types that are provided during schedule
-   ;; /*!
-   ;; * \brief The execution is unrolled.
-   ;; */
-   :unrolled 5
-   ;; /*!
-   ;; * \brief The loop is vectorized.
-   ;; */
-   :vectorized 6
-   ;; /*!
-   ;; * \brief The loop is parallelized.
-   ;; */
-   :parallelized 7
-   ;; /*!
-   ;; * \brief Marks boundary of tensorization intrinsic.
-   ;; */
-   :tensorized 8})
-
-
-(def iteration-variable-type-set (set (keys iteration-variable-types)))
-
-
-(defn iteration-variable
-  "Create a variable that controls iteration through the data.  The iteration type
-affects the class of optimizations that the compiler is able to apply to the affected
-expressions,
-
-    Parameters
-    ----------
-    dom : Range
-        The domain of iteration.
-
-    name : str
-        The name of iteration variable.
-
-    iteration-type : keyword
-        The type of iteration.
-
-    thread-tag : str
-        The thread tag of the iteration variable."
-  [domain name iteration-type & {:keys [thread-tag]
-                                 :or {thread-tag ""}}]
-
-  (when-not-error (iteration-variable-type-set iteration-type)
-    (ex-info "Iteration type not in allowed iteration types"
-             {:allowed-types iteration-variable-type-set
-              :iteration-type iteration-type}))
-
-  (let [domain (when domain
-                 (if (= :range (c/get-node-type domain))
-                   domain
-                   (range (first domain) (second domain))))
-        v (variable name)]
-    (c/global-node-function "_IterVar" domain v
-                            (iteration-variable-types iteration-type)
-                            thread-tag)))
-
-
 (def call-types
   "Possible call types from Halide/IR.h"
   {:extern 0 ;;< A call to an external C-ABI function, possibly with side-effects
@@ -401,6 +297,116 @@ clojure 'if' statement."
                body)))
 
 
+(def iteration-variable-types
+  "Iteration variable types defined in tvm/include/Expr.h"
+  {
+   ;; /*!
+   ;; * \brief Data parallel iteration.
+   ;; *  This normally corresponds to axis of Tensor.
+   ;; *  Allow all IterVar manipulations.
+   ;; *
+   ;; * \note This does not mean the loop
+   ;; *  have to be executed in parallel fashion.
+   ;; */
+   :data-parallel 0
+   ;; /*!
+   ;; * \brief The IterVar itself is a thread-index
+   ;; *  of a fixed thread launching group.
+   ;; *  Note that this is already assumed to be parallelized.
+   ;; *
+   ;; *  Disallow: split/fuse/vectorize/parallel
+   ;; */
+   :thread-index 1
+   ;; /*!
+   ;; * \brief Communicative reduction.
+   ;; *  Cannot be directly parallelized.
+   ;; *
+   ;; *  Disallow: parallel/vectorize
+   ;; */
+   :communicative-reduce 2
+   ;; /*!
+   ;; * \brief Serial loops with loop carry dependency,
+   ;; *  the iteration must execute in order.
+   ;; *  Cannot be re-ordered.
+   ;; *
+   ;; *  Disallow: reorder/parallel/vectorize
+   ;; */
+   :ordered 3
+   ;; /*!
+   ;; * \brief IterVar is opaque,
+   ;; *
+   ;; *  May not corresponds to any generated loop
+   ;; *  Disallow all IterVar manipulations and compute_at
+   ;; *
+   ;; * \note This is usually used to implement composite op
+   ;; *  or external op, where the
+   ;; */
+   :opaque 4
+   ;; // The following are possible additional
+   ;; // types that are provided during schedule
+   ;; /*!
+   ;; * \brief The execution is unrolled.
+   ;; */
+   :unrolled 5
+   ;; /*!
+   ;; * \brief The loop is vectorized.
+   ;; */
+   :vectorized 6
+   ;; /*!
+   ;; * \brief The loop is parallelized.
+   ;; */
+   :parallelized 7
+   ;; /*!
+   ;; * \brief Marks boundary of tensorization intrinsic.
+   ;; */
+   :tensorized 8})
+
+
+(def iteration-variable-type-set (set (keys iteration-variable-types)))
+
+
+(defn iteration-variable
+  "Create a variable that controls iteration through the data.  The iteration type
+affects the class of optimizations that the compiler is able to apply to the affected
+expressions,
+
+    Parameters
+    ----------
+    dom : Range
+        The domain of iteration.
+
+    name : str
+        The name of iteration variable.
+
+    iteration-type : keyword
+        The type of iteration.
+
+    thread-tag : str
+        The thread tag of the iteration variable."
+  [domain name iteration-type & {:keys [thread-tag]
+                                 :or {thread-tag ""}}]
+
+  (when-not-error (iteration-variable-type-set iteration-type)
+    (ex-info "Iteration type not in allowed iteration types"
+             {:allowed-types iteration-variable-type-set
+              :iteration-type iteration-type}))
+
+  (let [domain (when domain
+                 (if (= :range (c/get-node-type domain))
+                   domain
+                   (range (first domain) (second domain))))
+        v (variable name)]
+    (c/global-node-function "_IterVar" domain v
+                            (iteration-variable-types iteration-type)
+                            thread-tag)))
+
+
+(defn name->thread-axis-iterator
+  "Create a thread iter-var from a thread axis name"
+  [axis-name]
+  (iteration-variable nil axis-name :thread-index :thread-tag axis-name))
+
+
 (defmacro tvm-fn
   "Like (fn) but retains the arglists.  Lambda in clojure unfortunately does not."
   [arg-vec & body]
@@ -503,7 +509,34 @@ clojure 'if' statement."
                           :recurse false)))
 
 
-(defn split-stage-by-factor
+(defn throw-nil
+  [item key-val]
+  (if-let [retval (get item key-val)]
+    retval
+    (throw (ex-info "Expected object but got nil"
+                    {:item item
+                     :key key-val}))))
+
+
+(defn ->operation
+  [tens-or-op]
+  (case (:tvm-type-kwd tens-or-op)
+    :tensor (throw-nil tens-or-op :op)
+    :compute-operation tens-or-op
+    :scan-operation tens-or-op
+    :placeholder-operation tens-or-op
+    :external-operation tens-or-op))
+
+
+(defn ->stage
+  [stage-or-schedule operation]
+  (case (:tvm-type-kwd stage-or-schedule)
+    :stage stage-or-schedule
+    :schedule (throw-nil (:stage_map stage-or-schedule)
+                         (->operation operation))))
+
+
+(defn stage-split-axis
   [stage iter-var factor]
   (c/tvm-array->jvm (c/g-fn "_StageSplitByFactor" stage iter-var factor)))
 
@@ -548,8 +581,8 @@ clojure 'if' statement."
 
 
 (defn stage-reorder
-  [stage & args]
-  (c/g-fn "_StageReorder" stage args))
+  [stage axis-seq]
+  (c/g-fn "_StageReorder" stage axis-seq))
 
 
 (defn stage-vectorize
@@ -572,14 +605,9 @@ clojure 'if' statement."
   (c/g-fn "_ScheduleCacheRead" schedule tensor cache-type))
 
 
-(defn name->thread-axis-iterator
-  "Create a thread iter-var from a thread axis name"
-  [axis-name]
-  (iteration-variable nil axis-name :thread-index :thread-tag axis-name))
-
-(defn bind-gpu-axis
+(defn stage-bind-gpu
   "Bind the gpu-defined axis to the tvm axis.
-  GPU (cuda, opencl) define a roughly 2 stage breakdown of axis, block and thread.
+  GPU (cuda, opencl) define a roughly level stage breakdown of axis: block and thread.
   Threads run on the same block and can share a special kind of memory (called shared
   memory).  There can be up to 3 tvm axis per block or thread and these are labeled
   (outer iterator to inner iterator):
@@ -607,32 +635,6 @@ clojure 'if' statement."
                              (str grp-name "." gpu-axis-name)))))
          dorun)))
 
-(defn throw-nil
-  [item key-val]
-  (if-let [retval (get item key-val)]
-    retval
-    (throw (ex-info "Expected object but got nil"
-                    {:item item
-                     :key key-val}))))
-
-
-(defn ->operation
-  [tens-or-op]
-  (case (:tvm-type-kwd tens-or-op)
-    :tensor (throw-nil tens-or-op :op)
-    :compute-operation tens-or-op
-    :scan-operation tens-or-op
-    :placeholder-operation tens-or-op
-    :external-operation tens-or-op))
-
-
-(defn ->stage
-  [stage-or-schedule operation]
-  (case (:tvm-type-kwd stage-or-schedule)
-    :stage stage-or-schedule
-    :schedule (throw-nil (:stage_map stage-or-schedule)
-                         (->operation operation))))
-
 
 (defn stage-gpu-injective
   [stage op & {:keys [thread-count axis]
@@ -642,8 +644,8 @@ clojure 'if' statement."
         op (->operation op)
         stage (->stage stage op)
         fused-axis (stage-fuse stage (or axis (:axis op)))
-        [bx tx] (split-stage-by-factor stage fused-axis thread-count)]
-    (bind-gpu-axis stage [bx] [tx])
+        [bx tx] (stage-split-axis stage fused-axis thread-count)]
+    (stage-bind-gpu stage [bx] [tx])
     retval))
 
 

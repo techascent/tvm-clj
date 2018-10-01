@@ -230,7 +230,7 @@
             reduce-block-axis (api/stage-fuse final-op-stage [y-outer x-outer])
             reduce-thread-axis (api/stage-fuse final-op-stage [y-inner x-inner])]
         (api/stage-compute-at reduce-stage final-op-stage reduce-thread-axis)
-        (api/bind-gpu-axis final-op-stage [reduce-block-axis] [reduce-thread-axis])
+        (api/stage-bind-gpu final-op-stage [reduce-block-axis] [reduce-thread-axis])
         (api/stage-gpu-injective kern-x-stage kern-x-op)
         (api/stage-gpu-injective kern-y-stage kern-y-op)))
     (if print-schedule?
@@ -397,7 +397,7 @@
             reduce-block-axis (api/stage-fuse final-op-stage [y-outer x-outer])
             reduce-thread-axis (api/stage-fuse final-op-stage [y-inner x-inner])]
         (api/stage-compute-at reduce-stage final-op-stage reduce-thread-axis)
-        (api/bind-gpu-axis final-op-stage [reduce-block-axis] [reduce-thread-axis])
+        (api/stage-bind-gpu final-op-stage [reduce-block-axis] [reduce-thread-axis])
         (api/stage-gpu-injective kern-x-stage kern-x-op)
         (api/stage-gpu-injective kern-y-stage kern-y-op)))
     (if print-schedule?

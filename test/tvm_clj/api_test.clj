@@ -35,16 +35,10 @@
                                               (api/tget B [i])))
                                 "C")
         C (first (api/output-tensors compute-op))
-        schedule (api/create-schedule compute-op)
-        compute-axis (:axis compute-op)
-        stage (get (:stage_map schedule) compute-op)
-        fused (api/stage-fuse stage compute-axis)
-        ;;For injective things
-        _ (if (= :cpu build-target)
-            (api/stage-parallel stage fused)
-            (do
-              (let [[bx tx] (api/split-stage-by-factor stage fused 32)]
-                (api/bind-gpu-axis stage [bx] [tx]))))]
+        schedule (api/create-schedule compute-op)]
+    (if (= :cpu build-target)
+      (api/stage-cpu-injective schedule compute-op)
+      (api/stage-gpu-injective schedule compute-op))
     (-> (api/schedules->fns [{:name :myadd
                               :arglist [A B C]
                               :schedule schedule}]

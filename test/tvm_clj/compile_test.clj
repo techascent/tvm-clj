@@ -95,9 +95,9 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
     (api/stage-vectorize op-stage x-inner)
     (if (= :cpu (tvm-reg/device-type-kwd driver))
       (api/stage-parallel op-stage chan-axis)
-      (api/bind-gpu-axis op-stage
-                         [chan-axis y-outer x-outer]
-                         [y-inner x-inner]))
+      (api/stage-bind-gpu op-stage
+                          [chan-axis y-outer x-outer]
+                          [y-inner x-inner]))
     ;;There are a lot of assumptions in this step.  We aren't providing a bind-map which means we expect
     ;;input to be dense and simple input dimensions
     (println (api/schedule->str schedule arglist :bgr-convert))
