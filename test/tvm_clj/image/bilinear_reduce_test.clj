@@ -10,17 +10,15 @@
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
             [think.resource.core :as resource]
-            [tech.typed-pointer :as typed-pointer])
-  (:import [org.bytedeco.javacpp opencv_core
-            opencv_imgcodecs opencv_core$Mat
-            opencv_imgproc opencv_core$Size]))
+            [tech.typed-pointer :as typed-pointer]
+            [tech.opencv :as opencv]
+            [tvm-clj.compute.tensor-math :as tvm-tm]))
 
 
 (defn result-tensor->opencv
   [result-tens]
   (let [[height width n-chan] (m/shape result-tens)
-        out-img (resource/track
-                 (opencv_core$Mat. height width opencv_core/CV_8UC3))
+        out-img (opencv/new-mat height width 3 :dtype :uint8)
 
         host-buffer (cpu/ptr->device-buffer (typed-pointer/->ptr out-img) :dtype :uint8)
         device-buffer (ct/tensor->buffer result-tens)]
@@ -39,8 +37,8 @@
    (vf/tensor-context
     (registry/get-driver device-type)
     :uint8
-    (let [mat (compile-test/load-image "test/data/jen.jpg")
-          img-tensor (compile-test/opencv-mat->tensor mat)
+    (let [mat (opencv/load "test/data/jen.jpg")
+          img-tensor (tvm-tm/typed-pointer->tensor mat)
           [height width n-chans] (take-last 3 (m/shape img-tensor))
           new-width 512
           ratio (/ (double new-width) width)
@@ -55,18 +53,15 @@
                     (time
                      (do
                        (dotimes [iter 10]
-                         (bilinear/correct-linear-reduction! img-tensor result downsample-fn)
+                         (bilinear/correct-linear-reduction! img-tensor result
+                                                             downsample-fn)
                          (drv/sync-with-host ct/*stream*)))))
           opencv-res (result-tensor->opencv result)
-          reference (resource/track (opencv_core$Mat. new-height new-width
-                                                      opencv_core/CV_8UC3))
+          reference (opencv/new-mat new-height new-width 3 :dtype :uint8)
           ref-time (with-out-str
                      (time
                       (dotimes [iter 10]
-                        (opencv_imgproc/resize mat reference (opencv_core$Size.
-                                                              new-width
-                                                              new-height)
-                                               0.0 0.0 opencv_imgproc/CV_INTER_LINEAR))))
+                        (opencv/resize-imgproc mat reference :linear))))
           filter-fn (bilinear/schedule-bilinear-filter-fn
                      :device-type device-type
                      :img-dtype :uint8)
@@ -78,9 +73,9 @@
                               (bilinear/bilinear-filter! img-tensor result filter-fn)
                               (drv/sync-with-host ct/*stream*)))))
           class-res (result-tensor->opencv result)]
-      (opencv_imgcodecs/imwrite "tvm_correct.jpg" opencv-res)
-      (opencv_imgcodecs/imwrite "tvm_classic.jpg" class-res)
-      (opencv_imgcodecs/imwrite "opencv_classic.jpg" reference)
+      (opencv/save opencv-res "tvm_correct.jpg")
+      (opencv/save class-res "tvm_classic.jpg")
+      (opencv/save reference "opencv_classic.jpg")
       {:tvm-correct-time ds-time
        :opencv-classic-time ref-time
        :tvm-classic-time classic-time}))))

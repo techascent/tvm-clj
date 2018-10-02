@@ -87,6 +87,16 @@ Implementing the exact same bilinear algorithm as opencv using the same tvm sche
 ;;opencl (NVIDIA 1070), algorithm run 10 times
 {:tvm-classic-time "\"Elapsed time: 3.236186 msecs",
  :tvm-correct-time "\"Elapsed time: 30.282632 msecs"}
+
+ ;;On my laptop:
+tvm-clj.image.bilinear-reduce-test> (downsample-img)
+{:opencv-classic-time "\"Elapsed time: 624.18993 msecs\"\n",
+ :tvm-classic-time "\"Elapsed time: 20.939918 msecs\"\n",
+ :tvm-correct-time "\"Elapsed time: 322.862621 msecs\"\n"}
+tvm-clj.image.bilinear-reduce-test> (downsample-img :device-type :opencl)
+{:opencv-classic-time "\"Elapsed time: 621.032859 msecs\"\n",
+ :tvm-classic-time "\"Elapsed time: 15.975358 msecs\"\n",
+ :tvm-correct-time "\"Elapsed time: 315.313223 msecs\"\n"}
 ```
 
 

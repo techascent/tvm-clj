@@ -10,7 +10,7 @@
 
   :profiles {:dev
              ;;Unit tests need this.
-             {:dependencies [[org.bytedeco.javacpp-presets/opencv-platform "3.4.0-1.4"]]}}
+             {:dependencies [[techascent/tech.opencv "0.1.2"]]}}
 
   :java-source-paths ["java"]
   :native-path "java/native/"

@@ -19,10 +19,9 @@
             [clojure.core.matrix :as m]
             [tvm-clj.compute.cpu :as cpu]
             [tvm-clj.compute.tensor-math :as tvm-tm]
-            [tvm-clj.base :as tvm-base])
-  (:import [org.bytedeco.javacpp opencv_core
-            opencv_imgcodecs opencv_core$Mat]
-           [tech.datatype ByteArrayView FloatArrayView]))
+            [tvm-clj.base :as tvm-base]
+            [tech.opencv :as opencv])
+  (:import [tech.datatype ByteArrayView FloatArrayView]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -76,7 +75,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
   (let [img-width (api/variable "image-width")
         img-height (api/variable "image-height")
         n-channels (api/variable "n-channels")
-        input-tensor (api/placeholder [img-height img-width n-channels] "input-tensor" :dtype :uint8)
+        input-tensor (api/placeholder [img-height img-width n-channels]
+                                      "input-tensor" :dtype :uint8)
         operation (api/compute
                    [(api/min n-channels (int 3)) img-height img-width]
                    (api/tvm-fn
@@ -90,16 +90,17 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
         schedule (api/create-schedule [operation])
         [chan-axis y-axis x-axis] (:axis operation)
         op-stage (api/->stage schedule operation)
-        [y-outer x-outer y-inner x-inner] (api/stage-tile op-stage y-axis x-axis 32 32)
+        device-type (tvm-reg/device-type-kwd driver)
+        [y-outer x-outer y-inner x-inner] (api/stage-tile op-stage y-axis x-axis 8 8)
         arglist [input-tensor (first (api/output-tensors operation))]]
     (api/stage-vectorize op-stage x-inner)
-    (if (= :cpu (tvm-reg/device-type-kwd driver))
+    (if (= :cpu device-type)
       (api/stage-parallel op-stage chan-axis)
       (api/stage-bind-gpu op-stage
-                          [chan-axis y-outer x-outer]
-                          [y-inner x-inner]))
-    ;;There are a lot of assumptions in this step.  We aren't providing a bind-map which means we expect
-    ;;input to be dense and simple input dimensions
+                          [(api/stage-fuse op-stage [chan-axis y-outer x-outer])]
+                          [(api/stage-fuse op-stage [y-inner x-inner])]))
+    ;;There are a lot of assumptions in this step.  We aren't providing a bind-map which
+    ;;means we expect input to be dense and simple input dimensions
     (println (api/schedule->str schedule arglist :bgr-convert))
     (tvm-reg/schedule->fn driver {:schedule schedule
                                   :arglist arglist
@@ -115,65 +116,10 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
       vec))
 
 
-(extend-type opencv_core$Mat
-  resource/PResource
-  (release-resource [item] (.release item))
-  mp/PDimensionInfo
-  (dimensionality [m] (count (mp/get-shape m)))
-  (get-shape [m] [(.rows m) (.cols m) (.channels m)])
-  (is-scalar? [m] false)
-  (is-vector? [m] true)
-  (dimension-count [m dimension-number]
-    (let [shape (mp/get-shape m)]
-      (if (<= (count shape) (long dimension-number))
-        (get shape dimension-number)
-        (throw (ex-info "Array does not have specific dimension"
-                        {:dimension-number dimension-number
-                         :shape shape})))))
-  mp/PElementCount
-  (element-count [m] (apply * (mp/get-shape m)))
-
-  dtype/PDatatype
-  ;;For now; I know opencv has more datatypes but whatevs
-  (get-datatype [m] :uint8)
-
-  marshal/PContainerType
-  (container-type [item] :tvm-host-buffer)
-
-  ;;This allows bulk read/write into the object
-  typed-pointer/PToPtr
-  (->ptr [item] (jcpp-dtype/set-pointer-limit-and-capacity
-                 (.ptr item)
-                 (mp/element-count item)))
-
-  dtype/PCopyRawData
-  (copy-raw->item! [item dest dest-offset]
-    (dtype/copy-raw->item! (typed-pointer/->typed-pointer item) dest dest-offset)))
-
-
-(defn opencv-mat->tensor
-  [mat]
-  (let [device (drv/get-device compute-tensor/*stream*)]
-    (if (= :cpu (-> (tvm-reg/device-type-kwd device)))
-      ;;For cpu, we have a direct, zero-copy conversion.  We can read/write directly to
-      ;;opencv's data storage
-      (-> mat
-          typed-pointer/->ptr
-          (cpu/ptr->device-buffer :dtype (dtype/get-datatype mat))
-          (tvm-tm/device-buffer->tensor (ct-dims/dimensions (m/shape mat))))
-      (compute-tensor/->tensor mat :datatype (dtype/get-datatype mat)))))
-
-
-
-(defn load-image
-  [^String filepath]
-  (resource/track (opencv_imgcodecs/imread filepath)))
-
-
 (defn java-tensor-ops-image-test
   []
   (resource/with-resource-context
-    (let [mat (load-image "test/data/jen.jpg")
+    (let [mat (opencv/load "test/data/jen.jpg")
           img-tensor (compute-tensor/->tensor mat :datatype :int8)
           result-tensor (compute-tensor/new-tensor (concat [3]
                                                            (take 2 (mp/get-shape mat)))
@@ -186,7 +132,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
 (defn java-by-hand-image-test
   []
   (resource/with-resource-context
-    (let [mat (load-image "test/data/jen.jpg")
+    (let [mat (opencv/load "test/data/jen.jpg")
           img-tensor (compute-tensor/->tensor mat :datatype :int8)
           result-tensor (compute-tensor/new-tensor (concat [3]
                                                            (take 2 (mp/get-shape mat)))
@@ -212,12 +158,12 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
                                  (tvm-reg/get-device dev-type 0))
       (compute-tensor/with-datatype
         :float32
-        (let [mat (load-image "test/data/jen.jpg")
+        (let [mat (opencv/load "test/data/jen.jpg")
               ;;It would also be possible to do a zero-copy conversion using the
               ;; opencl matrix ptr.
               ;;Note that tvm supports unsigned datatypes.
 
-              img-tensor (opencv-mat->tensor mat)
+              img-tensor (tvm-tm/typed-pointer->tensor mat)
               result-tensor (compute-tensor/new-tensor
                              (concat [3]
                                      (take 2 (mp/get-shape mat)))
@@ -226,7 +172,8 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
               ;; result-tensor (compute-tensor/new-tensor (mp/get-shape mat)
               ;;                                          :datatype :float32
               ;;                                          :init-value nil)
-              tvm-convert-fn (bgr-bytes-custom-tvm (drv/get-driver compute-tensor/*stream*))
+              tvm-convert-fn (bgr-bytes-custom-tvm (drv/get-driver
+                                                    compute-tensor/*stream*))
               ;;This is abit careless but I know the results of the compilation process
               ;;run fn twice because some platforms delay some compilation
               _ (tvm-convert-fn img-tensor result-tensor)
