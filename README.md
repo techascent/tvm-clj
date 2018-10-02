@@ -3,6 +3,9 @@
 Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) library, part of the [dmlc](https://github.com/dmlc) ecosystem.
 
 
+[![Clojars Project](https://clojars.org/techascent/tvm-clj/latest-version.svg)](https://clojars.org/techascent/tvm-clj)
+
+
 ## Justification
 
 [tvm](https://github.com/dmlc/tvm) a system for dynamically generating high performance numeric code with backends for cpu, cuda, opencl, opengl, webassembly, vulcan, and verilog.  It has frontends mainly in python and c++ with a clear and well designed C-ABI that not only aids in the implementation of their python interface, but it also eases the binding into other language ecosystems such as the jvm and node.
