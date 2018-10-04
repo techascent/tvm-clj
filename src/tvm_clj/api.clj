@@ -596,7 +596,7 @@ expressions,
                    (c/unpack-node-fields :recurse false))
         schedule (c/unpack-node-fields schedule :recurse false)]
     {:tensor retval
-     :tensor-op (:op retval)
+     :tensor-op (c/unpack-node-fields (:op retval) :recurse false)
      :schedule schedule}))
 
 
