@@ -1,7 +1,6 @@
 (ns tvm-clj.compile-test
   (:require [tvm-clj.compute.functional-tensor :as ct]
             [tvm-clj.compute.tensor.cpu-functional-tensor]
-
             [clojure.test :refer :all]
             [think.resource.core :as resource]
             [tech.datatype.base :as dtype]
@@ -131,6 +130,7 @@ Output: {:datatype :float32 :shape [3 height width]}, values from -0.5->0.5"
 
 (defn java-by-hand-image-test
   []
+  (compute-tensor/enable-cpu-tensors!)
   (resource/with-resource-context
     (let [mat (opencv/load "test/data/jen.jpg")
           img-tensor (compute-tensor/->tensor mat :datatype :int8)
