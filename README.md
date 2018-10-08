@@ -98,10 +98,10 @@ tvm-clj.image.resize-test> (downsample-img :device-type :opencl)
 ```
 
 
-tvm-area (40 ms): ![tvm-results](docs/images/test.jpg)
+tvm-area: ![tvm-results](docs/images/test.jpg)
 
 
-opencv-bilinear (20 ms): ![opencv-results](docs/images/ref.jpg)
+opencv-bilinear: ![opencv-results](docs/images/ref.jpg)
 
 
 * [tvm-clj source](src/tvm_clj/image/resize.clj)
