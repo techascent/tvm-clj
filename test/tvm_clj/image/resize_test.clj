@@ -1,6 +1,6 @@
-(ns tvm-clj.image.bilinear-reduce-test
+(ns tvm-clj.image.resize-test
   (:require [clojure.test :refer :all]
-            [tvm-clj.image.bilinear-reduce :as bilinear]
+            [tvm-clj.image.resize :as resize]
             [tech.compute.verify.tensor :as vf]
             [tvm-clj.compute.registry :as registry]
             [tvm-clj.compute.cpu :as cpu]
@@ -44,16 +44,16 @@
           ratio (/ (double new-width) width)
           new-height (long (Math/round (* (double height) ratio)))
           result (ct/new-tensor [new-height new-width n-chans] :datatype :uint8)
-          downsample-fn (bilinear/schedule-correct-reduction
+          downsample-fn (resize/schedule-area-reduction
                          :device-type device-type
                          :img-dtype :uint8)
           ;; Call once to take out compilation time
-          _ (bilinear/correct-linear-reduction! img-tensor result downsample-fn)
+          _ (resize/area-reduction! img-tensor result downsample-fn)
           ds-time (with-out-str
                     (time
                      (do
                        (dotimes [iter 10]
-                         (bilinear/correct-linear-reduction! img-tensor result
+                         (resize/area-reduction! img-tensor result
                                                              downsample-fn)
                          (drv/sync-with-host ct/*stream*)))))
           opencv-res (result-tensor->opencv result)
@@ -62,20 +62,27 @@
                      (time
                       (dotimes [iter 10]
                         (opencv/resize-imgproc mat reference :linear))))
-          filter-fn (bilinear/schedule-bilinear-filter-fn
+          filter-fn (resize/schedule-bilinear-filter-fn
                      :device-type device-type
                      :img-dtype :uint8)
-          _ (bilinear/bilinear-filter! img-tensor result filter-fn)
+          _ (resize/bilinear-filter! img-tensor result filter-fn)
           classic-time (with-out-str
                          (time
                           (do
                             (dotimes [iter 10]
-                              (bilinear/bilinear-filter! img-tensor result filter-fn)
+                              (resize/bilinear-filter! img-tensor result filter-fn)
                               (drv/sync-with-host ct/*stream*)))))
-          class-res (result-tensor->opencv result)]
-      (opencv/save opencv-res "tvm_correct.jpg")
-      (opencv/save class-res "tvm_classic.jpg")
-      (opencv/save reference "opencv_classic.jpg")
-      {:tvm-correct-time ds-time
-       :opencv-classic-time ref-time
-       :tvm-classic-time classic-time}))))
+          class-res (result-tensor->opencv result)
+          opencv-area (opencv/new-mat new-height new-width 3 :dtype :uint8)
+          area-time (with-out-str
+                     (time
+                      (dotimes [iter 10]
+                        (opencv/resize-imgproc mat opencv-area :area))))]
+      (opencv/save opencv-res "tvm_area.jpg")
+      (opencv/save class-res "tvm_bilinear.jpg")
+      (opencv/save reference "opencv_bilinear.jpg")
+      (opencv/save opencv-area "opencv_area.jpg")
+      {:tvm-area-time ds-time
+       :opencv-bilinear-time ref-time
+       :tvm-bilinear-time classic-time
+       :opencv-area-time area-time}))))

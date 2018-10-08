@@ -82,34 +82,29 @@ Faster (and correct) bilinear filtering.  Handily beats opencv::resize for bilin
 Implementing the exact same bilinear algorithm as opencv using the same tvm schedule as the correct algorithm nets about an order of magnitude improvement over opencv.
 
 ```clojure
-;; cpu, algorithm run 10 times
-{:opencv-classic-time "\"Elapsed time: 228.972125 msecs",
- :tvm-classic-time "\"Elapsed time: 20.679482 msecs",
- :tvm-correct-time "\"Elapsed time: 395.130024 msecs"}
+;; cpu, algorithm run 10 times.  Desktop (NVIDIA 1070):
 
-;;opencl (NVIDIA 1070), algorithm run 10 times
-{:tvm-classic-time "\"Elapsed time: 3.236186 msecs",
- :tvm-correct-time "\"Elapsed time: 30.282632 msecs"}
+tvm-clj.image.resize-test> (downsample-img)
+{:opencv-area-time "\"Elapsed time: 815.136235 msecs\"\n",
+ :opencv-bilinear-time "\"Elapsed time: 220.774128 msecs\"\n",
+ :tvm-area-time "\"Elapsed time: 380.640778 msecs\"\n",
+ :tvm-bilinear-time "\"Elapsed time: 21.361915 msecs\"\n"}
 
- ;;On my laptop:
-tvm-clj.image.bilinear-reduce-test> (downsample-img)
-{:opencv-classic-time "\"Elapsed time: 624.18993 msecs\"\n",
- :tvm-classic-time "\"Elapsed time: 20.939918 msecs\"\n",
- :tvm-correct-time "\"Elapsed time: 322.862621 msecs\"\n"}
-tvm-clj.image.bilinear-reduce-test> (downsample-img :device-type :opencl)
-{:opencv-classic-time "\"Elapsed time: 621.032859 msecs\"\n",
- :tvm-classic-time "\"Elapsed time: 15.975358 msecs\"\n",
- :tvm-correct-time "\"Elapsed time: 315.313223 msecs\"\n"}
+tvm-clj.image.resize-test> (downsample-img :device-type :opencl)
+{:opencv-area-time "\"Elapsed time: 338.918811 msecs\"\n",
+ :opencv-bilinear-time "\"Elapsed time: 16.837844 msecs\"\n",
+ :tvm-area-time "\"Elapsed time: 31.076962 msecs\"\n",
+ :tvm-bilinear-time "\"Elapsed time: 3.033296 msecs\"\n"}
 ```
 
 
-tvm-correct (40 ms): ![tvm-results](docs/images/test.jpg)
+tvm-area (40 ms): ![tvm-results](docs/images/test.jpg)
 
 
-opencv-classic (20 ms): ![opencv-results](docs/images/ref.jpg)
+opencv-bilinear (20 ms): ![opencv-results](docs/images/ref.jpg)
 
 
-* [tvm-clj source](src/tvm_clj/image/bilinear_reduce.clj)
+* [tvm-clj source](src/tvm_clj/image/resize.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
 
 

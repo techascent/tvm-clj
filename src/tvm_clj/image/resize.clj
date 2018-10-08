@@ -1,4 +1,4 @@
-(ns tvm-clj.image.bilinear-reduce
+(ns tvm-clj.image.resize
   (:require [tech.compute.tensor :as ct]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.cpu]
@@ -44,7 +44,7 @@
                               c])))
 
 
-(defn- bilinear-filter-pixel-size
+(defn- area-filter-pixel-size
   ^long [in-size out-size]
   (let [temp (/ (double in-size)
                 (double out-size))]
@@ -56,7 +56,7 @@
        ;;at the same time.
        (Math/floor (+ temp 2))))))
 
-(defn- bilinear-addr-mul
+(defn- area-addr-mul
   "Clojure version to calculate src address and to calculate multiplier"
   [dst-pixel ratio kern-pix-idx]
   (let [src-start (double (+ (* dst-pixel ratio)))
@@ -111,7 +111,7 @@
         (float 0.5))))
      fn-name)))
 
-
+n
 (defn input-coord
   [dest-coord ratio kernel-idx]
   (->> (api/mul dest-coord ratio)
@@ -119,7 +119,7 @@
        (api/add kernel-idx)))
 
 
-(defn correct-reduction-fn
+(defn area-reduction-fn
   "Instead of computing the kernels inline we abstract them into vectors"
   [img-dtype]
   (let [in-width (api/variable "in_width")
@@ -158,9 +158,9 @@
                               (api/tget kern-x-vec [x kern_x_axis])
                               (api/tget kern-y-vec [y kern_y_axis])))]
                            [kern_y_axis kern_x_axis]))
-                         "bilinear_reduction")
+                         "area_reduction")
         intermediate-output (first (api/output-tensors intermediate-op))
-        compute-op (final-cast-fn img-dtype intermediate-output "bilinear_cast")
+        compute-op (final-cast-fn img-dtype intermediate-output "area_cast")
         output (first (api/output-tensors compute-op))]
     {:input input
      :output output
@@ -174,7 +174,7 @@
      :kern-y-op kern-y-op}))
 
 
-(defn schedule-correct-reduction
+(defn schedule-area-reduction
   [& {:keys [device-type
              img-dtype
              print-schedule?]
@@ -191,12 +191,12 @@
                 final-op
                 kern-x-op
                 kern-y-op]}
-        (correct-reduction-fn img-dtype)
+        (area-reduction-fn img-dtype)
 
         arglist [input output
                  kern-width x-ratio
                  kern-height y-ratio]
-        fn-name "bilinear_reduce"
+        fn-name "area_reduce"
         schedule (api/create-schedule [final-op])
         stage-map (get schedule :stage_map)
         kern-x-stage (get stage-map kern-x-op)
@@ -236,24 +236,24 @@
     (if print-schedule?
       (api/schedule->str schedule arglist fn-name)
       (let [module-data (api/schedules->fns [{:schedule schedule
-                                              :name :bilinear-reduce
+                                              :name :area-reduce
                                               :arglist arglist}]
                                             :target-name device-type)
-            bilinear-fn (get-in module-data [:fn-map :bilinear-reduce])]
-        bilinear-fn))))
+            area-fn (get-in module-data [:fn-map :area-reduce])]
+        area-fn))))
 
 
-(defn correct-linear-reduction!
-  [input output bilinear-fn]
+(defn area-reduction!
+  [input output area-fn]
   (let [[in-height in-width in-chan] (ct/shape input)
         [out-height out-width out-chan] (ct/shape output)
         filter-height (/ (double in-height)
                          (double out-height))
         filter-width (/ (double in-width)
                         (double out-width))
-        kernel-height (bilinear-filter-pixel-size in-height out-height)
-        kernel-width (bilinear-filter-pixel-size in-width out-width)]
-    (bilinear-fn input output
+        kernel-height (area-filter-pixel-size in-height out-height)
+        kernel-width (area-filter-pixel-size in-width out-width)]
+    (area-fn input output
                  kernel-width filter-width
                  kernel-height filter-height)
     output))
