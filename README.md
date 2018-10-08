@@ -3,7 +3,7 @@
 Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) library, part of the [dmlc](https://github.com/dmlc) ecosystem.
 
 
-[![Clojars Project](https://clojars.org/techascent/tvm-clj/latest-version.svg)](https://clojars.org/techascent/tvm-clj)
+[![Clojars Project](https://img.shields.io/clojars/v/tvm-clj.svg)](https://clojars.org/tvm-clj)
 
 
 ## Justification
