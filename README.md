@@ -95,6 +95,19 @@ tvm-clj.image.resize-test> (downsample-img :device-type :opencl)
  :opencv-bilinear-time "\"Elapsed time: 16.837844 msecs\"\n",
  :tvm-area-time "\"Elapsed time: 31.076962 msecs\"\n",
  :tvm-bilinear-time "\"Elapsed time: 3.033296 msecs\"\n"}
+
+;;Laptop times
+tvm-clj.image.resize-test> (downsample-img)
+{:opencv-area-time "\"Elapsed time: 2422.879178 msecs\"\n",
+ :opencv-bilinear-time "\"Elapsed time: 637.622425 msecs\"\n",
+ :tvm-area-time "\"Elapsed time: 333.946424 msecs\"\n",
+ :tvm-bilinear-time "\"Elapsed time: 20.585665 msecs\"\n"}
+
+tvm-clj.image.resize-test> (downsample-img :device-type :opencl)
+{:opencv-area-time "\"Elapsed time: 2460.51718 msecs\"\n",
+ :opencv-bilinear-time "\"Elapsed time: 667.624091 msecs\"\n",
+ :tvm-area-time "\"Elapsed time: 315.864799 msecs\"\n",
+ :tvm-bilinear-time "\"Elapsed time: 16.290168 msecs\"\n"}
 ```
 
 

@@ -111,7 +111,7 @@
         (float 0.5))))
      fn-name)))
 
-n
+
 (defn input-coord
   [dest-coord ratio kernel-idx]
   (->> (api/mul dest-coord ratio)
@@ -418,7 +418,7 @@ n
                          (double out-height))
         filter-width (/ (double in-width)
                         (double out-width))
-        kernel-height (bilinear-filter-pixel-size in-height out-height)
-        kernel-width (bilinear-filter-pixel-size in-width out-width)]
+        kernel-height (area-filter-pixel-size in-height out-height)
+        kernel-width (area-filter-pixel-size in-width out-width)]
     (filter-fn input output filter-width filter-height)
     output))
