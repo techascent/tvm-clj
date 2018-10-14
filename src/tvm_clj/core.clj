@@ -1,11 +1,12 @@
 (ns tvm-clj.core
   "Complete lower level bindings to the tvm runtime."
   (:require [clojure.reflect :as reflect]
-            [tech.javacpp-datatype :as jcpp-dtype]
+            [tech.datatype.javacpp :as jcpp-dtype]
             [think.resource.core :as resource]
             [clojure.set :as c-set]
             [tvm-clj.base :as base]
-            [tech.datatype.base :as dtype]
+            [tech.datatype.core :as dtype]
+            [tech.datatype.base :as dtype-base]
             [potemkin :as p]
             ;;Need stride calculations from here
             [tech.compute.tensor.dimensions :as ct-dims]
@@ -99,7 +100,7 @@
              :raw-ptr (.hashCode this))))
 
 
-(extend-protocol dtype/PDatatype
+(extend-protocol dtype-base/PDatatype
   NodeHandle
   (get-datatype [item]
     (keyword (:dtype item))))

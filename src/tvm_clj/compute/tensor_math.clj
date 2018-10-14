@@ -7,14 +7,12 @@
             [tvm-clj.base :as base]
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]
-            [tech.compute.tensor.utils :as tens-utils]
             [think.resource.core :as resource]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.cpu :as cpu]
             [tvm-clj.compute.gpu]
             [tech.compute.tensor.math :as tm]
-            [tech.datatype.base :as dtype]
-            [tech.typed-pointer :as typed-pointer]
+            [tech.datatype.core :as dtype]
             [clojure.core.matrix :as m])
   (:import [tvm_clj.compute.cpu CPUStream]
            [tvm_clj.compute.gpu GPUStream]))
@@ -224,9 +222,7 @@
                                          fn-name compute-op
                                          [result const-var]
                                          {tensor result})))]
-
-    (tvm-reg/call-function stream assign-fn tensor
-                           (tens-utils/dtype-cast value scalar-datatype))))
+    (tvm-reg/call-function stream assign-fn tensor (dtype/cast value scalar-datatype))))
 
 
 (defn assign!
@@ -283,8 +279,7 @@ lhs = rhs"
 
 (defn device-buffer->tensor
   [dev-buf dimensions]
-  (ct/construct-tensor (drv/get-device dev-buf)
-                       dimensions
+  (ct/construct-tensor dimensions
                        dev-buf))
 
 
@@ -300,9 +295,7 @@ lhs = rhs"
     (if (= :cpu target-device-kwd)
       ;;For cpu, we have a direct, zero-copy conversion.  We can read/write directly to
       ;;opencv's data storage
-      (-> typed-ptr
-          typed-pointer/->ptr
-          (cpu/ptr->device-buffer :dtype (dtype/get-datatype typed-ptr))
+      (-> (cpu/ptr->device-buffer typed-ptr)
           (device-buffer->tensor (ct-dims/dimensions (m/shape typed-ptr))))
 
       ;;Copy the matrix onto the device

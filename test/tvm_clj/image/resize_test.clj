@@ -10,9 +10,9 @@
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
             [think.resource.core :as resource]
-            [tech.typed-pointer :as typed-pointer]
             [tech.opencv :as opencv]
-            [tvm-clj.compute.tensor-math :as tvm-tm]))
+            [tvm-clj.compute.tensor-math :as tvm-tm]
+            [clojure.pprint :as pp]))
 
 
 (defn result-tensor->opencv
@@ -20,7 +20,7 @@
   (let [[height width n-chan] (m/shape result-tens)
         out-img (opencv/new-mat height width 3 :dtype :uint8)
 
-        host-buffer (cpu/ptr->device-buffer (typed-pointer/->ptr out-img) :dtype :uint8)
+        host-buffer (cpu/ptr->device-buffer out-img)
         device-buffer (ct/tensor->buffer result-tens)]
     (drv/copy-device->host ct/*stream*
                            device-buffer 0
@@ -86,3 +86,13 @@
        :opencv-bilinear-time ref-time
        :tvm-bilinear-time classic-time
        :opencv-area-time area-time}))))
+
+
+(deftest resize-test
+  (doseq [dev-type [:cpu :opencl :cuda]]
+    (try
+      (println (format "%s:\n%s"
+                       dev-type
+                       (with-out-str
+                         (pp/pprint (downsample-img :device-type dev-type)))))
+      (catch Throwable e nil))))

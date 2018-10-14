@@ -2,7 +2,7 @@
   "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.core :as c]
             [tvm-clj.base :as b]
-            [tech.datatype.base :as dtype]
+            [tech.datatype.core :as dtype]
             [think.resource.core :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])

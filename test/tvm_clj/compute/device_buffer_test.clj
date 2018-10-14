@@ -29,11 +29,11 @@
       (resource/with-resource-context
         (let [test-data [1 2 3 243 244 245]
               short-buf (short-array test-data)
-              test-buf (dbuf/make-cpu-device-buffer :int8 6)
+              test-buf (dbuf/make-cpu-device-buffer :uint8 6)
               end-buf (double-array 3)]
           (dtype/copy! short-buf 3 test-buf 3 3)
           (dtype/copy! test-buf 3 end-buf 0 3)
-          (is (= (->> (drop 3 test-data) (map unchecked-byte) vec)
+          (is (= (->> (drop 3 test-data) (map unchecked-short) vec)
                  (mapv int end-buf))))))))
 
 

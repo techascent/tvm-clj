@@ -21,7 +21,7 @@
           dev-buf-c (drv/allocate-device-buffer 10 :float32)
           stream (drv/default-stream device)
           result (int-array 10)]
-      (dtype/copy-raw->item! test-data host-buf 0)
+      (dtype/copy-raw->item! test-data host-buf 0 {})
       (drv/copy-host->device stream host-buf 0 dev-buf-a 0 10)
       (drv/copy-host->device stream host-buf 0 dev-buf-b 0 10)
       (tvm-reg/call-function stream add-fn dev-buf-a dev-buf-b dev-buf-c)

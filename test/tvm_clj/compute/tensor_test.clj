@@ -3,14 +3,9 @@
             [tvm-clj.compute.test-utils :refer [def-all-dtype-test
                                                 def-opencl-dtype-test] :as cu]
             [tech.compute.verify.utils :refer [*datatype*] :as vu]
-            [tvm-clj.compute.cpu :as tvm-cpu]
-            [tvm-clj.compute.gpu :as gpu]
             [tvm-clj.compute.registry :as tvm-reg]
-            [tvm-clj.base :as root]
-            [tech.compute.driver :as drv]
-            [tech.compute.tensor :as ct]
-            [tech.datatype.base :as dtype]
-            [tech.javacpp-datatype :as jcpp-dtype]
+            [tvm-clj.compute.cpu]
+            [tvm-clj.compute.gpu]
             [tvm-clj.compute.tensor-math]
             [clojure.test :refer :all]))
 

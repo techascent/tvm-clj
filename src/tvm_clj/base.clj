@@ -3,14 +3,16 @@
   protocols in difficult-to-understand states or redefines records.  Nothing should be defined
   in this file but types; this allows repl recompilation to succeed predictably"
   (:require [potemkin :as p]
-            [tech.datatype.base :as dtype]
+            [tech.datatype.core :as dtype]
             [think.resource.core :as resource]
-            [tech.javacpp-datatype :as jcpp-dtype])
+            [tech.datatype.javacpp :as jcpp-dtype]
+            [tech.datatype.java-unsigned :as unsigned])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
             runtime$NodeHandle runtime$TVMModuleHandle
             runtime$DLTensor runtime$TVMStreamHandle
             runtime$DLTensor runtime$DLContext]
-           [org.bytedeco.javacpp Pointer LongPointer]))
+           [org.bytedeco.javacpp Pointer LongPointer]
+           [java.lang.reflect Field]))
 
 
 (defprotocol PJVMTypeToTVMValue
@@ -97,7 +99,7 @@
   "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
   have a byte_offset member that you can use to make an array not start at the pointer's
   base address."
-  ^ArrayHandle [^Pointer ptr device-type device-id
+  ^ArrayHandle [ptr device-type device-id
                 datatype shape strides
                 byte-offset]
   (let [^LongPointer shape-ptr (resource/track
@@ -106,7 +108,13 @@
         ^LongPointer strides-ptr (when strides
                                    (resource/track
                                     (jcpp-dtype/make-pointer-of-type
-                                     :int64 strides)))]
+                                     :int64 strides)))
+        datatype (or datatype (dtype/get-datatype ptr))
+        ;;Get the real pointer
+        ptr (jcpp-dtype/->ptr-backing-store ptr)]
+    (when-not ptr
+      (throw (ex-info "Failed to get pointer for buffer."
+                      {:original-ptr ptr})))
     (resource/track
      (merge (->ArrayHandle
              (raw-create-tvm-ary ptr device-type device-id datatype
@@ -115,3 +123,14 @@
             {:shape shape
              :datatype datatype
              :owns-memory? false}))))
+
+
+(defn tvm-ary->pointer
+  ^Pointer [^ArrayHandle ten-ary ^long elem-count datatype]
+  (let [^runtime$DLTensor tensor (.tvm-jcpp-handle ten-ary)
+        tens-ptr (.data tensor)
+        ptr-dtype (unsigned/datatype->jvm-datatype datatype)
+        retval (jcpp-dtype/make-empty-pointer-of-type ptr-dtype)]
+    (.set ^Field jcpp-dtype/address-field retval (+ (.address tens-ptr)
+                                                    (.byte_offset tensor)))
+    (jcpp-dtype/set-pointer-limit-and-capacity retval elem-count)))

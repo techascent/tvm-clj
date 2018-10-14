@@ -4,7 +4,7 @@
             [tvm-clj.core :as c]
             [think.resource.core :as resource]
             [tech.datatype.core :as dtype]
-            [tech.javacpp-datatype :as jcpp-dtype]
+            [tech.datatype.javacpp :as jcpp-dtype]
             [clojure.core.matrix :as m]))
 
 

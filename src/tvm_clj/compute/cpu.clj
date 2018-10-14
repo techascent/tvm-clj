@@ -8,7 +8,7 @@
             [tvm-clj.compute.shared :as tvm-shared]
             [tech.compute.cpu.driver :as cpu-driver]
             [think.resource.core :as resource]
-            [tech.datatype.base :as dtype]))
+            [tech.datatype.core :as dtype]))
 
 
 (declare driver)
@@ -142,5 +142,4 @@
         device (first (cpu-devices))
         device-type (tvm-reg/device-type device)
         device-id (tvm-reg/device-id device)]
-    (->> (tvm-base/pointer->tvm-ary ptr device-type device-id dtype shape nil 0)
-         (dbuf/->DeviceBuffer device))))
+    (tvm-base/pointer->tvm-ary ptr device-type device-id dtype shape nil 0)))

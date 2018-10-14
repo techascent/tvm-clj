@@ -3,13 +3,13 @@
             [tvm-clj.base :as tvm-base]
             [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
-            [tech.datatype.base :as dtype]
-            [tvm-clj.compute.typed-pointer :as hbuf]
-            [tech.typed-pointer :as typed-pointer]
+            [tech.datatype.base :as dtype-base]
+            [tech.datatype.core :as dtype]
+            [tech.datatype.java-primitive :as primitive]
             [think.resource.core :as resource]
             [clojure.core.matrix.protocols :as mp]
-            [tech.javacpp-datatype :as jcpp-dtype]
-            [tech.datatype.marshal :as marshal]
+            [tech.datatype.javacpp :as jcpp-dtype]
+            [tech.datatype.java-unsigned :as unsigned]
             [tech.compute.tensor :as ct])
   (:import [tvm_clj.tvm runtime$DLTensor runtime runtime$DLContext]
            [tvm_clj.base ArrayHandle]
@@ -21,24 +21,6 @@
 (set! *unchecked-math* :warn-on-boxed)
 
 
-(defn base-ptr-dtype
-  [datatype]
-  (if (typed-pointer/signed-datatype? datatype)
-    datatype
-    (typed-pointer/direct-conversion-map datatype)))
-
-(defn tvm-ary->pointer
-  ^Pointer [^ArrayHandle ten-ary ^long elem-count datatype]
-  (let [^runtime$DLTensor tensor (.tvm-jcpp-handle ten-ary)
-        tens-ptr (.data tensor)
-        ptr-dtype (base-ptr-dtype datatype)
-        retval (jcpp-dtype/make-empty-pointer-of-type ptr-dtype)]
-    (.set ^Field jcpp-dtype/address-field retval (+ (.address tens-ptr)
-                                                    (.byte_offset tensor)))
-    (jcpp-dtype/set-pointer-limit-and-capacity retval elem-count)))
-
-
-
 (defn is-cpu-device?
   [device]
   (= runtime/kDLCPU (tvm-reg/device-type device)))
@@ -47,95 +29,148 @@
 (declare device-buffer->ptr)
 
 
-(defrecord DeviceBuffer [device dev-ary]
-  dtype/PDatatype
-  (get-datatype [buf] (:datatype dev-ary))
+(defn jcpp-pointer-alias?
+  [^Pointer lhs ^Pointer rhs]
+  (= (.address lhs)
+     (.address rhs)))
+
+(defn jcpp-pointer-byte-length
+  ^long [^Pointer ptr]
+  (long (* (dtype/ecount ptr)
+           (dtype/datatype->byte-size
+            (dtype/get-datatype ptr)))))
+
+
+(defn jcpp-pointer-partial-alias?
+  [^Pointer lhs ^Pointer rhs]
+  (let [l-start (.address lhs)
+        r-start (.address rhs)
+        l-end (+ l-start (jcpp-pointer-byte-length lhs))
+        r-end (+ r-start (jcpp-pointer-byte-length rhs))]
+    (or (and (>= r-start l-start)
+             (< r-start l-end))
+        (and (>= l-start r-start)
+             (< l-start r-end)))))
+
+
+(defn check-cpu-array!
+  [^ArrayHandle array]
+  (when-not (= runtime/kDLCPU (long (tvm-reg/device-type array)))
+    (throw (ex-info "Illegal operation on a non-cpu array."
+                    {:device-type (tvm-reg/device-type-int->keyword
+                                   (long (tvm-reg/device-type array)))}))))
+
+
+(extend-type ArrayHandle
+  dtype-base/PDatatype
+  (get-datatype [buf] (:datatype buf))
+
+  dtype-base/PAccess
+  (set-value! [item offset value]
+    (dtype-base/set-value! (unsigned/->typed-buffer item)
+                           offset value))
+  (set-constant! [item offset value elem-count]
+    (dtype-base/set-constant! (unsigned/->typed-buffer item)
+                              offset value elem-count))
+  (get-value [item offset]
+    (dtype-base/get-value (unsigned/->typed-buffer item)
+                          offset))
+
+  dtype-base/PContainerType
+  (container-type [item] :typed-buffer)
+
+  dtype-base/PCopyRawData
+  (copy-raw->item! [raw-data ary-target target-offset options]
+    (dtype-base/copy-raw->item! (unsigned/->typed-buffer raw-data) ary-target
+                                target-offset options))
 
   mp/PElementCount
-  (element-count [buf] (apply * (:shape dev-ary)))
+  (element-count [buf] (apply * (mp/get-shape buf)))
+
+  mp/PDimensionInfo
+  (dimensionality [m] (count (mp/get-shape m)))
+  (get-shape [m] (:shape m))
+  (is-scalar? [m] false)
+  (is-vector? [m] true)
+  (dimension-count [m dimension-number]
+    (let [shape (mp/get-shape m)]
+      (if (<= (count shape) (long dimension-number))
+        (get shape dimension-number)
+        (throw (ex-info "Array does not have specific dimension"
+                        {:dimension-number dimension-number
+                         :shape shape})))))
+
+
+  jcpp-dtype/PToPtr
+  (->ptr-backing-store [item]
+    (tvm-base/tvm-ary->pointer item
+                               (dtype/ecount item)
+                               (dtype/get-datatype item)))
+
+
+  primitive/PToBuffer
+  (->buffer-backing-store [item]
+    (check-cpu-array! item)
+    (jcpp-dtype/ptr->buffer (jcpp-dtype/->ptr-backing-store item)))
+
+
+  primitive/PToArray
+  (->array [item] nil)
+  (->array-copy [item]
+    (check-cpu-array! item)
+    (primitive/->array-copy
+     (unsigned/->typed-buffer item)))
+
 
   drv/PBuffer
   (sub-buffer-impl [buffer offset length]
-    (let [^runtime$DLTensor tvm-tensor (tvm-base/->tvm dev-ary)
+    (let [^runtime$DLTensor tvm-tensor (tvm-base/->tvm buffer)
           base-ptr (.data tvm-tensor)
           datatype (dtype/get-datatype buffer)]
-      (->DeviceBuffer device
-                      (tvm-base/pointer->tvm-ary
-                       base-ptr
-                       (tvm-reg/device-type device)
-                       (tvm-reg/device-id device)
-                       datatype
-                       [length]
-                       nil
-                       ;;add the byte offset where the new pointer should start
-                       (* (long offset) (long (dtype/datatype->byte-size
-                                               datatype)))))))
+      (tvm-base/pointer->tvm-ary
+       base-ptr
+       (long (tvm-reg/device-type buffer))
+       (long (tvm-reg/device-id buffer))
+       datatype
+       [length]
+       nil
+       ;;add the byte offset where the new pointer should start
+       (* (long offset) (long (dtype/datatype->byte-size
+                               datatype))))))
   (alias? [lhs rhs]
-    (hbuf/jcpp-pointer-alias? (tvm-ary->pointer dev-ary)
-                              (:dev-ary rhs)))
+    (jcpp-pointer-alias? (jcpp-dtype/->ptr-backing-store lhs)
+                         (jcpp-dtype/->ptr-backing-store rhs)))
   (partially-alias? [lhs rhs]
-    (hbuf/jcpp-pointer-partial-alias? (tvm-ary->pointer dev-ary
-                                                        (mp/element-count lhs)
-                                                        (:datatype dev-ary))
-                                      (tvm-ary->pointer (:dev-ary rhs)
-                                                        (mp/element-count rhs)
-                                                        (:datatype dev-ary))))
-
-  tvm-base/PToTVM
-  (->tvm [item] dev-ary)
-
-
-  tvm-base/PJVMTypeToTVMValue
-  (->tvm-value [_]
-    (tvm-base/->tvm-value dev-ary))
-
-
-  dtype/PAccess
-  (set-value! [item offset value]
-    (dtype/set-value! (typed-pointer/->typed-pointer item) offset value))
-  (set-constant! [item offset value elem-count]
-    (dtype/set-constant! (typed-pointer/->typed-pointer item) offset value elem-count))
-  (get-value [item offset]
-    (dtype/get-value (typed-pointer/->typed-pointer item) offset))
-
-  typed-pointer/PToPtr
-  (->ptr [item] (device-buffer->ptr item))
-
-  ;;Efficient bulk copy is provided by this line and implementing the PToPtr protocol
-  marshal/PContainerType
-  (container-type [this] :typed-pointer)
-
-  ;;The underlying tvm array is tracked by the system so there is no
-  ;;need to release this resource.
-  resource/PResource
-  (release-resource [_] )
+    (jcpp-pointer-partial-alias? (jcpp-dtype/->ptr-backing-store lhs)
+                                 (jcpp-dtype/->ptr-backing-store rhs)))
 
   tvm-reg/PDeviceInfo
-  (device-id [_] (tvm-reg/device-id device))
+  (device-id [buffer]
+    (let [^runtime$DLTensor tensor (tvm-base/->tvm buffer)
+          ctx (.ctx tensor)]
+      (.device_id ctx)))
 
   tvm-reg/PDriverInfo
-  (device-type [_] (tvm-reg/device-type device))
+  (device-type [buffer]
+    (let [^runtime$DLTensor tensor (tvm-base/->tvm buffer)
+          ctx (.ctx tensor)]
+      (.device_type ctx)))
 
   drv/PDeviceProvider
-  (get-device [_] device))
+  (get-device [buffer]
+    (tvm-reg/get-device (tvm-reg/device-type buffer)
+                        (tvm-reg/device-id buffer)))
 
-
-(defn device-buffer->ptr
-  "Get a javacpp pointer from a device buffer.  Throws if this isn't a cpu buffer"
-  [^DeviceBuffer buffer]
-  (when-not (is-cpu-device? (.device buffer))
-    (throw (ex-info "Can only get pointers from cpu device buffers"
-                    {})))
-  (tvm-ary->pointer (.dev-ary buffer) (mp/element-count buffer) (dtype/get-datatype buffer)))
+  drv/PDriverProvider
+  (get-driver [buffer]
+    (tvm-reg/get-driver (tvm-reg/device-type buffer))))
 
 
 (defn make-device-buffer-of-type
   [device datatype elem-count]
-  (resource/track
-   (->> (tvm-core/allocate-device-array [elem-count] datatype
-                                        (tvm-reg/device-type device)
-                                        (tvm-reg/device-id device))
-        (->DeviceBuffer device))))
+  (tvm-core/allocate-device-array [elem-count] datatype
+                                  (tvm-reg/device-type device)
+                                  (tvm-reg/device-id device)))
 
 
 (defn make-cpu-device-buffer
@@ -149,33 +184,39 @@ and device buffers for the cpu device."
                               elem-count))
 
 
-(defn device-buffer->tvm-array
-  ^runtime$DLTensor [^DeviceBuffer buf]
-  (tvm-base/->tvm (tvm-base/->tvm buf)))
+(defn device-buffer->dl-tensor
+  ^runtime$DLTensor [^ArrayHandle buf]
+  (tvm-base/->tvm buf))
 
 
 (defn has-byte-offset?
   [tensor]
-  (let [buf (ct/tensor->buffer tensor)
-        ^ArrayHandle buf-data (tvm-base/->tvm buf)
+  (let [buf-data (ct/tensor->buffer tensor)
         ^runtime$DLTensor backing-store (tvm-base/->tvm buf-data)]
     (not= 0 (.byte_offset backing-store))))
 
 
 (extend-type Tensor
-  tvm-base/PJVMTypeToTVMValue
-  (->tvm-value [item]
-    (let [^runtime$DLTensor src-dl-tensor
-          (device-buffer->tvm-array (ct/tensor->buffer item))
+  tvm-base/PToTVM
+  (->tvm [item]
+    ;;This is a specialized conversion because the tensor's dimension change independent
+    ;;of the buffer.  Thus any time we want to use a tensor in tvm we have to create
+    ;;an alias of the base buffer but with variables set describing the current
+    ;;dimensions.
+    (let [^runtime$DLTensor src-dl-tensor (tvm-base/->tvm (ct/tensor->buffer item))
           ^runtime$DLContext ctx (.ctx src-dl-tensor)
           dims (ct/tensor->dimensions item)
           stride-data (when-not (ct/dense? item)
                         (:strides dims))]
-      (-> (tvm-base/pointer->tvm-ary (.data src-dl-tensor)
-                                     (.device_type ctx)
-                                     (.device_id ctx)
-                                     (ct/get-datatype item)
-                                     (:shape dims)
-                                     stride-data
-                                     (.byte_offset src-dl-tensor))
-          tvm-base/->tvm-value))))
+
+      (tvm-base/pointer->tvm-ary (.data src-dl-tensor)
+                                 (.device_type ctx)
+                                 (.device_id ctx)
+                                 (ct/get-datatype item)
+                                 (:shape dims)
+                                 stride-data
+                                 (.byte_offset src-dl-tensor))))
+  tvm-base/PJVMTypeToTVMValue
+  (->tvm-value [item]
+    (-> (tvm-base/->tvm item)
+        tvm-base/->tvm-value)))
