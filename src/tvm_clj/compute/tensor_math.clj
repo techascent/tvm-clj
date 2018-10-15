@@ -7,7 +7,7 @@
             [tvm-clj.base :as base]
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [tech.compute.driver :as drv]
             [tvm-clj.compute.cpu :as cpu]
             [tvm-clj.compute.gpu]

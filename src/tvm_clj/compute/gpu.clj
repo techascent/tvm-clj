@@ -7,7 +7,7 @@
             [tech.datatype.base :as dtype]
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
-            [think.resource.core :as resource])
+            [tech.resource :as resource])
   (:import [tvm_clj.tvm runtime$TVMStreamHandle]))
 
 

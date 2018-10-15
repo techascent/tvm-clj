@@ -6,7 +6,7 @@
             [tech.datatype.base :as dtype-base]
             [tech.datatype.core :as dtype]
             [tech.datatype.java-primitive :as primitive]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [clojure.core.matrix.protocols :as mp]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.datatype.java-unsigned :as unsigned]

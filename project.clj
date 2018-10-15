@@ -1,16 +1,16 @@
-(defproject tvm-clj "0.1.5-SNAPSHOT"
+(defproject tvm-clj "0.1.5"
   :description "Clojure bindings and exploration of the tvm library"
   :url "http://github.com/tech-ascent/tvm-clj"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [techascent/tech.compute "0.6.7"]
-                 [techascent/tech.javacpp-datatype "0.5.5"]
+                 [techascent/tech.compute "0.6.8"]
+                 [techascent/tech.javacpp-datatype "0.5.7"]
                  [potemkin "0.4.4"]]
 
   :profiles {:dev
              ;;Unit tests need this.
-             {:dependencies [[techascent/tech.opencv "0.2.3"]]}}
+             {:dependencies [[techascent/tech.opencv "0.2.6"]]}}
 
   :java-source-paths ["java"]
   :native-path "java/native/"

@@ -1,6 +1,6 @@
 (ns tvm-clj.compile-test
   (:require [clojure.test :refer :all]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [tech.datatype.core :as dtype]
             [clojure.core.matrix.protocols :as mp]
             [tech.compute.tensor :as ct]
@@ -9,7 +9,7 @@
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
-            [think.parallel.core :as parallel]
+            [tech.parallel :as parallel]
             [clojure.core.matrix :as m]
             [tvm-clj.compute.cpu :as cpu]
             [tvm-clj.compute.tensor-math :as tvm-tm]

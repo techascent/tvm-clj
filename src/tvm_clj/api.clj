@@ -3,7 +3,7 @@
   (:require [tvm-clj.core :as c]
             [tvm-clj.base :as b]
             [tech.datatype.core :as dtype]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])
   (:import [tvm_clj.core NodeHandle]

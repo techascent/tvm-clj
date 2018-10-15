@@ -2,7 +2,7 @@
   "Complete lower level bindings to the tvm runtime."
   (:require [clojure.reflect :as reflect]
             [tech.datatype.javacpp :as jcpp-dtype]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [clojure.set :as c-set]
             [tvm-clj.base :as base]
             [tech.datatype.core :as dtype]

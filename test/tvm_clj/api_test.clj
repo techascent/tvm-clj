@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [tvm-clj.api :as api]
             [tvm-clj.core :as c]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [tech.datatype.core :as dtype]
             [tech.datatype.javacpp :as jcpp-dtype]
             [clojure.core.matrix :as m]))

@@ -6,7 +6,7 @@
             [tvm-clj.api-test :as api-test]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [clojure.test :refer :all]
             [clojure.core.matrix :as m]))
 

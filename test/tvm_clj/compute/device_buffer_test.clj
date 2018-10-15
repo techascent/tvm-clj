@@ -2,7 +2,7 @@
   (:require [tvm-clj.compute.device-buffer :as dbuf]
             [tech.datatype.base :as dtype]
             [tech.compute.driver :as drv]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [clojure.test :refer :all]))
 
 

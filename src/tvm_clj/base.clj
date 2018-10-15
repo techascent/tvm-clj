@@ -4,7 +4,7 @@
   in this file but types; this allows repl recompilation to succeed predictably"
   (:require [potemkin :as p]
             [tech.datatype.core :as dtype]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.datatype.java-unsigned :as unsigned])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue

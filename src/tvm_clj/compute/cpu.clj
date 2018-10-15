@@ -7,7 +7,7 @@
             [tvm-clj.compute.device-buffer :as dbuf]
             [tvm-clj.compute.shared :as tvm-shared]
             [tech.compute.cpu.driver :as cpu-driver]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [tech.datatype.core :as dtype]))
 
 

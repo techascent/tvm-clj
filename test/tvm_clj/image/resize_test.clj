@@ -9,7 +9,7 @@
             [tech.compute.tensor :as ct]
             [tech.compute.driver :as drv]
             [tech.datatype.base :as dtype]
-            [think.resource.core :as resource]
+            [tech.resource :as resource]
             [tech.opencv :as opencv]
             [tvm-clj.compute.tensor-math :as tvm-tm]
             [clojure.pprint :as pp]))
