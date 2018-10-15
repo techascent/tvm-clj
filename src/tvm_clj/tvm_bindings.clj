@@ -1,4 +1,4 @@
-(ns tvm-clj.core
+(ns tvm-clj.tvm-bindings
   "Complete lower level bindings to the tvm runtime."
   (:require [clojure.reflect :as reflect]
             [tech.datatype.javacpp :as jcpp-dtype]
@@ -59,13 +59,27 @@
 (declare name->global-function)
 
 
+(defmulti get-extended-node-value
+  "Override this to enable type-specific lookups into nodes."
+  (fn [node-handle item-key]
+    (:tvm-type-kwd (:data node-handle))))
+
+
+(defmethod get-extended-node-value :default
+  [& args]
+  nil)
+
+
 ;;Because you can't override hashcode on records and multiple nodehandles can point
 ;;to the same node, we have to create our own extensible map type for node handles
 (p/def-map-type NodeHandle [^runtime$NodeHandle tvm-jcpp-handle data]
   (get [this key default-value]
-       (if (= key :tvm-jcpp-handle)
-         tvm-jcpp-handle
-         (get data key default-value)))
+       (condp = key
+         :tvm-jcpp-handle tvm-jcpp-handle
+         :data data
+         (if-let [retval (get data key default-value)]
+             retval
+             (get-extended-node-value this key))))
   (assoc [this key value]
          (if (= key :tvm-jcpp-handle)
            (NodeHandle. value data)

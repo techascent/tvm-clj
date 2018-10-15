@@ -1,12 +1,12 @@
 (ns tvm-clj.api
   "Higher level API to build and compile tvm functions."
-  (:require [tvm-clj.core :as c]
+  (:require [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :as b]
             [tech.datatype.core :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])
-  (:import [tvm_clj.core NodeHandle]
+  (:import [tvm_clj.tvm_bindings NodeHandle]
            [tvm_clj.tvm runtime runtime$TVMModuleHandle]))
 
 
@@ -49,7 +49,7 @@
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (c/global-node-function "_Var"
+  (bindings/global-node-function "_Var"
                           (safe-str name)
                           (->dtype dtype)))
 
@@ -61,13 +61,13 @@
   (let [shape (if-not (instance? clojure.lang.Seqable shape)
                 [shape]
                 shape)]
-    (c/global-node-function "_Placeholder" shape (->dtype dtype) (safe-str name))))
+    (bindings/global-node-function "_Placeholder" shape (->dtype dtype) (safe-str name))))
 
 
 (defn range
   "Create a range with defined start inclusive and end exclusive"
   [start end]
-  (c/global-node-function "Range" start end))
+  (bindings/global-node-function "Range" start end))
 
 
 (defn const
@@ -75,13 +75,13 @@
   [numeric-value & {:keys [dtype]}]
   (let [dtype (->dtype (or dtype
                            (dtype/get-datatype numeric-value)))]
-    (c/global-node-function "_const" numeric-value dtype)))
+    (bindings/global-node-function "_const" numeric-value dtype)))
 
 
 (defn static-cast
   "Cast an item from one datatype to another"
   [dtype expr-node]
-  (c/global-node-function "make.Cast" (->dtype dtype) expr-node))
+  (bindings/global-node-function "make.Cast" (->dtype dtype) expr-node))
 
 
 (defn cast
@@ -120,7 +120,7 @@
   value from the tensor is calling a halide function with the tensor's generating-op and
   value index."
   [ret-dtype fn-name fn-args call-type function-ref value-index]
-  (c/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
+  (bindings/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
                           (->call-type call-type)
                           function-ref value-index))
 
@@ -180,25 +180,33 @@
 (defn tget
   "Get an item from a tensor"
   [tensor indices]
-  (when-not-error (= (count (:shape tensor))
-                     (count indices))
-    (ex-info "Num indices must match tensor rank"
-             {:tensor-range (count (:shape tensor))
-              :index-count (count indices)}))
-  (let [indices
-        (mapv (fn [index-val]
-                (let [node-data (->node index-val)]
-                  (cond
-                    (= :iteration-variable (c/get-node-type node-data))
-                    (:var node-data)
-                    (c/is-expression-node? node-data)
-                    node-data
-                    :else
-                    (throw (ex-info "Must be iteration variable or expression"
-                                    {:node-type (c/get-node-type node-data)})))))
-              indices)]
-    (call (:dtype tensor) (get-in tensor [:op :name]) indices
-          :halide (:op tensor) (:value_index tensor))))
+  (let [indices (if (number? indices)
+                  [indices]
+                  indices)]
+    (when-not-error (= (count (:shape tensor))
+                       (count indices))
+      (ex-info "Num indices must match tensor rank"
+               {:tensor-range (count (:shape tensor))
+                :index-count (count indices)}))
+    (let [indices
+          (mapv (fn [index-val]
+                  (let [node-data (->node index-val)]
+                    (cond
+                      (= :iteration-variable (bindings/get-node-type node-data))
+                      (:var node-data)
+                      (bindings/is-expression-node? node-data)
+                      node-data
+                      :else
+                      (throw (ex-info "Must be iteration variable or expression"
+                                      {:node-type (bindings/get-node-type node-data)})))))
+                indices)]
+      (call (:dtype tensor) (get-in tensor [:op :name]) indices
+            :halide (:op tensor) (:value_index tensor)))))
+
+
+(defmethod bindings/get-extended-node-value :tensor
+  [node-handle item-key]
+  (tget node-handle item-key))
 
 
 (defmacro def-bin-op
@@ -208,7 +216,7 @@
         rhs (symbol "rhs")]
     `(defn ~op-name
        [~lhs ~rhs]
-       (c/global-node-function ~make-name ~lhs ~rhs))))
+       (bindings/global-node-function ~make-name ~lhs ~rhs))))
 
 
 (defmacro def-op
@@ -217,7 +225,7 @@
   (let [lhs (symbol "lhs")]
     `(defn ~op-name
        [~lhs]
-       (c/global-node-function ~make-name ~lhs))))
+       (bindings/global-node-function ~make-name ~lhs))))
 
 
 (defmacro def-bin-intrin-op
@@ -269,7 +277,7 @@
   "Select between two expressions based on a condition.  Thus works similar to the
 clojure 'if' statement."
   [bool-stmt true-stmt false-stmt]
-  (c/global-node-function "make.Select" bool-stmt true-stmt false-stmt))
+  (bindings/global-node-function "make.Select" bool-stmt true-stmt false-stmt))
 
 
 (defn- get-for-type-idx
@@ -293,7 +301,7 @@ clojure 'if' statement."
                  `(let [evaled-expr# ~expr
                         ~var-symbol (variable ~(safe-str var-symbol)
                                               :dtype (:dtype evaled-expr#))]
-                    (c/g-fn "make.Let" ~var-symbol evaled-expr# ~data)))
+                    (bindings/g-fn "make.Let" ~var-symbol evaled-expr# ~data)))
                body)))
 
 
@@ -392,11 +400,11 @@ expressions,
               :iteration-type iteration-type}))
 
   (let [domain (when domain
-                 (if (= :range (c/get-node-type domain))
+                 (if (= :range (bindings/get-node-type domain))
                    domain
                    (range (first domain) (second domain))))
         v (variable name)]
-    (c/global-node-function "_IterVar" domain v
+    (bindings/global-node-function "_IterVar" domain v
                             (iteration-variable-types iteration-type)
                             thread-tag)))
 
@@ -462,14 +470,14 @@ expressions,
           body-data (if-not (instance? clojure.lang.Sequential body-data)
                       [body-data]
                       body-data)]
-      (-> (c/g-fn "_ComputeOp" (safe-str name) tag attrs compute-dim body-data)
-          (c/unpack-node-fields :recurse false)))))
+      (-> (bindings/g-fn "_ComputeOp" (safe-str name) tag attrs compute-dim body-data)
+          (bindings/unpack-node-fields :recurse false)))))
 
 
 (defn commutative-reduce
   "1 left hand side, first var of reduce operation
   N right hand sides, rest of the variables of the reduce operation
-  identity-val - initialization of left hand side.
+  identity-val - initialization of left hand side.n
   expr-ary - one for each (const) right hand side.
   dtype - datatype of all inputs to reduction"
   [reduce-op identity-val dtype expr-seq axis-seq]
@@ -480,24 +488,24 @@ expressions,
         reduce-ast [(apply reduce-op fn-arglists)]
         lhs-vars (take 1 fn-arglists)
         rhs-vars (drop 1 fn-arglists)
-        comm-reducer (c/g-fn "make.CommReducer"
+        comm-reducer (bindings/g-fn "make.CommReducer"
                              lhs-vars rhs-vars
                              (->node reduce-ast)
                              (->node [identity-val]))]
-    (c/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0)))
+    (bindings/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0)))
 
 
 (defn output-tensors
   [compute-op]
-  (->> (clojure.core/range (c/global-function "_OpNumOutputs" compute-op))
-       (mapv #(c/global-node-function "_OpGetOutput" compute-op (int %1)))))
+  (->> (clojure.core/range (bindings/global-function "_OpNumOutputs" compute-op))
+       (mapv #(bindings/global-node-function "_OpGetOutput" compute-op (int %1)))))
 
 
 (defn input-tensors
   [compute-op]
-  (->> (c/global-node-function "_OpInputTensors" compute-op)
-       c/tvm-array->jvm
-       (mapv c/unpack-node-field)))
+  (->> (bindings/global-node-function "_OpInputTensors" compute-op)
+       bindings/tvm-array->jvm
+       (mapv bindings/unpack-node-field)))
 
 
 (defn create-schedule
@@ -505,7 +513,7 @@ expressions,
   (let [op-seq (if-not (sequential? op-seq)
                  [op-seq]
                  op-seq)]
-    (c/unpack-node-fields (c/g-fn "_CreateSchedule" op-seq)
+    (bindings/unpack-node-fields (bindings/g-fn "_CreateSchedule" op-seq)
                           :recurse false)))
 
 
@@ -536,21 +544,26 @@ expressions,
                          (->operation operation))))
 
 
+(defmethod bindings/get-extended-node-value :schedule
+  [node-handle item-key]
+  (->stage node-handle (->operation item-key)))
+
+
 (defn stage-split-axis
   [stage iter-var factor]
-  (c/tvm-array->jvm (c/g-fn "_StageSplitByFactor" stage iter-var factor)))
+  (bindings/tvm-array->jvm (bindings/g-fn "_StageSplitByFactor" stage iter-var factor)))
 
 
 (defn stage-bind
   "Bind an iter-var to a stage variable"
   [stage iter-var thread-ivar]
-  (c/g-fn "_StageBind" stage iter-var thread-ivar))
+  (bindings/g-fn "_StageBind" stage iter-var thread-ivar))
 
 
 (defn stage-compute-at
   "Compute src stage at dst stage dst axis"
   [src-stage dst-stage dst-axis]
-  (c/g-fn "_StageComputeAt" src-stage dst-stage dst-axis))
+  (bindings/g-fn "_StageComputeAt" src-stage dst-stage dst-axis))
 
 
 (defn stage-fuse
@@ -559,50 +572,50 @@ expressions,
   ;;If there is only one axis, then fusing is pointless
   (if (= 1 (count axis-args))
     (first axis-args)
-    (c/g-fn "_StageFuse" stage axis-args)))
+    (bindings/g-fn "_StageFuse" stage axis-args)))
 
 
 (defn stage-parallel
   "Indicate that this axis has complete parallelism"
   [stage axis]
-  (c/g-fn "_StageParallel" stage axis))
+  (bindings/g-fn "_StageParallel" stage axis))
 
 
 (defn stage-inline
   [stage]
-  (c/g-fn "_StageComputeInline" stage))
+  (bindings/g-fn "_StageComputeInline" stage))
 
 
 (defn stage-tile
   [stage outer-axis inner-axis outer-dim inner-dim]
   (->
-   (c/g-fn "_StageTile" stage outer-axis inner-axis outer-dim inner-dim)
-   c/tvm-array->jvm))
+   (bindings/g-fn "_StageTile" stage outer-axis inner-axis outer-dim inner-dim)
+   bindings/tvm-array->jvm))
 
 
 (defn stage-reorder
   [stage axis-seq]
-  (c/g-fn "_StageReorder" stage axis-seq))
+  (bindings/g-fn "_StageReorder" stage axis-seq))
 
 
 (defn stage-vectorize
   [stage axis]
-  (c/g-fn "_StageVectorize" stage axis))
+  (bindings/g-fn "_StageVectorize" stage axis))
 
 (defn schedule-cache-write
   "Returns a new tensor"
   [schedule tensor cache-type]
-  (let [retval (-> (c/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)
-                   (c/unpack-node-fields :recurse false))
-        schedule (c/unpack-node-fields schedule :recurse false)]
+  (let [retval (-> (bindings/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)
+                   (bindings/unpack-node-fields :recurse false))
+        schedule (bindings/unpack-node-fields schedule :recurse false)]
     {:tensor retval
-     :tensor-op (c/unpack-node-fields (:op retval) :recurse false)
+     :tensor-op (bindings/unpack-node-fields (:op retval) :recurse false)
      :schedule schedule}))
 
 
 (defn schedule-cache-read
   [schedule tensor cache-type readers]
-  (c/g-fn "_ScheduleCacheRead" schedule tensor cache-type))
+  (bindings/g-fn "_ScheduleCacheRead" schedule tensor cache-type))
 
 
 (defn stage-bind-gpu
@@ -771,7 +784,7 @@ expressions,
         elem-offset (if elem-offset elem-offset 0)
         data (if data data (variable name :dtype "handle"))
         offset-factor 0]
-    (c/global-node-function "_Buffer"
+    (bindings/global-node-function "_Buffer"
                             data (->dtype dtype) shape strides elem-offset
                             (safe-str name) scope
                             data-alignment offset-factor)))
@@ -785,7 +798,7 @@ values are buffers.  The default is to bind a compact, non-offset buffer so if y
 a different buffer type than this then you need to bind it yourself."
   [arg-list bind-map build-config]
   (reduce (fn [[arg-list bind-map] arg]
-            (condp = (c/get-node-type arg)
+            (condp = (bindings/get-node-type arg)
               :tensor
               (if-let [buf (bind-map arg)]
                 [(conj arg-list buf) bind-map]
@@ -808,7 +821,7 @@ and the second is the function to call.  We need this slight transposition in or
 the threading macro with the long set of ir pass possibilities."
   [item fn-name & args]
   ;;These are all nodes but don't upack fields; this causes too much unnecessary unpacking.
-  (apply c/g-fn fn-name item args))
+  (apply bindings/g-fn fn-name item args))
 
 
 
@@ -856,9 +869,9 @@ the threading macro with the long set of ir pass possibilities."
                   :or {bind-map {}
                        build-config
                        default-build-config}}]
-  (let [schedule (c/g-fn "_ScheduleNormalize" schedule)
+  (let [schedule (bindings/g-fn "_ScheduleNormalize" schedule)
         [arg-list bind-map] (bind-arguments args bind-map build-config)
-        bounds (c/g-fn "schedule.InferBound" schedule)
+        bounds (bindings/g-fn "schedule.InferBound" schedule)
         cache-line-size 64]
     (-> schedule
         ;;Phase 0
@@ -894,13 +907,13 @@ the threading macro with the long set of ir pass possibilities."
                  ;;Exit
                  (gfnr "ir_pass.MakeAPI" name arg-list 0
                        (:restricted-func? build-config))
-                 (c/unpack-node-fields :recurse false)
+                 (bindings/unpack-node-fields :recurse false)
                  (update :func_type int->lowered-function-type-map))))))))
 
 
 (defn node->str
   [node]
-  (c/g-fn "_format_str" node))
+  (bindings/g-fn "_format_str" node))
 
 
 (defn schedule->str
@@ -950,7 +963,7 @@ the threading macro with the long set of ir pass possibilities."
                            :or {target-name :llvm
                                 target-host :llvm
                                 build-config default-build-config}}]
-  (let [arg-type-list (map c/get-node-type lowered-function-seq)]
+  (let [arg-type-list (map bindings/get-node-type lowered-function-seq)]
     (when-not-error (= #{:lowered-function} (set arg-type-list))
       (ex-info "Argumentis not a sequence of lowered functions"
                {:arg-types arg-type-list})))
@@ -970,29 +983,29 @@ the threading macro with the long set of ir pass possibilities."
                     :mixed-function
                     (let [warp-size (long (target-name->thread-warp-size target-name))
                           fsplits (-> (if (:detect-global-barrier? build-config)
-                                        (c/g-fn "ir_pass.ThreadSync" lowered-fn "global")
+                                        (bindings/g-fn "ir_pass.ThreadSync" lowered-fn "global")
                                         lowered-fn)
                                       (gfnr "ir_pass.LowerThreadAllreduce" warp-size)
                                       (gfnr "ir_pass.SplitHostDevice")
-                                      (c/tvm-array->jvm))]
+                                      (bindings/tvm-array->jvm))]
                       [(conj host-fns (first fsplits))
                        (concat device-fns (rest fsplits))])))
                 [[] []]
                 lowered-function-seq)
         host-fns
         (mapv (fn [host-fn]
-                (c/g-fn "ir_pass.BindDeviceType" host-fn
-                        (c/device-type->device-type-int target-host))
-                (-> (c/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
+                (bindings/g-fn "ir_pass.BindDeviceType" host-fn
+                        (bindings/device-type->device-type-int target-host))
+                (-> (bindings/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
                     (gfnr "ir_pass.LowerIntrin" (name target-host))
                     (gfnr "ir_pass.CombineContextCall")))
               host-fns)
-        ^runtime$TVMModuleHandle mhost (c/g-fn "codegen._Build" host-fns
+        ^runtime$TVMModuleHandle mhost (bindings/g-fn "codegen._Build" host-fns
                                                (name target-host))]
     (when (seq device-fns)
       (resource/with-resource-context
-        (->> (mapv #(c/g-fn "ir_pass.LowerIntrin" % (name target-name)) device-fns)
-             (#(c/g-fn "codegen._Build" % (name target-name)))
+        (->> (mapv #(bindings/g-fn "ir_pass.LowerIntrin" % (name target-name)) device-fns)
+             (#(bindings/g-fn "codegen._Build" % (name target-name)))
              (runtime/TVMModImport mhost))))
     mhost))
 
@@ -1036,9 +1049,9 @@ the threading macro with the long set of ir pass possibilities."
      :fn-map
      (->> sched-data-seq
           (map (fn [{:keys [c-name name] :as seq}]
-                 (let [mod-fn (c/get-module-function module c-name)]
+                 (let [mod-fn (bindings/get-module-function module c-name)]
                    [name (fn [& args]
-                           (apply c/call-function mod-fn args))])))
+                           (apply bindings/call-function mod-fn args))])))
           (into {}))}))
 
 
@@ -1060,4 +1073,4 @@ the threading macro with the long set of ir pass possibilities."
   Double
   (->node [item] (const item :dtype "float64"))
   clojure.lang.Sequential
-  (->node [item] (apply c/tvm-array (map ->node item))))
+  (->node [item] (apply bindings/tvm-array (map ->node item))))
