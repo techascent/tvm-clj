@@ -1,5 +1,5 @@
 (ns tvm-clj.compute.cpu
-  (:require [tvm-clj.core :as tvm-core]
+  (:require [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
@@ -133,7 +133,7 @@
   (memoize
    (fn [] (->CPUDriver))))
 
-(tvm-reg/add-device-type (tvm-core/device-type->device-type-int :cpu) (driver))
+(tvm-reg/add-device-type (bindings/device-type->device-type-int :cpu) (driver))
 
 (defn ptr->device-buffer
   [ptr & {:keys [dtype]}]

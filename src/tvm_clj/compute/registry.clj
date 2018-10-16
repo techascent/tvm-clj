@@ -1,24 +1,24 @@
 (ns tvm-clj.compute.registry
   "Additional protocols for tvm drivers, devices, and streams.
 Centralized registring of drivers allowing a symbolic name->driver table."
-  (:require [tvm-clj.core :as tvm-core]
+  (:require [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.api :as tvm-api]))
 
 (defn cpu-device-type
   ^long []
-  (tvm-core/device-type->device-type-int :cpu))
+  (bindings/device-type->device-type-int :cpu))
 
 (defn cuda-device-type
   ^long []
-  (tvm-core/device-type->device-type-int :cuda))
+  (bindings/device-type->device-type-int :cuda))
 
 (defn opencl-device-type
   ^long []
-  (tvm-core/device-type->device-type-int :opencl))
+  (bindings/device-type->device-type-int :opencl))
 
 (defn rocm-device-type
   ^long []
-  (tvm-core/device-type->device-type-int :rocm))
+  (bindings/device-type->device-type-int :rocm))
 
 
 (defprotocol PDeviceInfo
@@ -47,7 +47,7 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   [device-type]
   (let [device-type (long (if (number? device-type)
                             device-type
-                            (tvm-core/device-type->device-type-int device-type)))]
+                            (bindings/device-type->device-type-int device-type)))]
     (if-let [driver (get @*device-types->drivers* device-type)]
       driver
       (throw (ex-info "Failed to find driver for device type:"
@@ -62,7 +62,7 @@ Centralized registring of drivers allowing a symbolic name->driver table."
 
 (defn device-type-int->keyword
   [device-type-int]
-  (tvm-core/device-type-int->device-type device-type-int))
+  (bindings/device-type-int->device-type device-type-int))
 
 
 (defn device-type-kwd

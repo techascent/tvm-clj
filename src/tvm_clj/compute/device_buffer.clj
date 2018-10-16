@@ -1,5 +1,5 @@
 (ns tvm-clj.compute.device-buffer
-  (:require [tvm-clj.core :as tvm-core]
+  (:require [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :as tvm-base]
             [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
@@ -168,7 +168,7 @@
 
 (defn make-device-buffer-of-type
   [device datatype elem-count]
-  (tvm-core/allocate-device-array [elem-count] datatype
+  (bindings/allocate-device-array [elem-count] datatype
                                   (tvm-reg/device-type device)
                                   (tvm-reg/device-id device)))
 

@@ -14,6 +14,7 @@
             [tvm-clj.compute.cpu :as cpu]
             [tvm-clj.compute.tensor-math :as tvm-tm]
             [tvm-clj.base :as tvm-base]
+            ;;Pull numeric operations into this namespace.
             [tech.opencv :as opencv]
             [tech.datatype.java-primitive :as primitive])
   (:import [java.nio ByteBuffer FloatBuffer]))
@@ -35,7 +36,7 @@
                                 primitive/->buffer-backing-store)]
     (parallel/parallel-for idx n-elems
                            (let [pixel (quot idx n-channels)
-                                 channel (rem idx n-channels)
+                                 channel (long (rem idx n-channels))
                                  x-pos (rem pixel width)
                                  y-pos (quot pixel width)
                                  dest-channel-stride (* x-pos y-pos)]

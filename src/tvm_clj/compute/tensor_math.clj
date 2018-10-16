@@ -3,7 +3,7 @@
             [tech.compute.tensor.dimensions :as ct-dims]
             [clojure.string :as s]
             [tvm-clj.api :as api]
-            [tvm-clj.core :as core]
+            [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :as base]
             [tvm-clj.compute.registry :as tvm-reg]
             [tvm-clj.compute.device-buffer :as dbuf]

@@ -1,5 +1,5 @@
 (ns tvm-clj.compute.shared
-  (:require [tvm-clj.core :as tvm-core]
+  (:require [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :refer [->tvm] :as tvm-base]
             [tech.resource :as resource]
             [tech.compute.driver :as drv]
@@ -10,7 +10,7 @@
 (defn enumerate-devices
   [^long device-type]
   (->> (range)
-       (take-while #(= 1 (tvm-core/device-exists? device-type %)))))
+       (take-while #(= 1 (bindings/device-exists? device-type %)))))
 
 
 (defn maybe-sub-buffer
@@ -26,4 +26,4 @@
   (resource/with-resource-context
     (let [dev-a (maybe-sub-buffer dev-a dev-a-off elem-count)
           dev-b (maybe-sub-buffer dev-b dev-b-off elem-count)]
-      (tvm-core/copy-array-to-array! (->tvm dev-a) (->tvm dev-b) stream))))
+      (bindings/copy-array-to-array! (->tvm dev-a) (->tvm dev-b) stream))))

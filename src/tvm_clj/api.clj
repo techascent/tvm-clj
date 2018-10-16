@@ -206,7 +206,10 @@
 
 (defmethod bindings/get-extended-node-value :tensor
   [node-handle item-key]
-  (tget node-handle item-key))
+  (if (or (number? item-key)
+          (sequential? item-key))
+    (tget node-handle item-key)
+    nil))
 
 
 (defmacro def-bin-op

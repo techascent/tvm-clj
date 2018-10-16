@@ -120,6 +120,11 @@
     (keyword (:dtype item))))
 
 
+(defn is-node-handle?
+  [item]
+  (instance? NodeHandle item))
+
+
 (extend-protocol resource/PResource
   NodeHandle
   (release-resource [node]
