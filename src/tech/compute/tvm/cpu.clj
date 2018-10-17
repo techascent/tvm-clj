@@ -1,4 +1,4 @@
-(ns tvm-clj.compute.cpu
+(ns tech.compute.tvm.cpu
   (:require [tvm-clj.core :as tvm-core]
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]

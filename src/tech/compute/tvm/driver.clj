@@ -1,8 +1,9 @@
-(ns tvm-clj.compute.registry
+(ns tech.compute.tvm.driver
   "Additional protocols for tvm drivers, devices, and streams.
 Centralized registring of drivers allowing a symbolic name->driver table."
   (:require [tvm-clj.core :as tvm-core]
-            [tvm-clj.api :as tvm-api]))
+            [tvm-clj.api :as tvm-api]
+            [tech.compute.registry :as registry]))
 
 (defn cpu-device-type
   ^long []
@@ -21,7 +22,7 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   (tvm-core/device-type->device-type-int :rocm))
 
 
-(defprotocol PDeviceInfo
+(defprotocol PTVMDevice
   (device-id [item]
     "Return the tvm integer device of a given device, buffer or stream."))
 
@@ -34,12 +35,10 @@ Centralized registring of drivers allowing a symbolic name->driver table."
 (defprotocol PDeviceIdToDevice
   (device-id->device [driver device-id]))
 
-;;Mapping from integer device types to drivers implementing that type.
-(defonce ^:dynamic *device-types->drivers* (atom {}))
-
 
 (defn add-device-type
   [^long device-type driver]
+
   (swap! *device-types->drivers* assoc device-type driver))
 
 
