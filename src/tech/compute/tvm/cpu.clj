@@ -3,9 +3,10 @@
             [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
-            [tvm-clj.compute.registry :as tvm-reg]
-            [tvm-clj.compute.device-buffer :as dbuf]
-            [tvm-clj.compute.shared :as tvm-shared]
+            [tech.compute.tvm.registry :as tvm-reg]
+            [tech.compute.tvm.driver :as tvm-driver]
+            [tech.compute.tvm.device-buffer :as dbuf]
+            [tech.compute.tvm.shared :as tvm-shared]
             [tech.compute.cpu.driver :as cpu-driver]
             [tech.resource :as resource]
             [tech.datatype.core :as dtype]))
@@ -37,8 +38,8 @@
   resource/PResource
   (release-resource [_] )
 
-  tvm-reg/PTVMStream
-  (call-function-impl [_ fn arg-list]
+  tvm-driver/PTVMStream
+  (call-function [_ fn arg-list]
     (cpu-driver/with-stream-dispatch stream
       (apply fn arg-list)))
 
@@ -97,7 +98,8 @@
   (memoize
    (fn []
      (let [device (->CPUDevice (atom nil) (atom nil))
-           default-stream (->CPUStream (constantly device) (cpu-driver/main-thread-cpu-stream))]
+           default-stream (->CPUStream (constantly device)
+                                       (cpu-driver/main-thread-cpu-stream))]
        (swap! (:default-stream device) (constantly default-stream))
        [device]))))
 

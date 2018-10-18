@@ -1,8 +1,8 @@
-(ns tvm-clj.compute.device-buffer
+(ns tech.compute.tvm.device-buffer
   (:require [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :as tvm-base]
-            [tvm-clj.compute.registry :as tvm-reg]
             [tech.compute.driver :as drv]
+            [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.base :as dtype-base]
             [tech.datatype.core :as dtype]
             [tech.datatype.java-primitive :as primitive]
@@ -10,7 +10,9 @@
             [clojure.core.matrix.protocols :as mp]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.datatype.java-unsigned :as unsigned]
-            [tech.compute.tensor :as ct])
+            [tech.compute.tensor :as ct]
+            [tech.compute :as compute]
+            [tech.compute.tvm :as compute-tvm])
   (:import [tvm_clj.tvm runtime$DLTensor runtime runtime$DLContext]
            [tvm_clj.base ArrayHandle]
            [org.bytedeco.javacpp Pointer LongPointer]
@@ -23,10 +25,7 @@
 
 (defn is-cpu-device?
   [device]
-  (= runtime/kDLCPU (tvm-reg/device-type device)))
-
-
-(declare device-buffer->ptr)
+  (= :cpu (compute-tvm/device-type device)))
 
 
 (defn jcpp-pointer-alias?
@@ -55,10 +54,11 @@
 
 (defn check-cpu-array!
   [^ArrayHandle array]
-  (when-not (= runtime/kDLCPU (long (tvm-reg/device-type array)))
+  (when-not (is-cpu-device? array)
     (throw (ex-info "Illegal operation on a non-cpu array."
-                    {:device-type (tvm-reg/device-type-int->keyword
-                                   (long (tvm-reg/device-type array)))}))))
+                    {:device-type (-> array
+                                      (compute/->driver)
+                                      )}))))
 
 
 (extend-type ArrayHandle
@@ -129,8 +129,8 @@
           datatype (dtype/get-datatype buffer)]
       (tvm-base/pointer->tvm-ary
        base-ptr
-       (long (tvm-reg/device-type buffer))
-       (long (tvm-reg/device-id buffer))
+       (long (compute-tvm/device-type buffer))
+       (long (compute-tvm/device-id buffer))
        datatype
        [length]
        nil
@@ -144,49 +144,35 @@
     (jcpp-pointer-partial-alias? (jcpp-dtype/->ptr-backing-store lhs)
                                  (jcpp-dtype/->ptr-backing-store rhs)))
 
-  tvm-reg/PDeviceInfo
+  tvm-driver/PTVMDeviceId
   (device-id [buffer]
     (let [^runtime$DLTensor tensor (tvm-base/->tvm buffer)
           ctx (.ctx tensor)]
       (.device_id ctx)))
 
-  tvm-reg/PDriverInfo
+  tvm-driver/PTVMDeviceType
   (device-type [buffer]
     (let [^runtime$DLTensor tensor (tvm-base/->tvm buffer)
           ctx (.ctx tensor)]
-      (.device_type ctx)))
+      (bindings/device-type-int->device-type
+       (.device_type ctx))))
 
   drv/PDeviceProvider
   (get-device [buffer]
-    (tvm-reg/get-device (tvm-reg/device-type buffer)
-                        (tvm-reg/device-id buffer)))
+    (-> (compute/->driver buffer)
+        (compute-tvm/device-id->device (compute-tvm/device-id buffer))))
 
   drv/PDriverProvider
   (get-driver [buffer]
-    (tvm-reg/get-driver (tvm-reg/device-type buffer))))
+    (-> (compute-tvm/device-type buffer)
+        compute-tvm/device-type->driver)))
 
 
 (defn make-device-buffer-of-type
   [device datatype elem-count]
   (bindings/allocate-device-array [elem-count] datatype
-                                  (tvm-reg/device-type device)
-                                  (tvm-reg/device-id device)))
-
-
-(defn make-cpu-device-buffer
-  "Make a cpu device buffer.  These are used as host buffers for all devices
-and device buffers for the cpu device."
-  [datatype elem-count]
-  (when-not (resolve 'tvm-clj.compute.cpu/driver)
-    (require 'tvm-clj.compute.cpu))
-  (make-device-buffer-of-type (tvm-reg/get-device runtime/kDLCPU 0)
-                              datatype
-                              elem-count))
-
-
-(defn device-buffer->dl-tensor
-  ^runtime$DLTensor [^ArrayHandle buf]
-  (tvm-base/->tvm buf))
+                                  (compute-tvm/device-type device)
+                                  (compute-tvm/device-id device)))
 
 
 (defn has-byte-offset?
