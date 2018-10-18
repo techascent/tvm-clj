@@ -1,14 +1,12 @@
-(ns tvm-clj.image.resize
+(ns tech.compute.tvm.image.resize
   (:require [tech.compute.tensor :as ct]
             [tech.compute.driver :as drv]
-            [tvm-clj.compute.cpu]
-            [tvm-clj.compute.tensor-math]
+            [tech.compute.tvm.cpu]
+            [tech.compute.tvm.tensor-math]
             [clojure.core.matrix :as m]
             [tech.datatype.base :as dtype]
             [tvm-clj.api :as api]
-            [tvm-clj.compute.registry :as registry]
             [tech.compute.verify.tensor :as verify-tensor]
-
             ;;Add in syntactic sugar
             [tvm-clj.operations :refer :all]
             ))

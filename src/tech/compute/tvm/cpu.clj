@@ -10,7 +10,8 @@
             [tech.resource :as resource]
             [tech.datatype.core :as dtype]
             [tech.compute.tvm :as tvm]
-            [tech.compute.registry :as registry]))
+            [tech.compute.registry :as registry]
+            [tech.compute :as compute]))
 
 
 (declare driver)
@@ -65,6 +66,8 @@
   `(cpu-driver/with-stream-dispatch (.stream stream)
      ~@body))
 
+(declare make-cpu-device-buffer)
+
 (defrecord CPUDevice [error-atom default-stream]
   tvm-driver/PTVMDeviceId
   (device-id [this] 0)
@@ -79,7 +82,7 @@
   (create-stream [device]
     (->CPUStream device (cpu-driver/cpu-stream device error-atom)))
   (allocate-device-buffer [device elem-count elem-type options]
-    (tvm/make-cpu-device-buffer elem-type elem-count))
+    (make-cpu-device-buffer elem-type elem-count))
   (supports-create-stream? [device] true)
   (default-stream [device] @default-stream)
 
@@ -109,7 +112,7 @@
   (get-devices [driver]
     (cpu-devices))
   (allocate-host-buffer [driver elem-count elem-type options]
-    (tvm/make-cpu-device-buffer elem-type elem-count))
+    (make-cpu-device-buffer elem-type elem-count))
 
   tvm-driver/PTVMDriver
   (device-id->device [driver dev-id]
@@ -139,6 +142,13 @@
         shape [(dtype/ecount ptr)]
         device (first (cpu-devices))]
     (tvm-base/pointer->tvm-ary ptr :cpu 0 dtype shape nil 0)))
+
+
+(defn make-cpu-device-buffer
+  [elem-type elem-count]
+  (dbuf/make-device-buffer-of-type
+   (compute/default-device (driver))
+   elem-type elem-count))
 
 
 (tvm-reg/register-driver (driver))
