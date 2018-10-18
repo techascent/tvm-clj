@@ -34,11 +34,15 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   (device-id->device [driver device-id])
   (gpu-scheduling? [driver])
   ;;https://github.com/dmlc/tvm/issues/984
-  (device-datatypes? [driver])
+  (scalar-datatype->device-datatype [driver scalar-datatype])
   ;;Basic injective scheduling.  Updates stage
   (schedule-injective! [driver stage compute-op options])
   ;;Build the module.  See api/schedules->fns
   (->module [driver sched-data-seq options]))
+
+
+(defprotocol PTVMBuffer
+  (has-byte-offset? [buffer]))
 
 
 (defprotocol PTVMStream

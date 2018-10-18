@@ -1,21 +1,20 @@
-(ns tvm-clj.compute.tensor-math
+(ns tech.compute.tvm.tensor-math
   (:require [tech.compute.tensor :as ct]
             [tech.compute.tensor.dimensions :as ct-dims]
             [clojure.string :as s]
             [tvm-clj.api :as api]
             [tvm-clj.tvm-bindings :as bindings]
             [tvm-clj.base :as base]
-            [tvm-clj.compute.registry :as tvm-reg]
-            [tvm-clj.compute.device-buffer :as dbuf]
             [tech.resource :as resource]
-            [tech.compute.driver :as drv]
-            [tvm-clj.compute.cpu :as cpu]
-            [tvm-clj.compute.gpu]
+            [tech.compute.tvm.cpu :as cpu]
+            [tech.compute.tvm.gpu]
             [tech.compute.tensor.math :as tm]
             [tech.datatype.core :as dtype]
-            [clojure.core.matrix :as m])
-  (:import [tvm_clj.compute.cpu CPUStream]
-           [tvm_clj.compute.gpu GPUStream]))
+            [clojure.core.matrix :as m]
+            [tech.compute.tvm :as tvm]
+            [tech.compute :as compute])
+  (:import [tech.compute.tvm.cpu CPUStream]
+           [tech.compute.tvm.gpu GPUStream]))
 
 
 (defonce ^:dynamic *fn-map* (atom {}))
@@ -45,7 +44,7 @@
          "dense"
          "sparse")
        "_"
-       (if (dbuf/has-byte-offset? tensor)
+       (if (tvm/has-byte-offset? tensor)
          "offset"
          "nooffset")))
 
@@ -55,7 +54,7 @@
   [tensor]
   (str (name (ct/get-datatype tensor))
        "_"
-       (if (dbuf/has-byte-offset? tensor)
+       (if (tvm/has-byte-offset? tensor)
          "offset"
          "nooffset")))
 
@@ -82,7 +81,7 @@
                                       (mapv #(api/variable (str "_stride_" %)
                                                            :dtype "int32")
                                             (clojure.core/range (count shape))))
-                           :elem-offset (if (dbuf/has-byte-offset? tensor)
+                           :elem-offset (if (tvm/has-byte-offset? tensor)
                                           (api/variable "_elem_offset")
                                           nil))])))
        (into {})))
@@ -90,8 +89,8 @@
 
 (defn get-or-create-fn
   [stream fn-name fn-create-fn]
-  (let [device-type (tvm-reg/device-type stream)
-        device-id (tvm-reg/device-id stream)]
+  (let [device-type (tvm/device-type stream)
+        device-id (tvm/device-id stream)]
     (if-let [retval (get @*fn-map* [device-type device-id fn-name])]
       retval
       (let [retval (fn-create-fn)]
@@ -100,20 +99,10 @@
         retval))))
 
 
-(def device-datatype-map
-  "https://github.com/dmlc/tvm/issues/984"
-  {:uint8 :uint32
-   :int8 :int32
-   :uint16 :uint32
-   :int16 :int32
-   :uint64 :int64})
-
-
 (defn- get-scalar-datatype
   [device fn-datatype]
-  (if (tvm-reg/device-datatypes? device)
-    (get device-datatype-map fn-datatype fn-datatype)
-    fn-datatype))
+  (-> (compute/->driver device)
+      (tvm/scalar-datatype->device-datatype fn-datatype)))
 
 
 (defn n-dim-compute-op
@@ -188,8 +177,8 @@
 (defn- compile-operation
   [driver fn-name compute-op arglist bind-map]
   (let [schedule (api/create-schedule compute-op)
-        _ (tvm-reg/schedule-injective! driver schedule compute-op {})
-        mod-fns (tvm-reg/->module driver [{:schedule schedule
+        _ (tvm/schedule-injective! driver schedule compute-op {})
+        mod-fns (tvm/->module driver [{:schedule schedule
                                            :name fn-name
                                            :arglist arglist
                                            :bind-map (build-bind-map bind-map)}])]
@@ -205,7 +194,7 @@
                  tensor)
         datatype (ct/get-datatype tensor)
         fn-name (keyword (get-fn-name "assign_constant" tensor))
-        scalar-datatype (get-scalar-datatype (drv/get-driver stream) datatype)
+        scalar-datatype (get-scalar-datatype (compute/->driver stream) datatype)
         assign-fn (get-or-create-fn
                    stream fn-name
                    #(let [const-var (api/variable "const_val"
@@ -218,11 +207,11 @@
                                                             (name datatype)
                                                             const-var))))
                           result (first (api/output-tensors compute-op))]
-                      (compile-operation (drv/get-driver stream)
+                      (compile-operation (compute/->driver stream)
                                          fn-name compute-op
                                          [result const-var]
                                          {tensor result})))]
-    (tvm-reg/call-function stream assign-fn tensor (dtype/cast value scalar-datatype))))
+    (tvm/call-function stream assign-fn tensor (dtype/cast value scalar-datatype))))
 
 
 (defn assign!
@@ -251,7 +240,7 @@ lhs = rhs"
                                                             index-vars
                                                             rhs-shape-stride-tuples))))
                 result (first (api/output-tensors compute-op))]
-            (compile-operation (drv/get-driver stream)
+            (compile-operation (compute/->driver stream)
                                fn-name compute-op
                                (->> (concat [result]
                                             [rhs-placeholder]
@@ -259,7 +248,7 @@ lhs = rhs"
                                             (map second rhs-shape-stride-tuples))
                                     vec)
                                {lhs result})))]
-    (apply tvm-reg/call-function
+    (apply tvm/call-function
            stream assign-fn lhs (explode-read-tensor rhs (count max-shape)))))
 
 
@@ -287,11 +276,12 @@ lhs = rhs"
   "Convert a typed pointer into a tensor.  Force cpu will always
   convert the typed pointer into a tvm host buffer (which is also
   a cpu device buffer)."
-  [typed-ptr & {:keys [force-cpu?]}]
-  (let [target-device-kwd (if force-cpu?
+  [typed-ptr & {:keys [force-cpu? stream]}]
+  (let [stream (or stream ct/*stream*)
+        target-device-kwd (if force-cpu?
                             :cpu
-                            (-> (drv/get-device ct/*stream*)
-                                tvm-reg/device-type-kwd))]
+                            (-> (compute/->device stream)
+                                tvm/device-type))]
     (if (= :cpu target-device-kwd)
       ;;For cpu, we have a direct, zero-copy conversion.  We can read/write directly to
       ;;opencv's data storage
@@ -299,4 +289,6 @@ lhs = rhs"
           (device-buffer->tensor (ct-dims/dimensions (m/shape typed-ptr))))
 
       ;;Copy the matrix onto the device
-      (ct/->tensor typed-ptr :datatype (dtype/get-datatype typed-ptr)))))
+      (ct/->tensor typed-ptr
+                   :datatype (dtype/get-datatype typed-ptr)
+                   :unchecked? true))))

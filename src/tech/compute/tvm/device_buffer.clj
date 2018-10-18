@@ -12,7 +12,8 @@
             [tech.datatype.java-unsigned :as unsigned]
             [tech.compute.tensor :as ct]
             [tech.compute :as compute]
-            [tech.compute.tvm :as compute-tvm])
+            [tech.compute.tvm :as compute-tvm]
+            [tech.compute.tvm.driver :as tvm-driver])
   (:import [tvm_clj.tvm runtime$DLTensor runtime runtime$DLContext]
            [tvm_clj.base ArrayHandle]
            [org.bytedeco.javacpp Pointer LongPointer]
@@ -157,6 +158,11 @@
       (bindings/device-type-int->device-type
        (.device_type ctx))))
 
+  tvm-driver/PTVMBuffer
+  (has-byte-offset? [buffer]
+    (let [^runtime$DLTensor backing-store (tvm-base/->tvm buffer)]
+      (not= 0 (.byte_offset backing-store))))
+
   drv/PDeviceProvider
   (get-device [buffer]
     (-> (compute/->driver buffer)
@@ -175,11 +181,16 @@
                                   (compute-tvm/device-id device)))
 
 
-(defn has-byte-offset?
-  [tensor]
-  (let [buf-data (ct/tensor->buffer tensor)
-        ^runtime$DLTensor backing-store (tvm-base/->tvm buf-data)]
-    (not= 0 (.byte_offset backing-store))))
+
+(defn copy-device->device
+  [src-buffer src-offset dst-buffer dst-offset elem-count stream]
+  (let [src-buffer (if-not (= 0 (long src-offset))
+                     (drv/sub-buffer src-buffer src-offset elem-count)
+                     src-buffer)
+        dst-buffer (if-not (= 0 (long dst-offset))
+                     (drv/sub-buffer dst-buffer dst-offset elem-count)
+                     dst-buffer)]
+    (bindings/copy-array-to-array! src-buffer dst-buffer stream)))
 
 
 (extend-type Tensor
@@ -205,4 +216,8 @@
   tvm-base/PJVMTypeToTVMValue
   (->tvm-value [item]
     (-> (tvm-base/->tvm item)
-        tvm-base/->tvm-value)))
+        tvm-base/->tvm-value))
+
+  tvm-driver/PTVMBuffer
+  (has-byte-offset? [tensor]
+    (tvm-driver/has-byte-offset? (ct/tensor->buffer tensor))))
