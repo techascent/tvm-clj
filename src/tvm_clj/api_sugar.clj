@@ -2,7 +2,8 @@
   "Operators and bindings to make the clojure code look and work like the python
 tvm bindings.  This file is purely syntax sugar."
   (:require [tvm-clj.api :as api]
-            [tvm-clj.tvm-bindings :as bindings]))
+            [tvm-clj.tvm-bindings :as bindings]
+            [tech.datatype.core :as dtype]))
 
 (set! *warn-on-reflection* true)
 

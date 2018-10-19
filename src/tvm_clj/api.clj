@@ -53,13 +53,17 @@
                           (->dtype dtype)))
 
 
+(declare ->node)
+
+
 (defn placeholder
   "Create a user-supplied tensor variable"
   [shape name & {:keys [dtype]
                  :or {dtype "float32"}}]
-  (let [shape (if-not (instance? clojure.lang.Seqable shape)
-                [shape]
-                shape)]
+  (let [shape (->> (if-not (instance? clojure.lang.Seqable shape)
+                     [shape]
+                     shape)
+                   (mapv ->node))]
     (bindings/global-node-function "_Placeholder" shape (->dtype dtype) (safe-str name))))
 
 
@@ -71,7 +75,7 @@
 
 (defn const
   "Convert an item to a const (immediate) value"
-  [numeric-value & {:keys [dtype]}]
+  [numeric-value & [dtype]]
   (let [dtype (->dtype (or dtype
                            (dtype/get-datatype numeric-value)))]
     (bindings/global-node-function "_const" numeric-value dtype)))
@@ -80,7 +84,7 @@
 (defn static-cast
   "Cast an item from one datatype to another"
   [dtype expr-node]
-  (bindings/global-node-function "make.Cast" (->dtype dtype) expr-node))
+  (bindings/global-node-function "make.Cast" (->dtype dtype) (->node expr-node)))
 
 
 (defn cast
@@ -205,9 +209,12 @@
 
 (defmethod bindings/get-extended-node-value :tensor
   [node-handle item-key]
-  (if (or (number? item-key)
-          (sequential? item-key))
+  (cond
+    (or (number? item-key)
+        (sequential? item-key))
     (tget node-handle item-key)
+    (= item-key :axis) (:axis (:op node-handle))
+    :else
     nil))
 
 
@@ -510,13 +517,24 @@ expressions,
        (mapv bindings/unpack-node-field)))
 
 
+(defn ->operation
+  [tens-or-op]
+  (case (:tvm-type-kwd tens-or-op)
+    :tensor (throw-nil tens-or-op :op)
+    :compute-operation tens-or-op
+    :scan-operation tens-or-op
+    :placeholder-operation tens-or-op
+    :external-operation tens-or-op))
+
+
 (defn create-schedule
   [op-seq]
-  (let [op-seq (if-not (sequential? op-seq)
-                 [op-seq]
-                 op-seq)]
+  (let [op-seq (->> (if-not (sequential? op-seq)
+                      [op-seq]
+                      op-seq)
+                    (mapv ->operation))]
     (bindings/unpack-node-fields (bindings/g-fn "_CreateSchedule" op-seq)
-                          :recurse false)))
+                                 :recurse false)))
 
 
 (defn throw-nil
@@ -526,16 +544,6 @@ expressions,
     (throw (ex-info "Expected object but got nil"
                     {:item item
                      :key key-val}))))
-
-
-(defn ->operation
-  [tens-or-op]
-  (case (:tvm-type-kwd tens-or-op)
-    :tensor (throw-nil tens-or-op :op)
-    :compute-operation tens-or-op
-    :scan-operation tens-or-op
-    :placeholder-operation tens-or-op
-    :external-operation tens-or-op))
 
 
 (defn ->stage
@@ -604,20 +612,26 @@ expressions,
   [stage axis]
   (bindings/g-fn "_StageVectorize" stage axis))
 
+
+(defn stage-unroll
+  [stage axis]
+  (bindings/g-fn "_StageUnroll" stage axis))
+
+
 (defn schedule-cache-write
   "Returns a new tensor"
   [schedule tensor cache-type]
   (let [retval (-> (bindings/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)
                    (bindings/unpack-node-fields :recurse false))
         schedule (bindings/unpack-node-fields schedule :recurse false)]
-    {:tensor retval
-     :tensor-op (bindings/unpack-node-fields (:op retval) :recurse false)
+    {:tensor (assoc retval
+                    :op (bindings/unpack-node-fields (:op retval) :recurse false))
      :schedule schedule}))
 
 
 (defn schedule-cache-read
   [schedule tensor cache-type readers]
-  (bindings/g-fn "_ScheduleCacheRead" schedule tensor cache-type))
+  (throw (ex-info "Unimplemented" {})))
 
 
 (defn stage-bind-gpu
@@ -1061,18 +1075,18 @@ the threading macro with the long set of ir pass possibilities."
   NodeHandle
   (->node [item] item)
   Boolean
-  (->node [item] (const item :dtype "uint1x1"))
+  (->node [item] (const item "uint1x1"))
   Byte
-  (->node [item] (const item :dtype "int8"))
+  (->node [item] (const item "int8"))
   Short
-  (->node [item] (const item :dtype "int16"))
+  (->node [item] (const item "int16"))
   Integer
-  (->node [item] (const item :dtype "int32"))
+  (->node [item] (const item "int32"))
   Long
-  (->node [item] (const item :dtype "int64"))
+  (->node [item] (const item "int64"))
   Float
-  (->node [item] (const item :dtype "float32"))
+  (->node [item] (const item "float32"))
   Double
-  (->node [item] (const item :dtype "float64"))
+  (->node [item] (const item "float64"))
   clojure.lang.Sequential
   (->node [item] (apply bindings/tvm-array (map ->node item))))
