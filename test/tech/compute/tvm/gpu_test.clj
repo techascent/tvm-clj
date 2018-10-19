@@ -1,23 +1,12 @@
-(ns tvm-clj.compute.gpu-test
-  (:require [tvm-clj.compute.gpu]
-            [tvm-clj.compute.cpu-test :as cpu-test]
-            [tvm-clj.compute.registry :as tvm-reg]
-            [tvm-clj.core :as tvm-core]
-            [tvm-clj.api-test :as api-test]
-            [tech.compute.driver :as drv]
-            [tech.datatype.base :as dtype]
-            [tech.resource :as resource]
-            [clojure.test :refer :all]
-            [clojure.core.matrix :as m]))
+(ns tech.compute.tvm.gpu-test
+  (:require [clojure.test :refer :all]
+            [tech.compute.tvm.cpu-test :as cpu-test]
+            [tech.compute.tvm.gpu]))
 
 
 (deftest ^:cuda cuda-basic-add
-  (resource/with-resource-context
-    (cpu-test/test-add-fn (tvm-reg/get-device :cuda 0)
-                          (api-test/create-myadd-fn :cuda))))
+  (cpu-test/test-add-fn :cuda))
 
 
 (deftest opencl-basic-add
-  (resource/with-resource-context
-    (cpu-test/test-add-fn (tvm-reg/get-device :opencl 0)
-                          (api-test/create-myadd-fn :opencl))))
+  (cpu-test/test-add-fn :opencl))

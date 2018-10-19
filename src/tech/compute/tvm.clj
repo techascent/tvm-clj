@@ -50,6 +50,12 @@
   [driver device-id]
   (tvm-driver/device-id->device driver device-id))
 
+
+(defn device-type-id->device
+  [device-type & [device-id]]
+  (-> (device-type->driver device-type)
+      (device-id->device (or device-id 0))))
+
 (defn gpu-scheduling?
   [item]
   (tvm-driver/gpu-scheduling? item))

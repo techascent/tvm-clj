@@ -1,4 +1,4 @@
-(ns tvm-clj.compute.device-buffer-test
+(ns tech.compute.tvm.device-buffer-test
   (:require [tech.compute.tvm :as tvm]
             [tech.datatype.base :as dtype]
             [tech.compute.driver :as drv]

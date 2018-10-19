@@ -44,7 +44,8 @@
                               dev-b dev-b-off
                               elem-count stream))
   (sync-with-host [_]
-    (bindings/sync-stream-with-host (tvm/device-type device)
+    (bindings/sync-stream-with-host (-> (tvm/device-type device)
+                                        (bindings/device-type->device-type-int))
                                     (tvm/device-id device)
                                     stream))
   (sync-with-stream [src-stream dst-stream]
@@ -52,14 +53,16 @@
       (throw (ex-info "Cannot synchronize streams of two different device types"
                       {:src-device-type (tvm/device-type src-stream)
                        :dst-device-type (tvm/device-type dst-stream)})))
-    (bindings/sync-stream-with-stream (tvm/device-type device)
+    (bindings/sync-stream-with-stream (-> (tvm/device-type device)
+                                          (bindings/device-type->device-type-int))
                                       (tvm/device-id device)
                                       (tvm-base/->tvm src-stream)
                                       (tvm-base/->tvm dst-stream)))
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
     (when (.address (tvm-base/->tvm stream))
-      (bindings/set-current-thread-stream (tvm/device-type device)
+      (bindings/set-current-thread-stream (bindings/device-type->device-type-int
+                                           (tvm/device-type device))
                                           (tvm/device-id device)
                                           stream))
     (apply fn arg-list))
@@ -77,7 +80,7 @@
 (defrecord GPUDevice [driver ^long device-id supports-create?
                       default-stream resource-context]
   tvm-driver/PTVMDeviceType
-  (device-type [this] (:device-type driver))
+  (device-type [this] (tvm-driver/device-type driver))
 
   tvm-driver/PTVMDeviceId
   (device-id [this] device-id)
@@ -88,7 +91,8 @@
     {:free 0xFFFFFFFF
      :total 0xFFFFFFF})
   (create-stream [device]
-    (->GPUStream device (bindings/create-stream (:device-type driver) device-id)))
+    (->GPUStream device (bindings/create-stream (tvm-driver/device-type driver)
+                                                device-id)))
   (allocate-device-buffer [device elem-count elem-type options]
     (dbuf/make-device-buffer-of-type device elem-type elem-count))
   (supports-create-stream? [device] supports-create?)
@@ -110,8 +114,8 @@
   [driver dev-id]
   (let [dev-type (-> (tvm/device-type driver)
                      (bindings/device-type->device-type-int))
-        {:keys [default-stream :return-value
-                resource-seq :resource-seq]}
+        {default-stream :return-value
+         resource-seq :resource-seq}
         (resource/return-resource-seq
          (try
            (bindings/create-stream dev-type dev-id)
@@ -128,7 +132,7 @@
 (def ^:private enumerate-devices
   (memoize
    (fn [driver]
-     (->> (tvm/enumerate-device-ids (:device-type driver))
+     (->> (tvm/enumerate-device-ids (tvm-driver/device-type driver))
           (mapv #(make-gpu-device driver %))))))
 
 
@@ -145,6 +149,9 @@
   tvm-driver/PTVMDeviceType
   (device-type [this] (bindings/device-type-int->device-type
                        device-type))
+
+  drv/PDriverProvider
+  (get-driver [this] this)
 
   drv/PDriver
   (driver-name [this]

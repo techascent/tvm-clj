@@ -124,13 +124,14 @@
 
 
   drv/PBuffer
-  (sub-buffer-impl [buffer offset length]
+  (sub-buffer [buffer offset length]
     (let [^runtime$DLTensor tvm-tensor (tvm-base/->tvm buffer)
           base-ptr (.data tvm-tensor)
           datatype (dtype/get-datatype buffer)]
       (tvm-base/pointer->tvm-ary
        base-ptr
-       (long (compute-tvm/device-type buffer))
+       (long (bindings/device-type->device-type-int
+              (compute-tvm/device-type buffer)))
        (long (compute-tvm/device-id buffer))
        datatype
        [length]
@@ -166,11 +167,12 @@
   drv/PDeviceProvider
   (get-device [buffer]
     (-> (compute/->driver buffer)
-        (compute-tvm/device-id->device (compute-tvm/device-id buffer))))
+        (compute-tvm/device-id->device
+         (tvm-driver/device-id buffer))))
 
   drv/PDriverProvider
   (get-driver [buffer]
-    (-> (compute-tvm/device-type buffer)
+    (-> (tvm-driver/device-type buffer)
         compute-tvm/device-type->driver)))
 
 
