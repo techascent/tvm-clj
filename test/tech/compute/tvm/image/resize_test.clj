@@ -1,11 +1,11 @@
-(ns tvm-clj.image.resize-test
+(ns tech.compute.tvm.image.resize-test
   (:require [clojure.test :refer :all]
             [tech.compute.tvm.image.resize :as resize]
             [tech.compute.verify.tensor :as vf]
             [tech.compute :as compute]
             [tech.compute.tvm :as tvm]
             [tech.compute.tvm.cpu :as cpu]
-            [tvm-clj.compile-test :as compile-test]
+            [tech.compute.tvm.compile-test :as compile-test]
             [clojure.core.matrix :as m]
             [tech.compute.tensor :as ct]
             [tech.datatype.base :as dtype]

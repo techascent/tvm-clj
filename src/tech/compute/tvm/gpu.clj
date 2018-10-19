@@ -8,7 +8,8 @@
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.tvm :as tvm]
             [tech.resource :as resource])
-  (:import [tvm_clj.tvm runtime$TVMStreamHandle]))
+  (:import [tvm_clj.tvm runtime$TVMStreamHandle]
+           [org.bytedeco.javacpp Pointer]))
 
 
 (declare cuda-driver)
@@ -59,7 +60,7 @@
                                       (bindings/->tvm dst-stream)))
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
-    (when (.address (bindings/->tvm stream))
+    (when (.address ^Pointer (bindings/->tvm stream))
       (bindings/set-current-thread-stream (bindings/device-type->device-type-int
                                            (tvm/device-type device))
                                           (tvm/device-id device)

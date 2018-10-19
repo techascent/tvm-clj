@@ -1,4 +1,4 @@
-(ns tvm-clj.compile-test
+(ns tech.compute.tvm.compile-test
   (:require [clojure.test :refer :all]
             [tech.resource :as resource]
             [tech.datatype.core :as dtype]
