@@ -1,4 +1,4 @@
-(defproject tvm-clj "0.1.8-SNAPSHOT"
+(defproject tvm-clj "0.1.8"
   :description "Clojure bindings and exploration of the tvm library"
   :url "http://github.com/tech-ascent/tvm-clj"
   :license {:name "Eclipse Public License"
