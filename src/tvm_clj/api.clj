@@ -1,7 +1,6 @@
 (ns tvm-clj.api
   "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.tvm-bindings :as bindings]
-            [tvm-clj.base :as b]
             [tech.datatype.core :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
@@ -22,7 +21,7 @@
 
 (defn ->node
   [item]
-  (b/->node item))
+  (bindings/->node item))
 
 (defn- ->dtype
   ^String [dtype-or-name]
@@ -1058,7 +1057,7 @@ the threading macro with the long set of ir pass possibilities."
           (into {}))}))
 
 
-(extend-protocol b/PConvertToNode
+(extend-protocol bindings/PConvertToNode
   NodeHandle
   (->node [item] item)
   Boolean

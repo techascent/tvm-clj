@@ -4,7 +4,6 @@
             [clojure.string :as s]
             [tvm-clj.api :as api]
             [tvm-clj.tvm-bindings :as bindings]
-            [tvm-clj.base :as base]
             [tech.resource :as resource]
             [tech.compute.tvm.cpu :as cpu]
             [tech.compute.tvm.gpu]
@@ -12,7 +11,8 @@
             [tech.datatype.core :as dtype]
             [clojure.core.matrix :as m]
             [tech.compute.tvm :as tvm]
-            [tech.compute :as compute])
+            [tech.compute :as compute]
+            [tech.datatype.javacpp :as jcpp-dtype])
   (:import [tech.compute.tvm.cpu CPUStream]
            [tech.compute.tvm.gpu GPUStream]))
 
@@ -227,11 +227,11 @@ lhs = rhs"
         assign-fn
         (get-or-create-fn
          stream fn-name
-         #(let [
-                ;;Ignoring the fact the the shape at any index *could* be an array of data instead of
-                ;;an integer...
+         #(let [;;Ignoring the fact the the shape at any index *could* be an array of
+                ;;data instead of an integer...
                 {rhs-placeholder :placeholder
-                 rhs-shape-stride-tuples :shape-stride-tuples} (tensor-read-dims->vars n-dims rhs "rhs")
+                 rhs-shape-stride-tuples :shape-stride-tuples}
+                (tensor-read-dims->vars n-dims rhs "rhs")
                 compute-op (n-dim-compute-op
                             (count (ct/shape lhs))
                             (fn [index-vars]
@@ -272,23 +272,10 @@ lhs = rhs"
                        dev-buf))
 
 
-(defn typed-pointer->tensor
-  "Convert a typed pointer into a tensor.  Force cpu will always
-  convert the typed pointer into a tvm host buffer (which is also
-  a cpu device buffer)."
-  [typed-ptr & {:keys [force-cpu? stream]}]
-  (let [stream (or stream ct/*stream*)
-        target-device-kwd (if force-cpu?
-                            :cpu
-                            (-> (compute/->device stream)
-                                tvm/device-type))]
-    (if (= :cpu target-device-kwd)
-      ;;For cpu, we have a direct, zero-copy conversion.  We can read/write directly to
-      ;;opencv's data storage
-      (-> (cpu/ptr->device-buffer typed-ptr)
-          (device-buffer->tensor (ct-dims/dimensions (m/shape typed-ptr))))
-
-      ;;Copy the matrix onto the device
-      (ct/->tensor typed-ptr
-                   :datatype (dtype/get-datatype typed-ptr)
-                   :unchecked? true))))
+(defn as-cpu-tensor
+  [data & {:keys [shape datatype]}]
+  (when (satisfies? jcpp-dtype/PToPtr data)
+    (let [shape (or shape (ct/shape data))
+          datatype (or datatype (ct/get-datatype data))]
+      (-> (cpu/ptr->device-buffer data :dtype datatype)
+          (device-buffer->tensor (ct-dims/dimensions shape))))))

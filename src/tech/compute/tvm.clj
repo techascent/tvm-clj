@@ -20,6 +20,11 @@
   (require '[tech.compute.tvm.gpu]))
 
 
+(defn enable-tensor-math!
+  []
+  (require '[tech.compute.tvm.tensor-math]))
+
+
 (defn device-type
   "Generically get the tvm device type from a thing"
   [item]
@@ -41,7 +46,7 @@
   (= :cpu (device-type item)))
 
 
-(defn device-type->driver
+(defn driver
   [device-type]
   (tvm-reg/device-type->driver device-type))
 
@@ -50,10 +55,9 @@
   [driver device-id]
   (tvm-driver/device-id->device driver device-id))
 
-
-(defn device-type-id->device
+(defn device
   [device-type & [device-id]]
-  (-> (device-type->driver device-type)
+  (-> (driver device-type)
       (device-id->device (or device-id 0))))
 
 (defn gpu-scheduling?
@@ -111,7 +115,7 @@
   [datatype elem-count]
   (when-not (resolve 'tech.compute.tvm.cpu/driver)
     (require 'tech.compute.tvm.cpu))
-  (let [device (-> (device-type->driver :cpu)
+  (let [device (-> (driver :cpu)
                    (device-id->device 0))]
     (compute/allocate-device-buffer device elem-count datatype)))
 
@@ -134,3 +138,10 @@
   "Call a tvm function on this stream with these arguments."
   [stream fn & args]
   (tvm-driver/call-function stream fn args))
+
+
+(defn as-cpu-tensor
+  [data & {:keys [shape datatype]}]
+  (enable-tensor-math!)
+  ((resolve 'tech.compute.tvm.tensor-math/as-cpu-tensor)
+   data :shape shape :datatype datatype))

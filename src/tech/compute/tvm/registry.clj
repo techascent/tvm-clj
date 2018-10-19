@@ -9,8 +9,8 @@
 
 (defn tvm-driver-name
   [tvm-device-type-kwd]
-  `(-> (str "tech.compute.tvm." (name ~tvm-device-type-kwd))
-       keyword))
+  (-> (str "tech.compute.tvm." (name tvm-device-type-kwd))
+      keyword))
 
 
 (def ^:dynamic *driver-name->tvm-device-type* (atom {}))

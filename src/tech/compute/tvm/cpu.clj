@@ -1,6 +1,5 @@
 (ns tech.compute.tvm.cpu
   (:require [tvm-clj.tvm-bindings :as bindings]
-            [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
@@ -52,10 +51,10 @@
   (get-device [_] (device-fn))
 
   tvm-driver/PTVMDeviceType
-  (device-type [this] (tvm/device-type (device-fn)))
+  (device-type [this] (tvm-driver/device-type (device-fn)))
 
   tvm-driver/PTVMDeviceId
-  (device-id [this] (tvm/device-id (device-fn))))
+  (device-id [this] (tvm-driver/device-id (device-fn))))
 
 (defn is-main-thread-cpu-stream?
   [^CPUStream stream]
@@ -85,6 +84,9 @@
     (make-cpu-device-buffer elem-type elem-count))
   (supports-create-stream? [device] true)
   (default-stream [device] @default-stream)
+  (device->device-copy-compatible? [src dest]
+    ;;Is it a tvm device?
+    (boolean (satisfies? tvm-driver/PTVMDeviceType dest)))
 
   drv/PDriverProvider
   (get-driver [dev] (driver))
@@ -106,6 +108,8 @@
        [device]))))
 
 (defrecord CPUDriver []
+  drv/PDriverProvider
+  (get-driver [this] this)
   drv/PDriver
   (driver-name [driver]
     (tvm-reg/tvm-driver-name :cpu))
@@ -120,7 +124,7 @@
       (throw (ex-info "CPU device types only have device id 0" {})))
     (first (drv/get-devices driver)))
   (gpu-scheduling? [driver] false)
-  (scalar-datatype->device-datatype [driver scalar-datatype] identity)
+  (scalar-datatype->device-datatype [driver scalar-datatype] scalar-datatype)
   (schedule-injective! [driver stage compute-op options]
     (apply api/stage-cpu-injective stage compute-op options))
   (->module [driver sched-data-seq options]
@@ -141,7 +145,7 @@
   (let [dtype (or dtype (dtype/get-datatype ptr))
         shape [(dtype/ecount ptr)]
         device (first (cpu-devices))]
-    (tvm-base/pointer->tvm-ary ptr :cpu 0 dtype shape nil 0)))
+    (bindings/pointer->tvm-ary ptr :cpu 0 dtype shape nil 0)))
 
 
 (defn make-cpu-device-buffer

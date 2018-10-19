@@ -1,6 +1,5 @@
 (ns tech.compute.tvm.gpu
   (:require [tvm-clj.tvm-bindings :as bindings]
-            [tvm-clj.base :as tvm-base]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
@@ -19,7 +18,7 @@
 
 
 (defrecord GPUStream [device stream]
-  tvm-base/PToTVM
+  bindings/PToTVM
   (->tvm [_] stream)
 
   tvm-driver/PTVMDeviceType
@@ -56,11 +55,11 @@
     (bindings/sync-stream-with-stream (-> (tvm/device-type device)
                                           (bindings/device-type->device-type-int))
                                       (tvm/device-id device)
-                                      (tvm-base/->tvm src-stream)
-                                      (tvm-base/->tvm dst-stream)))
+                                      (bindings/->tvm src-stream)
+                                      (bindings/->tvm dst-stream)))
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
-    (when (.address (tvm-base/->tvm stream))
+    (when (.address (bindings/->tvm stream))
       (bindings/set-current-thread-stream (bindings/device-type->device-type-int
                                            (tvm/device-type device))
                                           (tvm/device-id device)
@@ -97,6 +96,12 @@
     (dbuf/make-device-buffer-of-type device elem-type elem-count))
   (supports-create-stream? [device] supports-create?)
   (default-stream [device] @default-stream)
+  (device->device-copy-compatible? [src dest]
+    (let [src-device-type (tvm-driver/device-type src)
+          dst-device-type (when (satisfies? tvm-driver/PTVMDeviceType dest)
+                            (tvm-driver/device-type dest))]
+      (or (= src-device-type dst-device-type)
+          (= :cpu dst-device-type))))
 
   drv/PDriverProvider
   (get-driver [dev] driver)
@@ -120,7 +125,7 @@
          (try
            (bindings/create-stream dev-type dev-id)
            (catch Throwable e
-             (tvm-base/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
+             (bindings/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
         supports-create? (boolean default-stream)
         device (->GPUDevice driver dev-id supports-create? (atom nil)
                             (resource/make-resource #(resource/release-resource-seq

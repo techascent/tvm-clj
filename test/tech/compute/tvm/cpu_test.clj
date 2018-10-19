@@ -12,7 +12,7 @@
 (defn test-add-fn
   [device-type]
   (resource/with-resource-context
-    (let [device (tvm/device-type-id->device device-type)
+    (let [device (tvm/device device-type)
           add-fn (api-test/create-myadd-fn device-type)
           test-data (range 10)
           driver (compute/->driver device)

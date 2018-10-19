@@ -1,4 +1,4 @@
-(ns tvm-clj.operations
+(ns tvm-clj.api-sugar
   "Operators and bindings to make the clojure code look and work like the python
 tvm bindings.  This file is purely syntax sugar."
   (:require [tvm-clj.api :as api]
