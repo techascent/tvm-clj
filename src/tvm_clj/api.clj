@@ -516,6 +516,14 @@ expressions,
        bindings/tvm-array->jvm
        (mapv bindings/unpack-node-field)))
 
+(defn throw-nil
+  [item key-val]
+  (if-let [retval (get item key-val)]
+    retval
+    (throw (ex-info "Expected object but got nil"
+                    {:item item
+                     :key key-val}))))
+
 
 (defn ->operation
   [tens-or-op]
@@ -535,15 +543,6 @@ expressions,
                     (mapv ->operation))]
     (bindings/unpack-node-fields (bindings/g-fn "_CreateSchedule" op-seq)
                                  :recurse false)))
-
-
-(defn throw-nil
-  [item key-val]
-  (if-let [retval (get item key-val)]
-    retval
-    (throw (ex-info "Expected object but got nil"
-                    {:item item
-                     :key key-val}))))
 
 
 (defn ->stage
