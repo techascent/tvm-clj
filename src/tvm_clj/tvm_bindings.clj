@@ -1,27 +1,64 @@
-(ns tvm-clj.core
+(ns tvm-clj.tvm-bindings
   "Complete lower level bindings to the tvm runtime."
   (:require [clojure.reflect :as reflect]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
-            [tvm-clj.base :as base]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.datatype.base :as dtype-base]
+            [tech.datatype.java-unsigned :as unsigned]
             [potemkin :as p]
             ;;Need stride calculations from here
-            [tech.compute.tensor.dimensions :as ct-dims]
-            )
+            [tech.compute.tensor.dimensions :as ct-dims])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
             runtime$NodeHandle runtime$TVMModuleHandle runtime$DLTensor
             runtime$TVMStreamHandle]
            [java.util ArrayList]
            [org.bytedeco.javacpp PointerPointer BytePointer Pointer LongPointer]
-           [java.lang.reflect Field]
-           [tvm_clj.base ArrayHandle StreamHandle]))
+           [java.lang.reflect Field]))
 
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
+
+
+(defprotocol PJVMTypeToTVMValue
+  "Convert something to a [long tvm-value-type] pair"
+  (->tvm-value [jvm-type]))
+
+
+(defprotocol PToTVM
+  "Convert something to some level of tvm type."
+  (->tvm [item]))
+
+
+(extend-protocol PToTVM
+  runtime$TVMFunctionHandle
+  (->tvm [item] item)
+  runtime$TVMValue
+  (->tvm [item] item)
+  runtime$NodeHandle
+  (->tvm [item] item)
+  runtime$TVMModuleHandle
+  (->tvm [item] item)
+  runtime$DLTensor
+  (->tvm [item] item)
+  runtime$TVMStreamHandle
+  (->tvm [item] item))
+
+
+(defprotocol PConvertToNode
+  (->node [item]))
+
+
+(defrecord ArrayHandle [^runtime$DLTensor tvm-jcpp-handle]
+  PToTVM
+  (->tvm [_] tvm-jcpp-handle))
+
+(defrecord StreamHandle [^long device ^long dev-id ^runtime$TVMStreamHandle tvm-hdl]
+  PToTVM
+  (->tvm [_] tvm-hdl))
+
 
 
 (def ^:dynamic fn-name "")
@@ -59,13 +96,27 @@
 (declare name->global-function)
 
 
+(defmulti get-extended-node-value
+  "Override this to enable type-specific lookups into nodes."
+  (fn [node-handle item-key]
+    (:tvm-type-kwd (:data node-handle))))
+
+
+(defmethod get-extended-node-value :default
+  [& args]
+  nil)
+
+
 ;;Because you can't override hashcode on records and multiple nodehandles can point
 ;;to the same node, we have to create our own extensible map type for node handles
 (p/def-map-type NodeHandle [^runtime$NodeHandle tvm-jcpp-handle data]
   (get [this key default-value]
-       (if (= key :tvm-jcpp-handle)
-         tvm-jcpp-handle
-         (get data key default-value)))
+       (condp = key
+         :tvm-jcpp-handle tvm-jcpp-handle
+         :data data
+         (if-let [retval (get data key default-value)]
+             retval
+             (get-extended-node-value this key))))
   (assoc [this key value]
          (if (= key :tvm-jcpp-handle)
            (NodeHandle. value data)
@@ -104,6 +155,11 @@
   NodeHandle
   (get-datatype [item]
     (keyword (:dtype item))))
+
+
+(defn is-node-handle?
+  [item]
+  (instance? NodeHandle item))
 
 
 (extend-protocol resource/PResource
@@ -398,7 +454,7 @@ https://github.com/dmlc/tvm/issues/918"
 (declare tvm-map)
 
 
-(extend-protocol base/PJVMTypeToTVMValue
+(extend-protocol PJVMTypeToTVMValue
   Double
   (->tvm-value [value] [(Double/doubleToLongBits (double value)) runtime/kDLFloat])
   Float
@@ -437,9 +493,9 @@ https://github.com/dmlc/tvm/issues/918"
   (->tvm-value [value]
     (cond
       (sequential? value)
-      (base/->tvm-value (apply tvm-array value))
+      (->tvm-value (apply tvm-array value))
       (map? value)
-      (base/->tvm-value (apply tvm-map (->> (seq value)
+      (->tvm-value (apply tvm-map (->> (seq value)
                                                (apply concat))))
       (nil? value)
       [0 runtime/kNull]))
@@ -459,7 +515,7 @@ https://github.com/dmlc/tvm/issues/918"
     (resource/track retval)
     (->> args
          (map-indexed (fn [idx arg]
-                        (let [[long-val dtype] (base/->tvm-value arg)]
+                        (let [[long-val dtype] (->tvm-value arg)]
                           (.put lb (int idx) (long long-val))
                           (aset type-codes idx (int dtype)))))
          dorun)
@@ -728,7 +784,7 @@ explicitly; it is done for you."
     (.set ^Field jcpp-dtype/address-field retval (.address (.get retval-ptr 0)))
     (let [^runtime$DLTensor retval (jcpp-dtype/set-pointer-limit-and-capacity retval 1)]
       (resource/release retval-ptr)
-      (resource/track (merge (base/->ArrayHandle retval)
+      (resource/track (merge (->ArrayHandle retval)
                              {:shape shape
                               :datatype datatype
                               :device-type device-type
@@ -753,11 +809,11 @@ explicitly; it is done for you."
 (defn copy-array-to-array!
   [^ArrayHandle src-hdl ^ArrayHandle dst-hdl stream]
   (let [stream (if stream
-                 (base/->tvm stream)
+                 (->tvm stream)
                  (runtime$TVMStreamHandle.))]
     (check-call (runtime/TVMArrayCopyFromTo
-                 ^runtime$DLTensor (base/->tvm src-hdl)
-                 ^runtime$DLTensor (base/->tvm dst-hdl)
+                 ^runtime$DLTensor (->tvm src-hdl)
+                 ^runtime$DLTensor (->tvm dst-hdl)
                  ^runtime$TVMStreamHandle stream))))
 
 (def device-attribute-map
@@ -776,7 +832,7 @@ explicitly; it is done for you."
   ^StreamHandle [^long device-type ^long device-id]
   (let [retval (runtime$TVMStreamHandle. )]
     (check-call (runtime/TVMStreamCreate device-type device-id retval))
-    (resource/track (base/->StreamHandle device-type device-id retval))))
+    (resource/track (->StreamHandle device-type device-id retval))))
 
 
 (defn sync-stream-with-host
@@ -792,4 +848,89 @@ explicitly; it is done for you."
 
 (defn set-current-thread-stream
   [^long device-type ^long device-id ^StreamHandle stream]
-  (runtime/TVMSetStream device-type device-id (base/->tvm stream)))
+  (runtime/TVMSetStream device-type device-id (->tvm stream)))
+
+(defn datatype->dl-type-code
+  ^long [datatype]
+  (condp = datatype
+    :uint8 runtime/kDLUInt
+    :uint16 runtime/kDLUInt
+    :uint32 runtime/kDLUInt
+    :uint64 runtime/kDLUInt
+    :int8 runtime/kDLInt
+    :int16 runtime/kDLInt
+    :int32 runtime/kDLInt
+    :int64 runtime/kDLInt
+    :float32 runtime/kDLFloat
+    :float64 runtime/kDLFloat))
+
+
+(defn datatype->dl-bits
+  ^long [datatype]
+  (* 8 (dtype/datatype->byte-size datatype)))
+
+
+(defn raw-create-tvm-ary
+  [^Pointer ptr device-type device-id datatype byte-offset
+   ^LongPointer shape-ptr & {:keys [strides-ptr]}]
+  (let [tens-data (runtime$DLTensor. 1)
+        n-dims (.capacity shape-ptr)
+        ctx (.ctx tens-data)
+        dtype (.dtype tens-data)
+        device-type (if (keyword? device-type)
+                      (device-type->device-type-int device-type)
+                      device-type)]
+    (.data tens-data ptr)
+    (.ndim tens-data n-dims)
+    (.byte_offset tens-data (long byte-offset))
+    (.device_type ctx (int device-type))
+    (.device_id ctx (int device-id))
+    (.code dtype (datatype->dl-type-code datatype))
+    (.bits dtype (datatype->dl-bits datatype))
+    (.lanes dtype 1)
+    (.shape tens-data shape-ptr)
+    (if strides-ptr
+      (.strides tens-data strides-ptr)
+      (.strides tens-data (LongPointer.)))
+    tens-data))
+
+
+(defn pointer->tvm-ary
+  "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
+  have a byte_offset member that you can use to make an array not start at the pointer's
+  base address."
+  ^ArrayHandle [ptr device-type device-id
+                datatype shape strides
+                byte-offset]
+  (let [^LongPointer shape-ptr (resource/track
+                                (jcpp-dtype/make-pointer-of-type
+                                 :int64 shape))
+        ^LongPointer strides-ptr (when strides
+                                   (resource/track
+                                    (jcpp-dtype/make-pointer-of-type
+                                     :int64 strides)))
+        datatype (or datatype (dtype/get-datatype ptr))
+        ;;Get the real pointer
+        ptr (jcpp-dtype/->ptr-backing-store ptr)]
+    (when-not ptr
+      (throw (ex-info "Failed to get pointer for buffer."
+                      {:original-ptr ptr})))
+    (resource/track
+     (merge (->ArrayHandle
+             (raw-create-tvm-ary ptr device-type device-id datatype
+                                 byte-offset shape-ptr
+                                 :strides-ptr strides-ptr))
+            {:shape shape
+             :datatype datatype
+             :owns-memory? false}))))
+
+
+(defn tvm-ary->pointer
+  ^Pointer [^ArrayHandle ten-ary ^long elem-count datatype]
+  (let [^runtime$DLTensor tensor (.tvm-jcpp-handle ten-ary)
+        tens-ptr (.data tensor)
+        ptr-dtype (unsigned/datatype->jvm-datatype datatype)
+        retval (jcpp-dtype/make-empty-pointer-of-type ptr-dtype)]
+    (.set ^Field jcpp-dtype/address-field retval (+ (.address tens-ptr)
+                                                    (.byte_offset tensor)))
+    (jcpp-dtype/set-pointer-limit-and-capacity retval elem-count)))

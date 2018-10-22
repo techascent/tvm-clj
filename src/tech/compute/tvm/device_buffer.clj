@@ -1,18 +1,20 @@
-(ns tvm-clj.compute.device-buffer
-  (:require [tvm-clj.core :as tvm-core]
-            [tvm-clj.base :as tvm-base]
-            [tvm-clj.compute.registry :as tvm-reg]
+(ns tech.compute.tvm.device-buffer
+  (:require [tvm-clj.tvm-bindings :as bindings]
             [tech.compute.driver :as drv]
+            [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.base :as dtype-base]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.datatype.java-primitive :as primitive]
             [tech.resource :as resource]
             [clojure.core.matrix.protocols :as mp]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.datatype.java-unsigned :as unsigned]
-            [tech.compute.tensor :as ct])
+            [tech.compute.tensor :as ct]
+            [tech.compute :as compute]
+            [tech.compute.tvm :as compute-tvm]
+            [tech.compute.tvm.driver :as tvm-driver])
   (:import [tvm_clj.tvm runtime$DLTensor runtime runtime$DLContext]
-           [tvm_clj.base ArrayHandle]
+           [tvm_clj.tvm_bindings ArrayHandle]
            [org.bytedeco.javacpp Pointer LongPointer]
            [java.lang.reflect Field]
            [tech.compute.tensor Tensor]))
@@ -23,10 +25,7 @@
 
 (defn is-cpu-device?
   [device]
-  (= runtime/kDLCPU (tvm-reg/device-type device)))
-
-
-(declare device-buffer->ptr)
+  (= :cpu (compute-tvm/device-type device)))
 
 
 (defn jcpp-pointer-alias?
@@ -55,10 +54,11 @@
 
 (defn check-cpu-array!
   [^ArrayHandle array]
-  (when-not (= runtime/kDLCPU (long (tvm-reg/device-type array)))
+  (when-not (is-cpu-device? array)
     (throw (ex-info "Illegal operation on a non-cpu array."
-                    {:device-type (tvm-reg/device-type-int->keyword
-                                   (long (tvm-reg/device-type array)))}))))
+                    {:device-type (-> array
+                                      (compute/->driver)
+                                      )}))))
 
 
 (extend-type ArrayHandle
@@ -103,7 +103,7 @@
 
   jcpp-dtype/PToPtr
   (->ptr-backing-store [item]
-    (tvm-base/tvm-ary->pointer item
+    (bindings/tvm-ary->pointer item
                                (dtype/ecount item)
                                (dtype/get-datatype item)))
 
@@ -123,20 +123,24 @@
 
 
   drv/PBuffer
-  (sub-buffer-impl [buffer offset length]
-    (let [^runtime$DLTensor tvm-tensor (tvm-base/->tvm buffer)
+  (sub-buffer [buffer offset length]
+    (let [^runtime$DLTensor tvm-tensor (bindings/->tvm buffer)
           base-ptr (.data tvm-tensor)
-          datatype (dtype/get-datatype buffer)]
-      (tvm-base/pointer->tvm-ary
+          datatype (dtype/get-datatype buffer)
+          byte-offset (.byte_offset tvm-tensor)]
+      (bindings/pointer->tvm-ary
        base-ptr
-       (long (tvm-reg/device-type buffer))
-       (long (tvm-reg/device-id buffer))
+       (long (bindings/device-type->device-type-int
+              (compute-tvm/device-type buffer)))
+       (long (compute-tvm/device-id buffer))
        datatype
        [length]
        nil
        ;;add the byte offset where the new pointer should start
-       (* (long offset) (long (dtype/datatype->byte-size
-                               datatype))))))
+       (+ byte-offset
+          (* (long offset)
+             (long (dtype/datatype->byte-size
+                    datatype)))))))
   (alias? [lhs rhs]
     (jcpp-pointer-alias? (jcpp-dtype/->ptr-backing-store lhs)
                          (jcpp-dtype/->ptr-backing-store rhs)))
@@ -144,79 +148,83 @@
     (jcpp-pointer-partial-alias? (jcpp-dtype/->ptr-backing-store lhs)
                                  (jcpp-dtype/->ptr-backing-store rhs)))
 
-  tvm-reg/PDeviceInfo
+  tvm-driver/PTVMDeviceId
   (device-id [buffer]
-    (let [^runtime$DLTensor tensor (tvm-base/->tvm buffer)
+    (let [^runtime$DLTensor tensor (bindings/->tvm buffer)
           ctx (.ctx tensor)]
       (.device_id ctx)))
 
-  tvm-reg/PDriverInfo
+  tvm-driver/PTVMDeviceType
   (device-type [buffer]
-    (let [^runtime$DLTensor tensor (tvm-base/->tvm buffer)
+    (let [^runtime$DLTensor tensor (bindings/->tvm buffer)
           ctx (.ctx tensor)]
-      (.device_type ctx)))
+      (bindings/device-type-int->device-type
+       (.device_type ctx))))
+
+  tvm-driver/PTVMBuffer
+  (has-byte-offset? [buffer]
+    (let [^runtime$DLTensor backing-store (bindings/->tvm buffer)]
+      (not= 0 (.byte_offset backing-store))))
 
   drv/PDeviceProvider
   (get-device [buffer]
-    (tvm-reg/get-device (tvm-reg/device-type buffer)
-                        (tvm-reg/device-id buffer)))
+    (-> (compute/->driver buffer)
+        (compute-tvm/device-id->device
+         (tvm-driver/device-id buffer))))
 
   drv/PDriverProvider
   (get-driver [buffer]
-    (tvm-reg/get-driver (tvm-reg/device-type buffer))))
+    (-> (tvm-driver/device-type buffer)
+        compute-tvm/driver)))
 
 
 (defn make-device-buffer-of-type
   [device datatype elem-count]
-  (tvm-core/allocate-device-array [elem-count] datatype
-                                  (tvm-reg/device-type device)
-                                  (tvm-reg/device-id device)))
+  (bindings/allocate-device-array [elem-count] datatype
+                                  (compute-tvm/device-type device)
+                                  (compute-tvm/device-id device)))
 
 
-(defn make-cpu-device-buffer
-  "Make a cpu device buffer.  These are used as host buffers for all devices
-and device buffers for the cpu device."
-  [datatype elem-count]
-  (when-not (resolve 'tvm-clj.compute.cpu/driver)
-    (require 'tvm-clj.compute.cpu))
-  (make-device-buffer-of-type (tvm-reg/get-device runtime/kDLCPU 0)
-                              datatype
-                              elem-count))
 
-
-(defn device-buffer->dl-tensor
-  ^runtime$DLTensor [^ArrayHandle buf]
-  (tvm-base/->tvm buf))
-
-
-(defn has-byte-offset?
-  [tensor]
-  (let [buf-data (ct/tensor->buffer tensor)
-        ^runtime$DLTensor backing-store (tvm-base/->tvm buf-data)]
-    (not= 0 (.byte_offset backing-store))))
+(defn copy-device->device
+  [src-buffer src-offset dst-buffer dst-offset elem-count stream]
+  (let [elem-count (long elem-count)
+        src-buffer (if-not (and (= 0 (long src-offset))
+                                (= elem-count (dtype/ecount src-buffer)))
+                     (drv/sub-buffer src-buffer src-offset elem-count)
+                     src-buffer)
+        dst-buffer (if-not (and (= 0 (long dst-offset))
+                                (= elem-count (dtype/ecount dst-buffer)))
+                     (drv/sub-buffer dst-buffer dst-offset elem-count)
+                     dst-buffer)]
+    (bindings/copy-array-to-array! src-buffer dst-buffer stream)))
 
 
 (extend-type Tensor
-  tvm-base/PToTVM
+  bindings/PToTVM
   (->tvm [item]
     ;;This is a specialized conversion because the tensor's dimension change independent
     ;;of the buffer.  Thus any time we want to use a tensor in tvm we have to create
     ;;an alias of the base buffer but with variables set describing the current
     ;;dimensions.
-    (let [^runtime$DLTensor src-dl-tensor (tvm-base/->tvm (ct/tensor->buffer item))
+    (let [^runtime$DLTensor src-dl-tensor (bindings/->tvm (ct/tensor->buffer item))
           ^runtime$DLContext ctx (.ctx src-dl-tensor)
           dims (ct/tensor->dimensions item)
           stride-data (when-not (ct/dense? item)
                         (:strides dims))]
 
-      (tvm-base/pointer->tvm-ary (.data src-dl-tensor)
+      (bindings/pointer->tvm-ary (.data src-dl-tensor)
                                  (.device_type ctx)
                                  (.device_id ctx)
                                  (ct/get-datatype item)
                                  (:shape dims)
                                  stride-data
                                  (.byte_offset src-dl-tensor))))
-  tvm-base/PJVMTypeToTVMValue
+  bindings/PJVMTypeToTVMValue
   (->tvm-value [item]
-    (-> (tvm-base/->tvm item)
-        tvm-base/->tvm-value)))
+    (-> (bindings/->tvm item)
+        bindings/->tvm-value))
+
+  tvm-driver/PTVMBuffer
+  (has-byte-offset? [tensor]
+    (tvm-driver/has-byte-offset? (ct/tensor->buffer tensor))))

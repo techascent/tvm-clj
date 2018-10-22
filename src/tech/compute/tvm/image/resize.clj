@@ -1,14 +1,14 @@
-(ns tvm-clj.image.resize
+(ns tech.compute.tvm.image.resize
   (:require [tech.compute.tensor :as ct]
             [tech.compute.driver :as drv]
-            [tvm-clj.compute.cpu]
-            [tvm-clj.compute.tensor-math]
+            [tech.compute.tvm.cpu]
+            [tech.compute.tvm.tensor-math]
             [clojure.core.matrix :as m]
             [tech.datatype.base :as dtype]
             [tvm-clj.api :as api]
-            [tvm-clj.core :as c]
-            [tvm-clj.compute.registry :as registry]
-            [tech.compute.verify.tensor :as verify-tensor]))
+            [tech.compute.verify.tensor :as verify-tensor]
+            ;;Add in syntactic sugar
+            [tvm-clj.api-sugar :refer :all]))
 
 
 ;;uint8 input/output tensors.
@@ -31,17 +31,16 @@
 
 (defn- clamp
   [value val_min val_max]
-  (-> (api/min value val_max)
-      (api/max val_min)))
+  (-> (min value val_max)
+      (max val_min)))
 
 
 (defn- read-clamped-f32
   [img in-height in-width y x c]
-  (api/static-cast :float32
-                   (api/tget img
-                             [(clamp y 0 (api/sub in-height 1))
-                              (clamp x 0 (api/sub in-width 1))
-                              c])))
+  (-> (img [(clamp y 0 (- in-height 1))
+            (clamp x 0 (- in-width 1))
+            c])
+      (cast :float32)))
 
 
 (defn- area-filter-pixel-size
@@ -71,107 +70,98 @@
 
 (defn- pixel-mul
   [start-pix start item-range item-idx]
-  (api/select (api/eq (api/const 0 :dtype :int32)
-                      item-idx)
-              (clamp (api/sub (api/add (float 1) start-pix)
-                              start)
-                     (float 0.0)
-                     (float 1.0))
-              (clamp (api/sub (api/add start item-range)
-                              start-pix)
-                     (float 0.0)
-                     (float 1.0))))
+  (tif (= (int 0) item-idx)
+       (clamp (- (+ (float 1) start-pix)
+                 start)
+              (float 0.0)
+              (float 1.0))
+       (clamp (- (+ start item-range)
+                 start-pix)
+              (float 0.0)
+              (float 1.0))))
 
 
 (defn create-kernel-op
   [out-cols k-size ratio k-name]
-  (api/compute
+  (compute
    [out-cols k-size]
-   (api/tvm-fn
+   (lambda
     [out-col-idx k-idx]
-    (api/tvm-let
-     [start (api/mul ratio out-col-idx)
-      start-pix (api/floor (api/add start k-idx))]
-     (api/div (pixel-mul start-pix start ratio k-idx)
-              ratio)))
+    (tlet
+     [start (* ratio out-col-idx)
+      start-pix (floor (+ start k-idx))]
+     (/ (pixel-mul start-pix start ratio k-idx)
+        ratio)))
    k-name))
 
 
 (defn final-cast-fn
   [img-dtype input fn-name]
   (let [[in-rows in-cols in-chan] (:shape input)]
-    (api/compute
+    (compute
      [in-rows in-cols in-chan]
-     (api/tvm-fn
+     (lambda
       [y x c]
-      (api/static-cast
-       img-dtype
-       (api/add
-        (api/tget input [y x c])
-        (float 0.5))))
+      (-> (input [y x c])
+          (+ (float 0.5))
+          (cast img-dtype)))
      fn-name)))
 
 
 (defn input-coord
   [dest-coord ratio kernel-idx]
-  (->> (api/mul dest-coord ratio)
-       (api/static-cast :int32)
-       (api/add kernel-idx)))
+  (-> (* dest-coord ratio)
+      (cast :int32)
+      (+ kernel-idx)))
 
 
 (defn area-reduction-fn
   "Instead of computing the kernels inline we abstract them into vectors"
   [img-dtype]
-  (let [in-width (api/variable "in_width")
-        in-height (api/variable "in_height")
-        out-width (api/variable "out_width")
-        out-height (api/variable "out_height")
-        n-chans (api/variable "n_channels")
-        x-ratio (api/variable "x_ratio" :dtype :float32)
-        y-ratio (api/variable "y_ratio" :dtype :float32)
-        k-width (api/variable "k_width")
-        k-height (api/variable "k_height")
-        kern-x-op (create-kernel-op out-width k-width x-ratio "kernel-x-op")
-        kern-y-op (create-kernel-op out-height k-height y-ratio "kernel-y-op")
-        kern-x-vec (first (api/output-tensors kern-x-op))
-        kern-y-vec (first (api/output-tensors kern-y-op))
-        kern_x_axis (api/iteration-variable [0 k-width] "red_x" :communicative-reduce)
-        kern_y_axis (api/iteration-variable [0 k-height] "red_y" :communicative-reduce)
-        input (api/placeholder [in-height in-width n-chans] "input" :dtype img-dtype)
-        intermediate-op (api/compute
-                         [out-height out-width n-chans]
-                         (api/tvm-fn
-                          [y x c]
-                          (api/commutative-reduce
-                           (api/tvm-fn
-                            [lhs rhs]
-                            (api/add lhs rhs))
-                           (api/const 0 :dtype :float32)
-                           :float32
-                           [(api/mul
-                             (read-clamped-f32
-                              input in-height in-width
-                              (input-coord y y-ratio kern_y_axis)
-                              (input-coord x x-ratio kern_x_axis)
-                              c)
-                             (api/mul
-                              (api/tget kern-x-vec [x kern_x_axis])
-                              (api/tget kern-y-vec [y kern_y_axis])))]
-                           [kern_y_axis kern_x_axis]))
-                         "area_reduction")
-        intermediate-output (first (api/output-tensors intermediate-op))
-        compute-op (final-cast-fn img-dtype intermediate-output "area_cast")
-        output (first (api/output-tensors compute-op))]
+  (let [in-width (tvar "in_width")
+        in-height (tvar "in_height")
+        out-width (tvar "out_width")
+        out-height (tvar "out_height")
+        n-chans (tvar "n_channels")
+        x-ratio (tvar "x_ratio" :dtype :float32)
+        y-ratio (tvar "y_ratio" :dtype :float32)
+        k-width (tvar "k_width")
+        k-height (tvar "k_height")
+        kern-x-vec (create-kernel-op out-width k-width x-ratio "kernel-x-op")
+        kern-y-vec (create-kernel-op out-height k-height y-ratio "kernel-y-op")
+        kern-x-axis (api/iteration-variable [0 k-width] "red_x" :communicative-reduce)
+        kern-y-axis (api/iteration-variable [0 k-height] "red_y" :communicative-reduce)
+        input (placeholder [in-height in-width n-chans] "input" :dtype img-dtype)
+        intermediate-output (compute
+                             [out-height out-width n-chans]
+                             (lambda
+                              [y x c]
+                              (api/commutative-reduce
+                               (lambda
+                                [lhs rhs]
+                                (+ lhs rhs))
+                               (float 0)
+                               :float32
+                               [(* (read-clamped-f32
+                                    input in-height in-width
+                                    (input-coord y y-ratio kern-y-axis)
+                                    (input-coord x x-ratio kern-x-axis)
+                                    c)
+                                   (* (kern-x-vec [x kern-x-axis])
+                                      (kern-y-vec [y kern-y-axis])))]
+                               [kern-y-axis kern-x-axis]))
+                             "area_reduction")
+        output (final-cast-fn img-dtype intermediate-output "area_cast")]
     {:input input
      :output output
      :kern-width k-width
      :kern-height k-height
      :x-ratio x-ratio
      :y-ratio y-ratio
-     :reduce-op intermediate-op
-     :final-op compute-op
-     :kern-x-op kern-x-op
-     :kern-y-op kern-y-op}))
+     :reduce-op (:op intermediate-output)
+     :final-op (:op output)
+     :kern-x-op (:op kern-x-vec)
+     :kern-y-op (:op kern-y-vec)}))
 
 
 (defn schedule-area-reduction
@@ -198,11 +188,10 @@
                  kern-height y-ratio]
         fn-name "area_reduce"
         schedule (api/create-schedule [final-op])
-        stage-map (get schedule :stage_map)
-        kern-x-stage (get stage-map kern-x-op)
-        kern-y-stage (get stage-map kern-y-op)
-        reduce-stage (get stage-map reduce-op)
-        final-op-stage (get stage-map final-op)
+        kern-x-stage (schedule kern-x-op)
+        kern-y-stage (schedule kern-y-op)
+        reduce-stage (schedule reduce-op)
+        final-op-stage (schedule final-op)
         intermediate-axis (:axis reduce-op)
         [int-y-axis int-x-axis int-channels] intermediate-axis
         reduce-result (first (api/output-tensors reduce-op))]
@@ -213,7 +202,7 @@
                                                               final-x
                                                               16, 16)]
         (api/stage-compute-at reduce-stage final-op-stage final-chan)
-        (api/stage-compute-at kern-x-stage final-op-stage x-inner)
+        (api/stage-compute-at (schedule kern-x-op) final-op-stage x-inner)
         (api/stage-compute-at kern-y-stage final-op-stage y-inner)
         (api/stage-parallel final-op-stage y-inner))
 
@@ -295,13 +284,13 @@
 (defn bilinear-filter-fn
   "Classic bilinear reduction"
   [img-dtype]
-  (let [in-width (api/variable "in_width")
-        in-height (api/variable "in_height")
-        out-width (api/variable "out_width")
-        out-height (api/variable "out_height")
-        n-chans (api/variable "n_channels")
-        x-ratio (api/variable "x_ratio" :dtype :float32)
-        y-ratio (api/variable "y_ratio" :dtype :float32)
+  (let [in-width (tvar "in_width")
+        in-height (tvar "in_height")
+        out-width (tvar "out_width")
+        out-height (tvar "out_height")
+        n-chans (tvar "n_channels")
+        x-ratio (tvar "x_ratio" :dtype :float32)
+        y-ratio (tvar "y_ratio" :dtype :float32)
         k-width (api/const (int 2))
         k-height (api/const (int 2))
         kern-x-op (create-filter-kernel-op out-width x-ratio "kernel-x-op")
@@ -333,14 +322,13 @@
                            [kern_y_axis kern_x_axis]))
                          "bilinear_filter")
         intermediate-output (first (api/output-tensors intermediate-op))
-        compute-op (final-cast-fn img-dtype intermediate-output "bilinear_cast")
-        output (first (api/output-tensors compute-op))]
+        output (final-cast-fn img-dtype intermediate-output "bilinear_cast")]
     {:input input
      :output output
      :x-ratio x-ratio
      :y-ratio y-ratio
      :reduce-op intermediate-op
-     :final-op compute-op
+     :final-op (:op output)
      :kern-x-op kern-x-op
      :kern-y-op kern-y-op}))
 
@@ -366,10 +354,10 @@
         fn-name :bilinear-filter
         schedule (api/create-schedule [final-op])
         stage-map (get schedule :stage_map)
-        kern-x-stage (get stage-map kern-x-op)
-        kern-y-stage (get stage-map kern-y-op)
-        reduce-stage (get stage-map reduce-op)
-        final-op-stage (get stage-map final-op)
+        kern-x-stage (schedule kern-x-op)
+        kern-y-stage (schedule kern-y-op)
+        reduce-stage (schedule reduce-op)
+        final-op-stage (schedule final-op)
         intermediate-axis (:axis reduce-op)
         [int-y-axis int-x-axis int-channels] intermediate-axis
         reduce-result (first (api/output-tensors reduce-op))]
