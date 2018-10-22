@@ -73,7 +73,7 @@ produce bgr_types_op {
 
 Compiled (opencl) tensor took: "Elapsed time: 4.641527 msecs"
 ```
-[source](test/tech/compute/tvm/compile_fn_test.clj)
+[source](test/tech/compute/tvm/compile_test.clj)
 
 
 ### Image Scaling (TVM vs OpenCV)
