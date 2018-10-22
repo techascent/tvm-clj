@@ -1,7 +1,7 @@
 (ns tech.compute.tvm.cpu-test
   (:require [clojure.test :refer :all]
             [clojure.core.matrix :as m]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.resource :as resource]
             [tech.compute :as compute]
             [tech.compute.tvm :as tvm]

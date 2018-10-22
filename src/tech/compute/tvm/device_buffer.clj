@@ -3,7 +3,7 @@
             [tech.compute.driver :as drv]
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.base :as dtype-base]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.datatype.java-primitive :as primitive]
             [tech.resource :as resource]
             [clojure.core.matrix.protocols :as mp]
@@ -126,7 +126,8 @@
   (sub-buffer [buffer offset length]
     (let [^runtime$DLTensor tvm-tensor (bindings/->tvm buffer)
           base-ptr (.data tvm-tensor)
-          datatype (dtype/get-datatype buffer)]
+          datatype (dtype/get-datatype buffer)
+          byte-offset (.byte_offset tvm-tensor)]
       (bindings/pointer->tvm-ary
        base-ptr
        (long (bindings/device-type->device-type-int
@@ -136,8 +137,10 @@
        [length]
        nil
        ;;add the byte offset where the new pointer should start
-       (* (long offset) (long (dtype/datatype->byte-size
-                               datatype))))))
+       (+ byte-offset
+          (* (long offset)
+             (long (dtype/datatype->byte-size
+                    datatype)))))))
   (alias? [lhs rhs]
     (jcpp-pointer-alias? (jcpp-dtype/->ptr-backing-store lhs)
                          (jcpp-dtype/->ptr-backing-store rhs)))
@@ -185,7 +188,6 @@
 
 (defn copy-device->device
   [src-buffer src-offset dst-buffer dst-offset elem-count stream]
-
   (let [elem-count (long elem-count)
         src-buffer (if-not (and (= 0 (long src-offset))
                                 (= elem-count (dtype/ecount src-buffer)))

@@ -3,7 +3,7 @@
             [tvm-clj.api :as api]
             [tvm-clj.tvm-bindings :as tvm-bindings]
             [tech.resource :as resource]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.datatype.javacpp :as jcpp-dtype]
             [clojure.core.matrix :as m]))
 

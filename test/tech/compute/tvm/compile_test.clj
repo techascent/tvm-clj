@@ -1,7 +1,7 @@
 (ns tech.compute.tvm.compile-test
   (:require [clojure.test :refer :all]
             [tech.resource :as resource]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.compute.tensor :as ct]
             [tech.compute.tensor.dimensions :as ct-dims]
             [clojure.core.matrix.macros :refer [c-for]]
@@ -13,7 +13,8 @@
             [tech.compute.tvm.tensor-math :as tvm-tm]
             [tech.opencv :as opencv]
             [tech.datatype.java-primitive :as primitive]
-            [tech.compute :as compute])
+            [tech.compute :as compute]
+            [tech.compute.tensor.defaults :as ct-defaults])
   (:import [java.nio ByteBuffer FloatBuffer]))
 
 (set! *warn-on-reflection* true)
@@ -122,45 +123,43 @@
 (defn tvm-image-test
   [dev-type]
   (resource/with-resource-context
-    (ct/with-stream (compute/default-stream
-                     (tvm/device dev-type))
-      (ct/with-datatype
-        :float32
-        (let [mat (opencv/load "test/data/jen.jpg")
-              ;;It would also be possible to do a zero-copy conversion using the
-              ;; opencl matrix ptr.
-              ;;Note that tvm supports unsigned datatypes.
-              nocopy-tensor (tvm/as-cpu-tensor mat)
-              ;;If as-tensor fails then we go through the whole upload process.
-              img-tensor (if (= dev-type :cpu)
-                           nocopy-tensor
-                           ;;Example fast path.  Devices can specify if they can copy
-                           ;;to another device via device->device copy.  CPU tensors
-                           ;;in TVM can be the source or destination of simple copy
-                           ;;operations (a copy that boils down to a memcpy).  Note that
-                           ;;certain select operations result in dense tensors while
-                           ;;others do not.
-                           (ct/clone nocopy-tensor))
-              result-tensor (ct/new-tensor
-                             (concat [3]
-                                     (take 2 (mp/get-shape mat)))
-                             :datatype :float32
-                             :init-value nil)
-              tvm-convert-fn (bgr-bytes-custom-tvm (compute/->driver
-                                                    ct/*stream*))
-              _ (tvm-convert-fn img-tensor result-tensor)
-              time-str (with-out-str
-                         (time
-                          (do
-                            (tvm-convert-fn img-tensor result-tensor)
-                            (compute/sync-with-host ct/*stream*))))]
-          {:result (vec (tensor-take 10 result-tensor))
-           :correct (->> (tensor-take 30 img-tensor)
-                         (partition 3)
-                         (map last)
-                         (map #(/ (double %) 255.0))
-                         (mapv #(- (double %) 0.5)))
-           :time time-str})))))
+    (ct-defaults/tensor-driver-context
+     (tvm/driver dev-type)
+     :float32
+      (let [mat (opencv/load "test/data/jen.jpg")
+            ;;It would also be possible to do a zero-copy conversion using the
+            ;; opencl matrix ptr.
+            ;;Note that tvm supports unsigned datatypes.
+            nocopy-tensor (tvm/as-cpu-tensor mat)
+            ;;If as-tensor fails then we go through the whole upload process.
+            img-tensor (if (= dev-type :cpu)
+                         nocopy-tensor
+                         ;;Example fast path.  Devices can specify if they can copy
+                         ;;to another device via device->device copy.  CPU tensors
+                         ;;in TVM can be the source or destination of simple copy
+                         ;;operations (a copy that boils down to a memcpy).  Note that
+                         ;;certain select operations result in dense tensors while
+                         ;;others do not.
+                         (ct/clone nocopy-tensor))
+            result-tensor (ct/new-tensor
+                           (concat [3]
+                                   (take 2 (mp/get-shape mat)))
+                           :datatype :float32
+                           :init-value nil)
+            tvm-convert-fn (bgr-bytes-custom-tvm (tvm/driver dev-type))
+            _ (tvm-convert-fn img-tensor result-tensor)
+            time-str (with-out-str
+                       (time
+                        (do
+                          (tvm-convert-fn img-tensor result-tensor)
+                          (compute/sync-with-host (ct-defaults/infer-stream {})))))]
+        {:result (vec (tensor-take 10 result-tensor))
+         :correct (->> (tensor-take 30 img-tensor)
+                       (partition 3)
+                       (map last)
+                       (map #(/ (double %) 255.0))
+                       (mapv #(- (double %) 0.5)))
+         :time time-str}))))
 
 
 (defn- is-correct

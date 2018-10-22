@@ -4,7 +4,7 @@
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.datatype.base :as dtype-base]
             [tech.datatype.java-unsigned :as unsigned]
             [potemkin :as p]

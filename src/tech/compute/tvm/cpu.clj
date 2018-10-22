@@ -7,7 +7,7 @@
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.cpu.driver :as cpu-driver]
             [tech.resource :as resource]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.compute.tvm :as tvm]
             [tech.compute.registry :as registry]
             [tech.compute :as compute]))

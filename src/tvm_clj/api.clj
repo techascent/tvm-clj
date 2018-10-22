@@ -1,7 +1,7 @@
 (ns tvm-clj.api
   "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.tvm-bindings :as bindings]
-            [tech.datatype.core :as dtype]
+            [tech.datatype :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])

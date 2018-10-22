@@ -3,7 +3,7 @@
 tvm bindings.  This file is purely syntax sugar."
   (:require [tvm-clj.api :as api]
             [tvm-clj.tvm-bindings :as bindings]
-            [tech.datatype.core :as dtype]))
+            [tech.datatype :as dtype]))
 
 (set! *warn-on-reflection* true)
 

@@ -8,6 +8,7 @@
             [tech.compute.tvm.compile-test :as compile-test]
             [clojure.core.matrix :as m]
             [tech.compute.tensor :as ct]
+            [tech.compute.tensor.defaults :as ct-defaults]
             [tech.datatype.base :as dtype]
             [tech.resource :as resource]
             [tech.opencv :as opencv]
@@ -21,7 +22,7 @@
         out-img (opencv/new-mat height width 3 :dtype :uint8)
         out-img-tens (tvm/as-cpu-tensor out-img)]
     (ct/assign! out-img-tens result-tens)
-    (compute/sync-with-host ct/*stream*)
+    (compute/sync-with-host (ct-defaults/infer-stream {}))
     out-img))
 
 (defn median
@@ -65,7 +66,7 @@
          ds-time (simple-time
                    (resize/area-reduction! img-tensor result
                                            downsample-fn)
-                   (compute/sync-with-host ct/*stream*))
+                   (compute/sync-with-host (ct-defaults/infer-stream {})))
          opencv-res (result-tensor->opencv result)
          reference (opencv/new-mat new-height new-width 3 :dtype :uint8)
          ref-time (simple-time
@@ -76,7 +77,7 @@
          _ (resize/bilinear-filter! img-tensor result filter-fn)
          classic-time (simple-time
                         (resize/bilinear-filter! img-tensor result filter-fn)
-                        (compute/sync-with-host ct/*stream*))
+                        (compute/sync-with-host (ct-defaults/infer-stream {})))
          class-res (result-tensor->opencv result)
          opencv-area (opencv/new-mat new-height new-width 3 :dtype :uint8)
          area-time (simple-time
