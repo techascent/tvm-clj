@@ -73,7 +73,7 @@ produce bgr_types_op {
 
 Compiled (opencl) tensor took: "Elapsed time: 4.641527 msecs"
 ```
-[source](test/tvm_clj/compute/compile_fn_test.clj)
+[source](test/tech/compute/tvm/compile_fn_test.clj)
 
 
 ### Image Scaling (TVM vs OpenCV)
@@ -117,7 +117,7 @@ tvm-area: ![tvm-results](docs/images/test.jpg)
 opencv-bilinear: ![opencv-results](docs/images/ref.jpg)
 
 
-* [tvm-clj source](src/tvm_clj/image/resize.clj)
+* [tvm-clj source](src/tech/compute/tvm/image/resize.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
 
 
