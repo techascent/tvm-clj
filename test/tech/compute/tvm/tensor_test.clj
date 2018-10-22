@@ -41,8 +41,8 @@
   (vt/channel-op (tvm/driver :cpu) *datatype*))
 
 
-;; (def-double-float-test gemm
-;;   (vt/gemm (tvm/driver :cpu) *datatype*))
+(deftest gemm
+  (vt/gemm (tvm/driver :cpu) :float32))
 
 
 ;; (def-double-float-test gemv

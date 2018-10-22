@@ -13,7 +13,8 @@
             [clojure.core.matrix :as m]
             [tech.compute.tvm :as tvm]
             [tech.compute :as compute]
-            [tech.datatype.javacpp :as jcpp-dtype])
+            [tech.datatype.javacpp :as jcpp-dtype]
+            [tech.compute.cpu.driver :as cpu-driver])
   (:import [tech.compute.tvm.cpu CPUStream]
            [tech.compute.tvm.gpu GPUStream]
            [java.util UUID]))
@@ -291,12 +292,13 @@ lhs = rhs"
 
 
 (defmacro cpu-stream-fallback
-  [fn-name stream & args]
-  `(if (can-generate-code? ~@args)
-     (do
-       (~fn-name ~stream ~@args))
-     (do
-       (~(symbol "tm" (str fn-name)) (:stream ~stream) ~@args))))
+  [fn-name stream-item & args]
+  `(let [cpu-stream# (:stream ~stream-item)]
+     (if (can-generate-code? ~@args)
+       (cpu-driver/with-stream-dispatch
+         cpu-stream#
+         (~fn-name ~stream-item ~@args))
+       (~(symbol "tm" (str fn-name)) cpu-stream# ~@args))))
 
 
 (defmacro cpu-fallback-impl
@@ -306,7 +308,6 @@ lhs = rhs"
 
 (extend-protocol tm/TensorMath
   CPUStream
-
   (assign-constant! [stream tensor value]
     (cpu-stream-fallback assign-constant! stream tensor value))
   (assign! [stream lhs rhs]
@@ -355,15 +356,12 @@ lhs = rhs"
           a-buf a-row-count a-col-count a-colstride
           b-buf b-col-count b-colstride
           beta]
-    (throw (ex-info "Unimplemented" {})))
-
-  (gemv! [stream
-          c-buf inc-c
-          trans-a? alpha
-          A-buf a-row-count a-col-count a-colstride
-          x-buf inc-x
-          beta]
-    (throw (ex-info "Unimplemented" {})))
+    (when-not-error (= 1.0 (double alpha))
+      "tvm blas only supports alpha of 1.0" {:alpha alpha})
+    (when-not-error (= 0.0 (double beta))
+      "tvm blas only supports 0 beta" {:beta beta})
+    (tvm/call-function stream #(bindings/global-function "tvm.contrib.cblas.matmul"
+                                                         a-buf b-buf c-buf trans-a? trans-b?)))
 
   (rand! [stream dest distribution]
     (cpu-fallback-impl tm/rand! stream dest distribution))
