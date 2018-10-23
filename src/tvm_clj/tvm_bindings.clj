@@ -185,6 +185,7 @@
         (runtime/TVMArrayFree jcpp-data))))
   StreamHandle
   (release-resource [stream]
+    (throw (ex-info "FUCKING!!" {}))
     (runtime/TVMStreamFree (.device stream) (.dev-id stream) (.tvm-hdl stream))))
 
 

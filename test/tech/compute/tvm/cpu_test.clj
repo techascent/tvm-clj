@@ -13,6 +13,7 @@
   [device-type]
   (resource/with-resource-context
     (let [device (tvm/device device-type)
+          stream (compute/default-stream device)
           add-fn (api-test/create-myadd-fn device-type)
           test-data (range 10)
           driver (compute/->driver device)
@@ -20,8 +21,7 @@
           dev-buf-a (compute/allocate-device-buffer device 10 :float32)
           dev-buf-b (compute/allocate-device-buffer device 10 :float32)
           dev-buf-c (compute/allocate-device-buffer device 10 :float32)
-          result (int-array 10)
-          stream (compute/default-stream device)]
+          result (int-array 10)]
       (dtype/copy-raw->item! test-data host-buf 0 {})
       (compute/copy-host->device host-buf 0 dev-buf-a 0 10)
       (compute/copy-host->device host-buf 0 dev-buf-b 0 10)

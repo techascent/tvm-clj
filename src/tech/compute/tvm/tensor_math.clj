@@ -368,6 +368,24 @@ lhs = rhs"
     (cpu-fallback-impl tm/rand! stream dest distribution))
 
   GPUStream
+  (gemm! [stream
+          c-buf c-colstride
+          trans-a? trans-b? alpha
+          a-buf a-row-count a-col-count a-colstride
+          b-buf b-col-count b-colstride
+          beta]
+    (let [device-type (tvm/device-type (compute/->device stream))]
+      (cond
+        (= :cuda device-type)
+        (tvm/call-function stream
+                           #(bindings/global-function
+                             "tvm.contrib.cublas.matmul"
+                             a-buf b-buf c-buf trans-a? trans-b?
+                             alpha beta))
+        :else
+        (throw (ex-info "gemm not implemented for this device type"
+                        {:device-type device-type})))))
+
   (assign-constant! [stream tensor value]
     (ensure-code-generation tensor)
     (assign-constant! stream tensor value))

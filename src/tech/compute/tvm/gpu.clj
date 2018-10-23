@@ -128,9 +128,9 @@
            (catch Throwable e
              (bindings/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
         supports-create? (boolean default-stream)
-        device (->GPUDevice driver dev-id supports-create? (atom nil)
-                            (resource/make-resource #(resource/release-resource-seq
-                                                      resource-seq)))]
+        device (->GPUDevice driver dev-id supports-create?
+                            (atom nil) (resource/->Releaser #(resource/release-resource-seq
+                                                              resource-seq)))]
     (swap! (:default-stream device) (constantly (->GPUStream device default-stream)))
     device))
 

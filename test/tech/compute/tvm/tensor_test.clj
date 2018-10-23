@@ -62,7 +62,7 @@
 
 
 (def-all-dtype-test select
-  (vt/select (tvm/driver :cpu) :float32))
+  (vt/select (tvm/driver :cpu) *datatype*))
 
 
 (def-all-dtype-test select-with-persistent-vectors
