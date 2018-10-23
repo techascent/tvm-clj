@@ -344,8 +344,11 @@ lhs = rhs"
     (cpu-fallback-impl tm/ternary-op-constant! stream dest a a-alpha b b-alpha
                        constant operation arg-order))
 
-  (ternary-op-constant-constant! [stream dest a a-alpha const-1 const-2 operation arg-order]
-    (cpu-fallback-impl tm/ternary-op-constant-constant! stream dest a a-alpha const-1 const-2 operation arg-order))
+  (ternary-op-constant-constant! [stream dest a a-alpha
+                                  const-1 const-2 operation
+                                  arg-order]
+    (cpu-fallback-impl tm/ternary-op-constant-constant! stream dest a a-alpha
+                       const-1 const-2 operation arg-order))
 
   (unary-reduce! [stream output input-alpha input op]
     (cpu-fallback-impl tm/unary-reduce! stream output input-alpha input op))
@@ -356,12 +359,10 @@ lhs = rhs"
           a-buf a-row-count a-col-count a-colstride
           b-buf b-col-count b-colstride
           beta]
-    (when-not-error (= 1.0 (double alpha))
-      "tvm blas only supports alpha of 1.0" {:alpha alpha})
-    (when-not-error (= 0.0 (double beta))
-      "tvm blas only supports 0 beta" {:beta beta})
-    (tvm/call-function stream #(bindings/global-function "tvm.contrib.cblas.matmul"
-                                                         a-buf b-buf c-buf trans-a? trans-b?)))
+    (tvm/call-function stream #(bindings/global-function
+                                "tvm.contrib.cblas.matmul"
+                                a-buf b-buf c-buf trans-a? trans-b?
+                                alpha beta)))
 
   (rand! [stream dest distribution]
     (cpu-fallback-impl tm/rand! stream dest distribution))

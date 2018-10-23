@@ -17,7 +17,7 @@
                                     "-Xcompiler"
                                     (str "-I" (System/getProperty "user.dir") "/tvm/include/tvm")
                                     "-Xcompiler"
-                                    (str "-I" (System/getProperty "user.dir") "/tvm/dlpack/include")
+                                    (str "-I" (System/getProperty "user.dir") "/tvm/3rdparty/dlpack/include")
                                     "-Xcompiler"
                                     "-std=c++11"
                                     "-Xcompiler"
