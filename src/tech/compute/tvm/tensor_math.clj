@@ -281,7 +281,8 @@ lhs = rhs"
         result-shape (ct/shape dest-tensor)]
     ;;We can broadcast into a result but that is it.
     (and (= max-shape result-shape)
-         (every? ct-dims/access-increasing? all-dims))))
+         ;;Iteration through each dimension is monotonically increasing
+         (every? #(every? number? (:shape %)) all-dims))))
 
 
 (defn- ensure-code-generation

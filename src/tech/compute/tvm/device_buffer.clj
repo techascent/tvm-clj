@@ -10,6 +10,7 @@
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.datatype.java-unsigned :as unsigned]
             [tech.compute.tensor :as ct]
+            [tech.compute.tensor.dimensions :as ct-dims]
             [tech.compute :as compute]
             [tech.compute.tvm :as compute-tvm]
             [tech.compute.tvm.driver :as tvm-driver])
@@ -210,9 +211,10 @@
     (let [^runtime$DLTensor src-dl-tensor (bindings/->tvm (ct/tensor->buffer item))
           ^runtime$DLContext ctx (.ctx src-dl-tensor)
           dims (ct/tensor->dimensions item)
-          stride-data (when-not (ct/dense? item)
+          stride-data (when-not (and (ct/dense? item)
+                                     (ct-dims/access-increasing?
+                                      (ct/tensor->dimensions item)))
                         (:strides dims))]
-
       (bindings/pointer->tvm-ary (.data src-dl-tensor)
                                  (.device_type ctx)
                                  (.device_id ctx)
