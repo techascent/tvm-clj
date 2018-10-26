@@ -157,7 +157,7 @@ make -j8
 popd
 popd
 
-scripts/build-jni.sh
+lein clean && lein jni build-jni-java && lein jni build-and-install-jni
 ```
 
 

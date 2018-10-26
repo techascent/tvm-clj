@@ -14,6 +14,10 @@
 
   :java-source-paths ["java"]
   :native-path "java/native/"
+  :tvm-clj-runtime-path "java/tvm_clj/tvm/runtime.java"
+  :jni-path "java/native"
+  :clean-targets
+  ^{:protect false} [:target-path :compile-path :jni-path :tvm-clj-runtime-path]
   :aot [tvm-clj.jni]
   :test-selectors {:default (complement :cuda)
                    :cuda :cuda}
