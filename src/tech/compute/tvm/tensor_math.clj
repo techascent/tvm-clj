@@ -14,7 +14,9 @@
             [tech.compute.tvm :as tvm]
             [tech.compute :as compute]
             [tech.datatype.javacpp :as jcpp-dtype]
-            [tech.compute.cpu.driver :as cpu-driver])
+            [tech.compute.cpu.driver :as cpu-driver]
+            ;;Need this for the fallbacks
+            [tech.compute.cpu.tensor-math])
   (:import [tech.compute.tvm.cpu CPUStream]
            [tech.compute.tvm.gpu GPUStream]
            [java.util UUID]))

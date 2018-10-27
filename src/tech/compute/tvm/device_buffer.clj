@@ -13,7 +13,8 @@
             [tech.compute.tensor.dimensions :as ct-dims]
             [tech.compute :as compute]
             [tech.compute.tvm :as compute-tvm]
-            [tech.compute.tvm.driver :as tvm-driver])
+            [tech.compute.tvm.driver :as tvm-driver]
+            [tech.datatype.jna :as dtype-jna])
   (:import [tvm_clj.tvm runtime$DLTensor runtime runtime$DLContext]
            [tvm_clj.tvm_bindings ArrayHandle]
            [org.bytedeco.javacpp Pointer LongPointer]
@@ -68,21 +69,21 @@
 
   dtype-base/PAccess
   (set-value! [item offset value]
-    (dtype-base/set-value! (unsigned/->typed-buffer item)
+    (dtype-base/set-value! (dtype-jna/->typed-pointer item)
                            offset value))
   (set-constant! [item offset value elem-count]
-    (dtype-base/set-constant! (unsigned/->typed-buffer item)
+    (dtype-base/set-constant! (dtype-jna/->typed-pointer item)
                               offset value elem-count))
   (get-value [item offset]
-    (dtype-base/get-value (unsigned/->typed-buffer item)
+    (dtype-base/get-value (dtype-jna/->typed-pointer item)
                           offset))
 
   dtype-base/PContainerType
-  (container-type [item] :typed-buffer)
+  (container-type [item] :jna-buffer)
 
   dtype-base/PCopyRawData
   (copy-raw->item! [raw-data ary-target target-offset options]
-    (dtype-base/copy-raw->item! (unsigned/->typed-buffer raw-data) ary-target
+    (dtype-base/copy-raw->item! (dtype-jna/->typed-pointer raw-data) ary-target
                                 target-offset options))
 
   mp/PElementCount
@@ -101,26 +102,23 @@
                         {:dimension-number dimension-number
                          :shape shape})))))
 
-
-  jcpp-dtype/PToPtr
+  dtype-jna/PToPtr
   (->ptr-backing-store [item]
-    (bindings/tvm-ary->pointer item
-                               (dtype/ecount item)
-                               (dtype/get-datatype item)))
+    (bindings/tvm-array->pointer item))
 
 
   primitive/PToBuffer
   (->buffer-backing-store [item]
-    (check-cpu-array! item)
-    (jcpp-dtype/ptr->buffer (jcpp-dtype/->ptr-backing-store item)))
+    (-> (dtype-jna/->typed-pointer item)
+        (primitive/->buffer-backing-store)))
 
 
   primitive/PToArray
   (->array [item] nil)
   (->array-copy [item]
     (check-cpu-array! item)
-    (primitive/->array-copy
-     (unsigned/->typed-buffer item)))
+    (-> (dtype-jna/->typed-pointer item)
+        (primitive/->array-copy)))
 
 
   drv/PBuffer
@@ -143,11 +141,10 @@
              (long (dtype/datatype->byte-size
                     datatype)))))))
   (alias? [lhs rhs]
-    (jcpp-pointer-alias? (jcpp-dtype/->ptr-backing-store lhs)
-                         (jcpp-dtype/->ptr-backing-store rhs)))
+    (drv/alias? (dtype-jna/->typed-pointer lhs) rhs))
+
   (partially-alias? [lhs rhs]
-    (jcpp-pointer-partial-alias? (jcpp-dtype/->ptr-backing-store lhs)
-                                 (jcpp-dtype/->ptr-backing-store rhs)))
+    (drv/partially-alias? (dtype-jna/->typed-pointer lhs) rhs))
 
   tvm-driver/PTVMDeviceId
   (device-id [buffer]

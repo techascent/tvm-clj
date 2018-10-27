@@ -10,7 +10,17 @@ Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) libra
 
 [tvm](https://github.com/dmlc/tvm) a system for dynamically generating high performance numeric code with backends for cpu, cuda, opencl, opengl, webassembly, vulcan, and verilog.  It has frontends mainly in python and c++ with a clear and well designed C-ABI that not only aids in the implementation of their python interface, but it also eases the binding into other language ecosystems such as the jvm and node.
 
-tvm leverages [Halide](http://halide-lang.org).  Halide takes algorithms structured in specific ways and allows performance experimentation without affecting the output of the core algorithm.  A very solid justification for this is nicely put in these [slides](http://stellar.mit.edu/S/course/6/sp15/6.815/courseMaterial/topics/topic2/lectureNotes/14_Halide_print/14_Halide_print.pdf).  A Ph. D. was minted [here](http://people.csail.mit.edu/jrk/jrkthesis.pdf).  We also recommend watching the youtube [video](https://youtu.be/3uiEyEKji0M).
+tvm leverages [Halide](http://halide-lang.org) for its IR layer and for the overall strategy.  Halide takes algorithms structured in specific ways and allows performance experimentation without affecting the output of the core algorithm.  A very solid justification for this is nicely put in these [slides](http://stellar.mit.edu/S/course/6/sp15/6.815/courseMaterial/topics/topic2/lectureNotes/14_Halide_print/14_Halide_print.pdf).  A Ph. D. was minted [here](http://people.csail.mit.edu/jrk/jrkthesis.pdf).  We also recommend watching the youtube [video](https://youtu.be/3uiEyEKji0M).
+
+It should be noted, however, that at this point TVM has diverged significantly from Halide, implementing essentially their own compiler specifically designed to work with deep learning-type workflows:
+
+> It is interesting. Please note that while TVM uses HalideIR that is derived from Halide, most of the code generation and optimization passes are done independently(with deep learning workloads in mind), while reusing sensible ones from Halide. So in terms of low level code generation, we are not necessarily bound to some of limitations listed.
+>
+> In particular, we take a pragmatic approach, to focus on what is useful for deep learning workloads, so you can find unique things like more GPU optimization, accelerator support, recurrence(scan). If there are optimizations that Tiramisu have which is useful to get the state of art deep learning workloads, we are all for bringing that into TVM
+>
+> I also want to emphasize that TVM is more than a low level tensor code generation, but instead trying to solve the end to end deep learning compilation problem, and many of the things goes beyond the tensor code generation.
+
+-- [tqchen](https://discuss.tvm.ai/t/comparison-between-tiramisu-and-tvm-and-halide/933/2), the main contributor to TVM.
 
 
 ## Goals

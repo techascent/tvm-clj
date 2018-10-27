@@ -9,13 +9,15 @@
             [tech.datatype.java-unsigned :as unsigned]
             [potemkin :as p]
             ;;Need stride calculations from here
-            [tech.compute.tensor.dimensions :as ct-dims])
+            [tech.compute.tensor.dimensions :as ct-dims]
+            [tech.datatype.jna :as dtype-jna])
   (:import [tvm_clj.tvm runtime runtime$TVMFunctionHandle runtime$TVMValue
             runtime$NodeHandle runtime$TVMModuleHandle runtime$DLTensor
             runtime$TVMStreamHandle]
            [java.util ArrayList]
            [org.bytedeco.javacpp PointerPointer BytePointer Pointer LongPointer]
-           [java.lang.reflect Field]))
+           [java.lang.reflect Field]
+           [com.sun.jna.Pointer]))
 
 
 (set! *warn-on-reflection* true)
@@ -54,6 +56,7 @@
 (defrecord ArrayHandle [^runtime$DLTensor tvm-jcpp-handle]
   PToTVM
   (->tvm [_] tvm-jcpp-handle))
+
 
 (defrecord StreamHandle [^long device ^long dev-id ^runtime$TVMStreamHandle tvm-hdl]
   PToTVM
@@ -185,7 +188,6 @@
         (runtime/TVMArrayFree jcpp-data))))
   StreamHandle
   (release-resource [stream]
-    (throw (ex-info "FUCKING!!" {}))
     (runtime/TVMStreamFree (.device stream) (.dev-id stream) (.tvm-hdl stream))))
 
 
@@ -871,17 +873,20 @@ explicitly; it is done for you."
   (* 8 (dtype/datatype->byte-size datatype)))
 
 
-(defn raw-create-tvm-ary
-  [^Pointer ptr device-type device-id datatype byte-offset
-   ^LongPointer shape-ptr & {:keys [strides-ptr]}]
+(defn raw-create-dl-tensor
+  ^runtime$DLTensor [address device-type device-id datatype byte-offset
+                     ^LongPointer shape-ptr & {:keys [strides-ptr]}]
   (let [tens-data (runtime$DLTensor. 1)
         n-dims (.capacity shape-ptr)
         ctx (.ctx tens-data)
         dtype (.dtype tens-data)
         device-type (if (keyword? device-type)
                       (device-type->device-type-int device-type)
-                      device-type)]
-    (.data tens-data ptr)
+                      device-type)
+        data-ptr (-> (unsigned/datatype->jvm-datatype :int8)
+                     jcpp-dtype/make-empty-pointer-of-type
+                     (jcpp-dtype/offset-pointer (long address)))]
+    (.data tens-data data-ptr)
     (.ndim tens-data n-dims)
     (.byte_offset tens-data (long byte-offset))
     (.device_type ctx (int device-type))
@@ -903,35 +908,31 @@ explicitly; it is done for you."
   ^ArrayHandle [ptr device-type device-id
                 datatype shape strides
                 byte-offset]
-  (let [^LongPointer shape-ptr (resource/track
-                                (jcpp-dtype/make-pointer-of-type
-                                 :int64 shape))
+  (let [^LongPointer shape-ptr (jcpp-dtype/make-pointer-of-type
+                                :int64 shape)
         ^LongPointer strides-ptr (when strides
-                                   (resource/track
-                                    (jcpp-dtype/make-pointer-of-type
-                                     :int64 strides)))
+                                   (jcpp-dtype/make-pointer-of-type
+                                    :int64 strides))
         datatype (or datatype (dtype/get-datatype ptr))
         ;;Get the real pointer
-        ptr (jcpp-dtype/->ptr-backing-store ptr)]
-    (when-not ptr
+        address (-> (dtype-jna/->ptr-backing-store ptr)
+                    dtype-jna/pointer->address)]
+    (when-not (> address 0)
       (throw (ex-info "Failed to get pointer for buffer."
                       {:original-ptr ptr})))
     (resource/track
      (merge (->ArrayHandle
-             (raw-create-tvm-ary ptr device-type device-id datatype
-                                 byte-offset shape-ptr
-                                 :strides-ptr strides-ptr))
+             (raw-create-dl-tensor address device-type device-id datatype
+                                   byte-offset shape-ptr
+                                   :strides-ptr strides-ptr))
             {:shape shape
              :datatype datatype
              :owns-memory? false}))))
 
 
-(defn tvm-ary->pointer
-  ^Pointer [^ArrayHandle ten-ary ^long elem-count datatype]
-  (let [^runtime$DLTensor tensor (.tvm-jcpp-handle ten-ary)
-        tens-ptr (.data tensor)
-        ptr-dtype (unsigned/datatype->jvm-datatype datatype)
-        retval (jcpp-dtype/make-empty-pointer-of-type ptr-dtype)]
-    (.set ^Field jcpp-dtype/address-field retval (+ (.address tens-ptr)
-                                                    (.byte_offset tensor)))
-    (jcpp-dtype/set-pointer-limit-and-capacity retval elem-count)))
+(defn tvm-array->pointer
+  ^com.sun.jna.Pointer [^ArrayHandle ten-ary]
+  (let [^runtime$DLTensor dl-tensor (.tvm-jcpp-handle ten-ary)]
+    (-> (.data dl-tensor)
+        (dtype-jna/->ptr-backing-store)
+        (dtype-jna/offset-pointer (.byte_offset dl-tensor)))))

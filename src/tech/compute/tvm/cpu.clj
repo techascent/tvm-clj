@@ -6,11 +6,19 @@
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.cpu.driver :as cpu-driver]
+            [tech.compute.registry :as registry]
             [tech.resource :as resource]
             [tech.datatype :as dtype]
             [tech.compute.tvm :as tvm]
             [tech.compute.registry :as registry]
-            [tech.compute :as compute]))
+            [tech.compute :as compute]
+            [tech.datatype.jna :as dtype-jna]
+            [tech.datatype.javacpp :as jcpp-dtype])
+  ;;Setup so these objects (and anything derived from them)
+  ;;auto-link to the tvm cpu compute device.
+  (:import [org.bytedeco.javacpp.Pointer]
+           [com.sun.jna Pointer]
+           [tech.datatype.jna TypedPointer]))
 
 
 (declare driver)
@@ -54,16 +62,11 @@
   (device-type [this] (tvm-driver/device-type (device-fn)))
 
   tvm-driver/PTVMDeviceId
-  (device-id [this] (tvm-driver/device-id (device-fn))))
+  (device-id [this] (tvm-driver/device-id (device-fn)))
 
-(defn is-main-thread-cpu-stream?
-  [^CPUStream stream]
-  (cpu-driver/is-main-thread-cpu-stream? (.stream stream)))
+  cpu-driver/PToCPUStream
+  (->cpu-stream [this] stream))
 
-(defmacro with-stream-dispatch
-  [stream & body]
-  `(cpu-driver/with-stream-dispatch (.stream stream)
-     ~@body))
 
 (declare make-cpu-device-buffer)
 
@@ -155,4 +158,39 @@
    elem-type elem-count))
 
 
+(defmacro extend-tvm-bindings
+  [item-cls]
+  `(clojure.core/extend
+       ~item-cls
+     bindings/PToTVM
+     {:->tvm (fn [item#]
+               (resource/track
+                (bindings/raw-create-dl-tensor
+                 (-> (dtype-jna/->ptr-backing-store item#)
+                     dtype-jna/pointer->address)
+                 :cpu 0
+                 (dtype/get-datatype item#)
+                 0
+                 (jcpp-dtype/make-pointer-of-type
+                  :int64 (dtype/shape item#)))))}
+     bindings/PJVMTypeToTVMValue
+     {:->tvm-value (fn [item#]
+                     (-> item#
+                         bindings/->tvm
+                         bindings/->tvm-value))}
+     tvm-driver/PTVMDeviceType
+     {:device-type (fn [item#] :cpu)}
+     tvm-driver/PTVMDeviceId
+     {:device-id (fn [item#] 0)}))
+
+
+;; (extend-tvm-bindings com.sun.jna.Pointer)
+;; (extend-tvm-bindings org.bytedeco.javacpp.Pointer)
+;; (extend-tvm-bindings TypedPointer)
+
+
 (tvm-reg/register-driver (driver))
+
+;;Set the compute cpu driver name
+(registry/set-cpu-driver-name! (-> (driver)
+                                   drv/driver-name))

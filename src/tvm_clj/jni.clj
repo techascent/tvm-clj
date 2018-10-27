@@ -16,10 +16,21 @@
   (apply filepath (System/getProperty "user.dir") parts))
 
 
+(defn os-name-and-arch
+  []
+  (let [os-name (string/lower-case (string/replace (System/getProperty "os.name") #"\s+" ""))
+        arch (System/getProperty "os.arch")]
+    ;;Queue shitloads of special cases...
+    (cond
+      (and (= os-name "linux")
+           (= arch "amd64"))
+      [os-name "x86_64"]
+      :else
+      [os-name arch])))
+
+
 (defn native-path []
-  (relpath "java" "native"
-           (string/lower-case (string/replace (System/getProperty "os.name") #"\s+" ""))
-           (System/getProperty "os.arch")))
+  (apply relpath "java" "native" (os-name-and-arch)))
 
 
 (defn build-java-stub
