@@ -24,16 +24,6 @@
   (->tvm-value [jvm-type]))
 
 
-(defn- string->ptr
-  ^Pointer [^String data]
-  (let [str-bytes (.getBytes data "ASCII")
-        num-bytes (+ (alength str-bytes) 1)
-        typed-data (dtype-jna/make-typed-pointer :int8 num-bytes)]
-    (dtype/set-constant! typed-data 0 0 (dtype/ecount typed-data))
-    (dtype/copy! str-bytes typed-data)
-    (dtype-jna/->ptr-backing-store typed-data)))
-
-
 (declare tvm-array tvm-map)
 
 (extend-protocol PJVMTypeToTVMValue
@@ -54,7 +44,7 @@
                              (long 1)
                              (long 0)) :int])
   String
-  (->tvm-value [value] [(Pointer/nativeValue (string->ptr value))
+  (->tvm-value [value] [(Pointer/nativeValue (jna/string->ptr value))
                         :string])
   Object
   (->tvm-value [value]
@@ -662,7 +652,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
 
 (defmethod tvm-value->jvm :string
   [long-val val-type-kwd]
-  (variable-byte-ptr->string (Pointer. long-val)))
+  (jna/variable-byte-ptr->string (Pointer. long-val)))
 
 
 (defn call-function
@@ -712,7 +702,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
                  "Get a node attribute by name"
                  Integer
                  [node-handle checknil]
-                 [key string->ptr]
+                 [key jna/string->ptr]
                  [out_value long-ptr]
                  [out_type_code int-ptr]
                  [out_success int-ptr])
@@ -805,7 +795,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
 (make-tvm-jna-fn TVMNodeTypeKey2Index
                  "Convert a type name to a type index."
                  Integer
-                 [type_key string->ptr]
+                 [type_key jna/string->ptr]
                  [out_index int-ptr])
 
 
