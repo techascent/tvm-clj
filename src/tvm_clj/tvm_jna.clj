@@ -5,9 +5,11 @@
             [tech.datatype.base :as dtype-base]
             [tech.datatype.java-primitive :as primitive]
             [clojure.core.matrix.protocols :as mp]
-            [tech.resource :as resource])
+            [tech.resource :as resource]
+            [tech.jna :as jna]
+            [potemkin :as p])
   (:import [com.sun.jna Native NativeLibrary Pointer Function]
-           [com.sun.jna.ptr PointerByReference IntByReference]
+           [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
             DLPack$DLManagedTensor]))
 
@@ -114,6 +116,11 @@
     retval
     (throw (ex-info "Failed to get tvm-datatype from kwd"
                     {:kwd kwd}))))
+
+
+(defn tvm-datatype->keyword-nothrow
+  [tvm-datatype]
+  (get tvm-datatype->keyword-map tvm-datatype tvm-datatype))
 
 (defn tvm-datatype->keyword
   [tvm-datatype]
@@ -355,42 +362,11 @@
 (def ^:dynamic fn-name "")
 
 
-
-(defn unsafe-read-byte
-  [^Pointer byte-ary ^long idx]
-  (.get (.getByteBuffer byte-ary idx 1) 0))
-
-
-(defn variable-byte-ptr->string
-  [^long ptr-addr]
-  (if (= 0 ptr-addr)
-    ""
-    (let [byte-ary (Pointer. ptr-addr)]
-      (String. ^"[B"
-               (into-array Byte/TYPE
-                           (take-while #(not= % 0)
-                                       (map #(unsafe-read-byte
-                                              byte-ary %)
-                                            (range))))))))
-
-(defn- to-typed-fn
-  ^Function [item] item)
-
-
 (defmacro make-tvm-jna-fn
   "TVM functions are very regular so the mapping to them can exploit this.
 Argpair is of type [symbol type-coersion]."
   [fn-name docstring rettype & argpairs]
-  `(defn ~fn-name
-     ~docstring
-     ~(mapv first argpairs)
-     (let [~'tvm-fn (find-function ~(str fn-name) *tvm-library-name*)
-           ~'fn-args (object-array ~(mapv (fn [[arg-symbol arg-coersion]]
-                                            `(~arg-coersion ~arg-symbol))
-                                          argpairs))]
-       ~(if rettype
-          `(.invoke (to-typed-fn ~'tvm-fn) ~rettype ~'fn-args)
-          `(.invoke (to-typed-fn ~'tvm-fn) ~'fn-args)))))
+  `(jna/def-jna-fn *tvm-library-name* ~fn-name ~docstring ~rettype ~@argpairs))
 
 
 (make-tvm-jna-fn TVMGetLastError
@@ -400,8 +376,7 @@ Argpair is of type [symbol type-coersion]."
 (defn get-last-error
   []
   (-> (TVMGetLastError)
-      (Pointer/nativeValue)
-      variable-byte-ptr->string))
+      (jna/variable-byte-ptr->string)))
 
 
 (defmacro check-call
@@ -416,63 +391,17 @@ Argpair is of type [symbol type-coersion]."
 
 (defn int-ptr
   ^IntByReference [item]
-  (when-not (instance? IntByReference item)
-    (throw (ex-info "Item is not an int-ptr"
-                    {:item item})))
-  item)
+  (jna/ensure-type IntByReference item))
 
 
 (defn ptr-ptr
   ^PointerByReference [item]
-  (when-not (instance? PointerByReference item)
-    (throw (ex-info "Item is not a ptr-ptr"
-                    {:item item})))
-  item)
+  (jna/ensure-ptr-ptr item))
 
+(defn long-ptr
+  ^LongByReference [item]
+  (jna/ensure-type LongByReference item))
 
-(make-tvm-jna-fn TVMFuncListGlobalNames
-                 "List the global names"
-                 Integer
-                 [num-fns int-ptr]
-                 [fn-names ptr-ptr])
-
-
-(def global-function-names
-  (memoize
-   (fn []
-     (let [int-data (IntByReference.)
-           fn-names (PointerByReference.)
-           _ (check-call (TVMFuncListGlobalNames int-data fn-names))
-           base-address (Pointer/nativeValue (.getValue fn-names))]
-       (->> (range (.getValue int-data))
-            (map (fn [name-idx]
-                   (let [new-ptr (-> (+ (* (long name-idx) Native/POINTER_SIZE)
-                                        base-address)
-                                     (Pointer.))
-                         char-ptr (case Native/POINTER_SIZE
-                                    8 (.getLong new-ptr 0)
-                                    4 (.getInt new-ptr 0))]
-                     (variable-byte-ptr->string char-ptr))))
-            sort
-            vec)))))
-
-
-(make-tvm-jna-fn TVMFuncGetGlobal
-                 "Get a global function ptr"
-                 Integer
-                 [fn-name str]
-                 [fn-ptr ptr-ptr])
-
-
-(defn name->global-function
-  [fn-name]
-  (let [retval (PointerByReference.)
-        _ (check-call (TVMFuncGetGlobal fn-name retval))
-        addr (.getValue retval)]
-    (when (= 0 (Pointer/nativeValue addr))
-      (throw (ex-info "Failed to find global function"
-                      {:fn-name fn-name})))
-    addr))
 
 
 (defn checknil
@@ -483,23 +412,6 @@ Argpair is of type [symbol type-coersion]."
       (throw (ex-info "Pointer value is nil"
                       {}))
       (Pointer. value))))
-
-
-(defn- tvm-value->long
-  ^long [^Pointer value]
-  (checknil value)
-  (let [bb (.getByteBuffer value 0 8)
-        lb (.asLongBuffer bb)]
-    (.get lb 0)))
-
-
-(defn- ensure-type
-  [item-cls item]
-  (when-not (instance? item-cls item)
-    (throw (ex-info "Item is not desired type"
-                    {:item-cls item-cls
-                     :item item})))
-  item)
 
 
 (defn ensure-array
@@ -640,7 +552,293 @@ Argpair is of type [symbol type-coersion]."
                     (.code dl-dtype) (.bits dl-dtype) (.lanes dl-dtype)
                     device-type-int device-id
                     retval-ptr))
-    retval-ptr))
+    (-> (DLPack$DLTensor. (.getValue retval-ptr))
+        resource/track)))
+
+
+
+(make-tvm-jna-fn TVMFuncListGlobalNames
+                 "List the global names"
+                 Integer
+                 [num-fns int-ptr]
+                 [fn-names ptr-ptr])
+
+
+(defn- array-str-data->string-vec
+  [^IntByReference num-fields-ary ^PointerByReference fields]
+  (let [base-address (Pointer/nativeValue (.getValue fields))]
+    (->> (range (.getValue num-fields-ary))
+         (map (fn [name-idx]
+                (let [new-ptr (-> (+ (* (long name-idx) Native/POINTER_SIZE)
+                                     base-address)
+                                  (Pointer.))
+                      char-ptr (case Native/POINTER_SIZE
+                                 8 (.getLong new-ptr 0)
+                                 4 (.getInt new-ptr 0))]
+                  (jna/variable-byte-ptr->string (Pointer. char-ptr)))))
+         sort
+         vec)))
+
+
+(def global-function-names
+  (memoize
+   (fn []
+     (let [int-data (IntByReference.)
+           fn-names (PointerByReference.)]
+       (check-call (TVMFuncListGlobalNames int-data fn-names))
+       (array-str-data->string-vec int-data fn-names)))))
+
+
+(make-tvm-jna-fn TVMFuncGetGlobal
+                 "Get a global function ptr"
+                 Integer
+                 [fn-name str]
+                 [fn-ptr ptr-ptr])
+
+
+(defn name->global-function
+  [fn-name]
+  (let [retval (PointerByReference.)
+        _ (check-call (TVMFuncGetGlobal fn-name retval))
+        addr (.getValue retval)]
+    (when (= 0 (Pointer/nativeValue addr))
+      (throw (ex-info "Failed to find global function"
+                      {:fn-name fn-name})))
+    addr))
+
+
+(make-tvm-jna-fn TVMFuncCall
+                 "Call a tvm function"
+                 Integer
+                 [fn-handle checknil
+                  arg_values checknil
+                  type_codes checknil
+                  num_args int
+                  ret_val long-ptr
+                  ret_type_code int-ptr])
+
+
+(defn arg-list->tvm-args
+ [args]
+  (let [num-args (count args)
+        arg-vals (dtype-jna/make-typed-pointer :int64 num-args)
+        arg-types (dtype-jna/make-typed-pointer :int32 num-args)]
+    (->> args
+         (map-indexed (fn [idx arg]
+                        (let [[long-val dtype] (->tvm-value arg)]
+                          (dtype/set-value! arg-vals idx long-val)
+                          (dtype/set-value! arg-types idx (keyword->tvm-datatype dtype)))))
+         dorun)
+    [arg-vals arg-types num-args]))
+
+
+
+(defmulti tvm-value->jvm
+  "Attempts to coerce the tvm value into the jvm.  Failures
+result in a returned map container a value for the key:
+:tvm->jvm-failure
+
+This is in order to ensure that, for instance, deserialization of a node's fields
+  allows for a sane recovery mechanism and doesn't lose those field values."
+  (fn [long-val val-type-kwd]
+    val-type-kwd))
+
+(defmethod tvm-value->jvm :default
+  [long-val val-type-kwd]
+  (println (format "Failed to map value type %s" val-type-kwd))
+  [long-val val-type-kwd])
+
+(defmethod tvm-value->jvm :int
+  [long-val val-type-kwd]
+  long-val)
+
+(defmethod tvm-value->jvm :uint
+  [long-val val-type-kwd]
+  long-val)
+
+(defmethod tvm-value->jvm :float
+  [long-val val-type-kwd]
+  (Double/longBitsToDouble long-val))
+
+(defmethod tvm-value->jvm :string
+  [long-val val-type-kwd]
+  (variable-byte-ptr->string (Pointer. long-val)))
+
+
+(defn call-function
+  [^Pointer tvm-fn & args]
+  (let [fn-ret-val
+        (resource/with-resource-context
+          (let [retval (LongByReference.)
+                rettype (IntByReference.)
+                [tvm-args arg-types n-args] (arg-list->tvm-args args)]
+            (check-call
+             (TVMFuncCall tvm-fn
+                          tvm-args arg-types n-args
+                          retval rettype))
+            [(.getValue retval) (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
+    (apply tvm-value->jvm fn-ret-val)))
+
+
+
+(defmulti get-extended-node-value
+  "Override this to enable type-specific lookups into nodes."
+  (fn [node-handle item-key]
+    (:tvm-type-kwd (:data node-handle))))
+
+
+(defmethod get-extended-node-value :default
+  [& args]
+  nil)
+
+
+(make-tvm-jna-fn TVMNodeListAttrNames
+                 "List the node attributes"
+                 Integer
+                 [node-handle checknil]
+                 [out_size int-ptr]
+                 [out_array ptr-ptr])
+
+
+(defn get-node-fields
+  [^Pointer handle]
+  (let [fields (PointerByReference.)
+        num-fields (IntByReference.)]
+    (check-call (TVMNodeListAttrNames handle num-fields fields))
+    (array-str-data->string-vec num-fields fields)))
+
+
+(make-tvm-jna-fn TVMNodeGetAttr
+                 "Get a node attribute by name"
+                 Integer
+                 [node-handle checknil]
+                 [key string->ptr]
+                 [out_value long-ptr]
+                 [out_type_code int-ptr]
+                 [out_success int-ptr])
+
+
+(defn get-node-field
+  [^Pointer handle field-name]
+  (let [out-tvm-val (LongByReference.)
+        out-type-code (IntByReference.)
+        out-success (IntByReference.)
+        field-name (cond
+                     (string? field-name)
+                     field-name
+                     (keyword? field-name)
+                     (name field-name)
+                     :else
+                     (throw (ex-info "Unrecognized field name type"
+                                     {:field-name field-name})))]
+    (check-call (TVMNodeGetAttr handle field-name
+                                out-tvm-val
+                                out-type-code
+                                out-success))
+    (if (= 1 (.getValue out-success))
+      (tvm-value->jvm (.getValue out-tvm-val)
+                      (tvm-datatype->keyword-nothrow (.getValue out-type-code)))
+      nil)))
+
+
+
+
+(p/def-map-type NodeHandle [^Pointer tvm-jcpp-handle fields data]
+  (get [this key default-value]
+       (or
+        (condp = key
+          :tvm-jcpp-handle tvm-jcpp-handle
+          :data data
+          (if-let [retval (get data key default-value)]
+            retval
+            (if (fields key)
+              (get-node-field tvm-jcpp-handle key)
+              (get-extended-node-value this key))))
+        default-value))
+  (assoc [this key value]
+         (if (= key :tvm-jcpp-handle)
+           (NodeHandle. value fields data)
+           (NodeHandle. tvm-jcpp-handle fields (assoc data key value))))
+  (dissoc [this key]
+          (NodeHandle. tvm-jcpp-handle fields (dissoc data key)))
+  (keys [this]
+        (set (concat [:tvm-jcpp-handle] (keys data) fields)))
+  (meta [this]
+        (meta data))
+  (with-meta [this meta]
+    (NodeHandle. tvm-jcpp-handle fields (with-meta data meta)))
+  ;;There is no equivalence-type system.  Two node handles are equal, equivalent
+  ;;if they point to the same raw-object.  Else they aren't.  Additional data
+  ;;saved on each on can't matter for the API to work correctly.
+  (hasheq [this]
+          (.hashCode this))
+  (equiv [this other]
+         (.equals this other))
+  (equals [a b]
+          (= (.hashCode a) (.hashCode b)))
+  (hashCode [this]
+            (call-function (name->global-function "_raw_ptr") this))
+  (toString [this]
+            (assoc
+             (->> (keys this)
+                  (map (fn [k]
+                         [k (get this k)]))
+                  (into {}))
+             :raw-ptr (.hashCode this))))
+
+
+(make-tvm-jna-fn TVMNodeGetTypeIndex
+                 "Get the type index of a node."
+                 Integer
+                 [node-hdl checknil]
+                 [out_index int-ptr])
+
+
+(defn- get-node-type-index
+  [^Pointer handle]
+  (let [node-type-data (IntByReference.)]
+    (check-call
+     (TVMNodeGetTypeIndex handle node-type-data))
+    (.getValue node-type-data)))
+
+
+(make-tvm-jna-fn TVMNodeTypeKey2Index
+                 "Convert a type name to a type index."
+                 Integer
+                 [type_key string->ptr]
+                 [out_index int-ptr])
+
+
+(defn- node-type-name->index
+  "Convert a node type name to an index."
+  [^String type-name]
+  (let [int-data (IntByReference.)]
+    (check-call (TVMNodeTypeKey2Index type-name int-data))
+    (.getValue int-data)))
+
+
+(def node-type-index->keyword
+  (memoize
+   (fn [type-index]
+     (->> node-type-name->keyword-map
+          (map (fn [[type-name keyword]]
+                 (when (= type-index (node-type-name->index type-name))
+                   keyword)))
+          (remove nil?)
+          first))))
+
+
+(defn construct-node
+  ^NodeHandle [^Pointer node-handle]
+  (let [fields (->> (get-node-fields node-handle)
+                    (map keyword)
+                    set)
+        type-index (get-node-type-index node-handle)
+        type-kwd (node-type-index->keyword type-index)]
+    (NodeHandle. node-handle fields {:tvm-type-index type-index
+                                     :tvm-type-kwd type-kwd})))
+
+
 
 
 (defrecord StreamHandle [^long device ^long dev-id ^long tvm-hdl]
