@@ -24,14 +24,14 @@
 (set! *unchecked-math* :warn-on-boxed)
 
 
-(defprotocol PJVMTypeToTVMValue
-  "Convert something to a [long tvm-value-type] pair"
-  (->tvm-value [jvm-type]))
-
-
 (defprotocol PToTVM
   "Convert something to some level of tvm type."
   (->tvm [item]))
+
+
+(defprotocol PJVMTypeToTVMValue
+  "Convert something to a [long tvm-value-type] pair"
+  (->tvm-value [jvm-type]))
 
 
 (extend-protocol PToTVM
@@ -61,7 +61,6 @@
 (defrecord StreamHandle [^long device ^long dev-id ^runtime$TVMStreamHandle tvm-hdl]
   PToTVM
   (->tvm [_] tvm-hdl))
-
 
 
 (def ^:dynamic fn-name "")
