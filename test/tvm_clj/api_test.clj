@@ -1,10 +1,10 @@
 (ns tvm-clj.api-test
   (:require [clojure.test :refer :all]
             [tvm-clj.api :as api]
-            [tvm-clj.tvm-bindings :as tvm-bindings]
+            [tvm-clj.tvm-jna :as tvm-bindings]
+            [tech.datatype.jna :as dtype-jna]
             [tech.resource :as resource]
             [tech.datatype :as dtype]
-            [tech.datatype.javacpp :as jcpp-dtype]
             [clojure.core.matrix :as m]))
 
 
@@ -13,8 +13,8 @@
   (let [A (tvm-bindings/allocate-device-array [10] :float32 device device-id)
         B (tvm-bindings/allocate-device-array [10] :float32 device device-id)
         C (tvm-bindings/allocate-device-array [10] :float32 device device-id)
-        ab-data (jcpp-dtype/make-pointer-of-type :float32 (range 10))
-        result-ptr (jcpp-dtype/make-pointer-of-type :float32 10)
+        ab-data (dtype-jna/make-typed-pointer :float32 (range 10))
+        result-ptr (dtype-jna/make-typed-pointer :float32 10)
         result-ary (double-array 10)]
     (tvm-bindings/copy-to-array! ab-data A (* 10 Float/BYTES))
     (tvm-bindings/copy-to-array! ab-data B (* 10 Float/BYTES))

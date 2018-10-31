@@ -53,7 +53,7 @@
       (->tvm-value (apply tvm-array value))
       (map? value)
       (->tvm-value (apply tvm-map (->> (seq value)
-                                               (apply concat))))
+                                       (apply concat))))
       (nil? value)
       [(long 0) :null]))
 
@@ -69,6 +69,14 @@
 
 (defprotocol PConvertToNode
   (->node [item]))
+
+
+(defprotocol PTVMDeviceId
+  (device-id [item]))
+
+
+(defprotocol PTVMDeviceType
+  (device-type [item]))
 
 
 
@@ -396,12 +404,129 @@ Argpair is of type [symbol type-coersion]."
 
 (defn checknil
   ^Pointer [value]
-  (if (instance? Pointer value)
-    (checknil (Pointer/nativeValue value))
-    (if (= 0 (long value))
-      (throw (ex-info "Pointer value is nil"
-                      {}))
-      (Pointer. value))))
+  (let [value (if (satisfies? dtype-jna/PToPtr value)
+                (dtype-jna/->ptr-backing-store value)
+                value)]
+    (if (instance? Pointer value)
+      (checknil (Pointer/nativeValue value))
+      (if (= 0 (long value))
+        (throw (ex-info "Pointer value is nil"
+                        {}))
+        (Pointer. value)))))
+
+(defn- ->long-ptr
+  [item]
+  (if (instance? Pointer item)
+    item
+    (-> (dtype-jna/make-typed-pointer :int64 item)
+        dtype-jna/->ptr-backing-store)))
+
+
+(defn device-type->int
+  [item]
+  (let [item (if (satisfies? PTVMDeviceType item)
+               (device-type item)
+               item)]
+    (if (keyword? item)
+      (device-type->device-type-int item)
+      (int item))))
+
+
+(defn device-id->int
+  [item]
+  (-> (if (satisfies? PTVMDeviceId item)
+        (device-id item)
+        item)
+      int))
+
+
+(declare ensure-stream->ptr)
+
+
+(make-tvm-jna-fn TVMStreamCreate
+                 "Create a stream"
+                 Integer
+                 [device_type device-type->int]
+                 [device_id device-id->int]
+                 [out ptr-ptr])
+
+
+(make-tvm-jna-fn TVMStreamFree
+                 "Free a stream"
+                 Integer
+                 [device_type device-type->int]
+                 [device_id device-id->int]
+                 [stream ensure-stream->ptr])
+
+
+(make-tvm-jna-fn TVMSetStream
+                 "Set current stream"
+                 Integer
+                 [device_type device-type->int]
+                 [device_id device-id->int]
+                 [stream ensure-stream->ptr])
+
+(make-tvm-jna-fn TVMSynchronize
+                 "Synchronize stream with host"
+                 Integer
+                 [device_type device-type->int]
+                 [device_id device-id->int]
+                 [stream ensure-stream->ptr])
+
+
+(make-tvm-jna-fn TVMStreamStreamSynchronize
+                 "Synchronize stream with stream"
+                 Integer
+                 [device_type device-type->int]
+                 [device_id device-id->int]
+                 [src ensure-stream->ptr]
+                 [dst ensure-stream->ptr])
+
+
+(defrecord StreamHandle [device-type ^long device-id tvm-hdl]
+  PToTVM
+  (->tvm [item] item)
+  dtype-jna/PToPtr
+  (->ptr-backing-store [item] tvm-hdl)
+  resource/PResource
+  (release-resource [item]
+    (TVMStreamFree item item item))
+  PTVMDeviceId
+  (device-id [item] device-id)
+  PTVMDeviceType
+  (device-type [item] device-type))
+
+
+(defn ensure-stream->ptr
+  [item]
+  (let [item (->tvm item)]
+    (jna/ensure-type StreamHandle item)
+    (dtype-jna/->ptr-backing-store item)))
+
+
+(defn create-stream
+  ^StreamHandle [device-type ^long device-id]
+  (let [retval (PointerByReference.)]
+    (check-call (TVMStreamCreate device-type device-id retval))
+    (resource/track (->StreamHandle device-type device-id (.getValue retval)))))
+
+
+(defn sync-stream-with-host
+  [stream]
+  (let [stream (->tvm stream)]
+    (check-call (TVMSynchronize stream stream stream))))
+
+
+(defn sync-stream-with-stream
+  [stream]
+  (let [stream (->tvm stream)]
+    (check-call (TVMStreamStreamSynchronize stream stream stream))))
+
+
+(defn set-current-thread-stream
+  [stream]
+  (let [stream (->tvm stream)]
+    (check-call (TVMSetStream stream stream stream))))
 
 
 (defn ensure-array
@@ -434,8 +559,6 @@ Argpair is of type [symbol type-coersion]."
     item))
 
 
-;;We have to wrap the dl-tensor to take care of the situation
-;;where, for instance, it does not own the memory.
 (extend-type DLPack$DLTensor
   PToTVM
   (->tvm [item] item)
@@ -505,15 +628,17 @@ Argpair is of type [symbol type-coersion]."
         (get shape dimension-number)
         (throw (ex-info "Array does not have specific dimension"
                         {:dimension-number dimension-number
-                         :shape shape}))))))
+                         :shape shape})))))
 
+  PTVMDeviceId
+  (device-id [item]
+    (.device_id (.ctx item)))
 
-(defn- ->long-ptr
-  [item]
-  (if (instance? Pointer item)
-    item
-    (-> (dtype-jna/make-typed-pointer :int64 item)
-        dtype-jna/->ptr-backing-store)))
+  PTVMDeviceType
+  (device-type [item]
+    (device-type-int->device-type
+     (.device_type (.ctx item)))))
+
 
 
 (make-tvm-jna-fn TVMArrayAlloc
@@ -524,8 +649,8 @@ Argpair is of type [symbol type-coersion]."
                  [dtype_code int]
                  [dtype_bits int]
                  [dtype_lanes int]
-                 [device_type int]
-                 [device_id int]
+                 [device_type device-type->int]
+                 [device_id device-id->int]
                  [retval ptr-ptr])
 
 
@@ -533,18 +658,106 @@ Argpair is of type [symbol type-coersion]."
   ^DLPack$DLTensor [shape datatype device-type ^long device-id]
   (let [n-dims (dtype/ecount shape)
         ^DLPack$DLDataType dl-dtype (datatype->dl-datatype datatype)
-        device-type-int (int (if (number? device-type)
-                               device-type
-                               (device-type->device-type-int device-type)))
         retval-ptr (PointerByReference.)]
     (check-call
      (TVMArrayAlloc shape n-dims
                     (.code dl-dtype) (.bits dl-dtype) (.lanes dl-dtype)
-                    device-type-int device-id
+                    device-type device-id
                     retval-ptr))
     (-> (DLPack$DLTensor. (.getValue retval-ptr))
         resource/track)))
 
+
+(defn ensure-tensor
+  [item]
+  (let [item (->tvm item)]
+    (when-not (instance? DLPack$DLTensor item)
+      (throw (ex-info "Item not a tensor"
+                      {:item-type (type item)})))
+    item))
+
+
+(defn to-size-t
+  [item]
+  (case Native/SIZE_T_SIZE
+    8 (long item)
+    4 (int item)))
+
+
+(make-tvm-jna-fn TVMArrayCopyFromBytes
+                 "Copy bytes into an array"
+                 Integer
+                 [dest-tensor ensure-tensor]
+                 [src checknil]
+                 [n-bytes to-size-t])
+
+
+(defn copy-to-array!
+  [src dest-tensor ^long n-bytes]
+  (check-call (TVMArrayCopyFromBytes dest-tensor src n-bytes)))
+
+
+(make-tvm-jna-fn TVMArrayCopyToBytes
+                 "Copy tensor data to bytes"
+                 Integer
+                 [src-tensor ensure-tensor]
+                 [dest checknil]
+                 [n-bytes to-size-t])
+
+
+(defn copy-from-array!
+  [src-tensor ^Pointer dest ^long n-bytes]
+  (check-call (TVMArrayCopyToBytes src-tensor dest n-bytes)))
+
+
+(make-tvm-jna-fn TVMArrayCopyFromTo
+                 "Copy data from an array to an array"
+                 Integer
+                 [src ensure-tensor]
+                 [dst ensure-tensor]
+                 [stream ensure-stream->ptr])
+
+
+(defn copy-array-to-array!
+  [src dst stream]
+  (let [stream (if stream
+                 stream
+                 (->StreamHandle 0 0 (Pointer. 0)))]
+    (check-call (TVMArrayCopyFromTo src dst stream))))
+
+
+(defn pointer->tvm-ary
+  "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
+  have a byte_offset member that you can use to make an array not start at the pointer's
+  base address."
+  ^DLPack$DLTensor [ptr device-type device-id
+                    datatype shape strides
+                    byte-offset]
+  (let [shape-ptr (dtype-jna/make-typed-pointer
+                   :int64 shape)
+        strides-ptr (when strides
+                      (dtype-jna/make-typed-pointer
+                       :int64 strides))
+        datatype (or datatype (dtype/get-datatype ptr))
+        ;;Get the real pointer
+        address (-> (dtype-jna/->ptr-backing-store ptr)
+                    dtype-jna/pointer->address)
+        retval (DLPack$DLTensor.)
+        ctx (DLPack$DLContext.)]
+    (when-not (> address 0)
+      (throw (ex-info "Failed to get pointer for buffer."
+                      {:original-ptr ptr})))
+    (set! (.data retval) (Pointer. address))
+    (set! (.device_type ctx) (device-type->int device-type))
+    (set! (.device_id ctx) (int device-id))
+    (set! (.ctx retval) ctx)
+    (set! (.ndim retval) (count shape))
+    (set! (.dtype retval) (datatype->dl-datatype datatype))
+    (set! (.shape retval) (dtype-jna/->ptr-backing-store shape-ptr))
+    (when strides-ptr
+      (set! (.strides retval) (dtype-jna/->ptr-backing-store strides-ptr)))
+    (set! (.byte_offset retval) (long byte-offset))
+    retval))
 
 
 (make-tvm-jna-fn TVMFuncListGlobalNames
@@ -600,12 +813,12 @@ Argpair is of type [symbol type-coersion]."
 (make-tvm-jna-fn TVMFuncCall
                  "Call a tvm function"
                  Integer
-                 [fn-handle checknil
-                  arg_values checknil
-                  type_codes checknil
-                  num_args int
-                  ret_val long-ptr
-                  ret_type_code int-ptr])
+                 [fn-handle checknil]
+                 [arg_values checknil]
+                 [type_codes checknil]
+                 [num_args int]
+                 [ret_val long-ptr]
+                 [ret_type_code int-ptr])
 
 
 (defn arg-list->tvm-args
@@ -654,9 +867,13 @@ This is in order to ensure that, for instance, deserialization of a node's field
   [long-val val-type-kwd]
   (jna/variable-byte-ptr->string (Pointer. long-val)))
 
+(defmethod tvm-value->jvm :null
+  [long-val val-type-kwd]
+  nil)
+
 
 (defn call-function
-  [^Pointer tvm-fn & args]
+  [tvm-fn & args]
   (let [fn-ret-val
         (resource/with-resource-context
           (let [retval (LongByReference.)
@@ -669,6 +886,16 @@ This is in order to ensure that, for instance, deserialization of a node's field
             [(.getValue retval) (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
     (apply tvm-value->jvm fn-ret-val)))
 
+
+(defn global-function
+  [fn-name & args]
+  (let [fn-data (name->global-function fn-name)]
+    (with-bindings {#'fn-name fn-name}
+      (apply call-function fn-data args))))
+
+(def global-node-function global-function)
+(def g-fn global-function)
+(def gn-fn global-node-function)
 
 
 (defmulti get-extended-node-value
@@ -708,6 +935,19 @@ This is in order to ensure that, for instance, deserialization of a node's field
                  [out_success int-ptr])
 
 
+(defn tvm-array->jvm
+  [tvm-array-node]
+  (->> (range (call-function (name->global-function "_ArraySize") tvm-array-node))
+       (mapv #(call-function (name->global-function "_ArrayGetItem") tvm-array-node (int %1)))))
+
+
+(defn tvm-map->jvm
+  [tvm-map-node]
+  (->> (call-function (name->global-function "_MapItems") tvm-map-node)
+       tvm-array->jvm
+       (apply hash-map)))
+
+
 (defn get-node-field
   [^Pointer handle field-name]
   (let [out-tvm-val (LongByReference.)
@@ -731,18 +971,24 @@ This is in order to ensure that, for instance, deserialization of a node's field
       nil)))
 
 
-
-
 (p/def-map-type NodeHandle [^Pointer tvm-jcpp-handle fields data]
   (get [this key default-value]
        (or
         (condp = key
           :tvm-jcpp-handle tvm-jcpp-handle
           :data data
+          :fields fields
           (if-let [retval (get data key default-value)]
             retval
             (if (fields key)
-              (get-node-field tvm-jcpp-handle key)
+              (let [retval (get-node-field tvm-jcpp-handle key)]
+                (cond
+                  (= :array (:tvm-type-kwd retval))
+                  (tvm-array->jvm retval)
+                  (= :map (:tvm-type-kwd retval))
+                  (tvm-map->jvm retval)
+                  :else
+                  retval))
               (get-extended-node-value this key))))
         default-value))
   (assoc [this key value]
@@ -775,6 +1021,26 @@ This is in order to ensure that, for instance, deserialization of a node's field
                          [k (get this k)]))
                   (into {}))
              :raw-ptr (.hashCode this))))
+
+
+(make-tvm-jna-fn TVMNodeFree
+                 "Free a tvm node."
+                 Integer
+                 [handle checknil])
+
+
+(extend-type NodeHandle
+  PJVMTypeToTVMValue
+  (->tvm-value [item]
+    [(Pointer/nativeValue (.tvm-jcpp-handle item)) :node-handle])
+  PToTVM
+  (->tvm [item]
+    item)
+  PConvertToNode
+  (->node [item] item)
+  resource/PResource
+  (release-resource [item]
+    (TVMNodeFree (:tvm-jcpp-handle item))))
 
 
 (make-tvm-jna-fn TVMNodeGetTypeIndex
@@ -818,6 +1084,25 @@ This is in order to ensure that, for instance, deserialization of a node's field
           first))))
 
 
+(defn tvm-array
+  "Called when something like a shape needs to be passed into a tvm function.  Most users will not need to call this
+explicitly; it is done for you."
+  [& args]
+  (apply call-function (name->global-function "_Array") args))
+
+
+(defn tvm-map
+  "Call like hash-map except all keys must be node handles.  Most users will not need to call this explicitly"
+  [& args]
+  (when-not (= 0 (rem (count args)
+                      2))
+    (throw (ex-info "Map fn call must have even arg count"
+                    {:args args})))
+  (with-bindings {#'fn-name "_Map"}
+    (apply call-function (name->global-function "_Map") args)))
+
+
+
 (defn construct-node
   ^NodeHandle [^Pointer node-handle]
   (let [fields (->> (get-node-fields node-handle)
@@ -829,33 +1114,102 @@ This is in order to ensure that, for instance, deserialization of a node's field
                                      :tvm-type-kwd type-kwd})))
 
 
+(defmethod tvm-value->jvm :node-handle
+  [long-val val-type-kwd]
+  (-> (construct-node (Pointer. long-val))
+      resource/track))
 
 
-(defrecord StreamHandle [^long device ^long dev-id ^long tvm-hdl]
+(defn get-node-type
+  [node-handle]
+  (get node-handle :tvm-type-kwd))
+
+
+
+(def device-attribute-map
+  {:exists 0
+   :max-threads-per-block 1
+   :warp-size 2
+   :compute-version 3})
+
+
+(defn device-exists?
+  [^long device-type ^long device-id]
+  (g-fn "_GetDeviceAttr" device-type device-id (device-attribute-map :exists)))
+
+
+(make-tvm-jna-fn TVMModFree
+                 "Free a module"
+                 Integer
+                 [module checknil])
+
+
+(defrecord ModuleHandle [^Pointer tvm-hdl]
   PToTVM
   (->tvm [item] item)
   PJVMTypeToTVMValue
-  (->tvm-value [item] (throw (ex-info "Unsupported" {}))))
+  (->tvm-value [item] [(Pointer/nativeValue tvm-hdl) :module-handle])
+  dtype-jna/PToPtr
+  (->ptr-backing-store [item] tvm-hdl)
+  resource/PResource
+  (release-resource [item]
+    (check-call (TVMModFree item))))
 
 
-(defrecord ModuleHandle [^long tvm-hdl]
+(defmethod tvm-value->jvm :module-handle
+  [long-val val-type-kwd]
+  (-> (->ModuleHandle (Pointer. long-val))
+      resource/track))
+
+
+(make-tvm-jna-fn TVMFuncFree
+                 "Free a tvm module function"
+                 Integer
+                 [handle checknil])
+
+
+(defrecord ModuleFunctionHandle [^Pointer handle]
   PToTVM
   (->tvm [item] item)
-  PJVMTypeToTVMValue
-  (->tvm-value [item] [tvm-hdl :module-handle]))
+  dtype-jna/PToPtr
+  (->ptr-backing-store [item] handle)
+  resource/PResource
+  (release-resource [item]
+    (check-call (TVMFuncFree handle))))
 
 
+(make-tvm-jna-fn TVMModGetFunction
+                 "Get module function"
+                 Integer
+                 [mod checknil]
+                 [func_name jna/string->ptr]
+                 [query_imports int]
+                 [out ptr-ptr])
 
-;; (def node-type-name->index
-;;   (memoize get-type-key-for-name))
 
-;; ;;May return nil
-;; (def node-type-index->keyword
-;;   (memoize
-;;    (fn [type-index]
-;;      (->> node-type-name->keyword-map
-;;           (map (fn [[type-name keyword]]
-;;                  (when (= type-index (node-type-name->index type-name))
-;;                    keyword)))
-;;           (remove nil?)
-;;           first))))
+(defn get-module-function
+  [module ^String fn-name & {:keys [query-imports?]}]
+  (let [retval (PointerByReference.)]
+    (check-call (TVMModGetFunction module fn-name (int (if query-imports? 1 0)) retval))
+    (when (= 0 (Pointer/nativeValue (.getValue retval)))
+      (throw (ex-info "Could not find module function"
+                      {:fn-name fn-name})))
+    (resource/track (->ModuleFunctionHandle (.getValue retval)))))
+
+
+(defn get-module-source
+  [module {:keys [format]
+           :or {format ""}}]
+  (global-function "module._GetSource" module format))
+
+
+(make-tvm-jna-fn TVMModImport
+                 "Import one module into another"
+                 Integer
+                 [mod checknil]
+                 [dep checknil])
+
+
+(defn mod-import
+  [mod dep]
+  (check-call (TVMModImport mod dep)))

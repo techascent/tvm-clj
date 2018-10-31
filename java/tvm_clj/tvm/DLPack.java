@@ -44,7 +44,7 @@ public interface DLPack extends Library {
     public DLDataType dtype;
     public Pointer shape;
     public Pointer strides;
-    public Pointer byte_offset;
+    public long byte_offset;
 
 
     public static class ByReference extends DLTensor implements Structure.ByReference {}
