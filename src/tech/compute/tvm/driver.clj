@@ -1,7 +1,7 @@
 (ns tech.compute.tvm.driver
   "Additional protocols for tvm drivers, devices, and streams.
 Centralized registring of drivers allowing a symbolic name->driver table."
-  (:require [tvm-clj.tvm-bindings :as bindings]
+  (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.api :as tvm-api]))
 
 (defn cpu-device-type
@@ -19,15 +19,6 @@ Centralized registring of drivers allowing a symbolic name->driver table."
 (defn rocm-device-type
   ^long []
   (bindings/device-type->device-type-int :rocm))
-
-
-(defprotocol PTVMDeviceId
-  (device-id [item]
-    "Return the tvm integer device of a given device, buffer or stream."))
-
-
-(defprotocol PTVMDeviceType
-  (device-type [item]))
 
 
 (defprotocol PTVMDriver
