@@ -7,9 +7,9 @@
             [tech.datatype.base :as dtype]
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.tvm :as tvm]
-            [tech.resource :as resource])
-  (:import [tvm_clj.tvm runtime$TVMStreamHandle]
-           [org.bytedeco.javacpp Pointer]))
+            [tech.resource :as resource]
+            [tech.datatype.jna :as dtype-jna])
+  (:import [com.sun.jna Pointer]))
 
 
 (declare cuda-driver)
@@ -44,27 +44,19 @@
                               dev-b dev-b-off
                               elem-count stream))
   (sync-with-host [_]
-    (bindings/sync-stream-with-host (-> (tvm/device-type device)
-                                        (bindings/device-type->device-type-int))
-                                    (tvm/device-id device)
-                                    stream))
+    (bindings/sync-stream-with-host stream))
   (sync-with-stream [src-stream dst-stream]
     (when-not (= (tvm/device-type src-stream) (tvm/device-type dst-stream))
       (throw (ex-info "Cannot synchronize streams of two different device types"
                       {:src-device-type (tvm/device-type src-stream)
                        :dst-device-type (tvm/device-type dst-stream)})))
-    (bindings/sync-stream-with-stream (-> (tvm/device-type device)
-                                          (bindings/device-type->device-type-int))
-                                      (tvm/device-id device)
-                                      (bindings/->tvm src-stream)
-                                      (bindings/->tvm dst-stream)))
+    (bindings/sync-stream-with-stream src-stream dst-stream))
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
-    (when (.address ^Pointer (bindings/->tvm stream))
-      (bindings/set-current-thread-stream (bindings/device-type->device-type-int
-                                           (tvm/device-type device))
-                                          (tvm/device-id device)
-                                          stream))
+    (let [stream-ptr (-> (bindings/->tvm stream)
+                         (dtype-jna/->ptr-backing-store))]
+      (when-not (= 0 (Pointer/nativeValue stream-ptr))
+        (bindings/set-current-thread-stream stream)))
     (apply fn arg-list))
 
   drv/PDeviceProvider
@@ -118,15 +110,14 @@
 (defn- make-gpu-device
   "Never call this external; devices are centrally created and registered."
   [driver dev-id]
-  (let [dev-type (-> (tvm/device-type driver)
-                     (bindings/device-type->device-type-int))
+  (let [dev-type (tvm/device-type driver)
         {default-stream :return-value
          resource-seq :resource-seq}
         (resource/return-resource-seq
          (try
            (bindings/create-stream dev-type dev-id)
            (catch Throwable e
-             (bindings/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
+             (bindings/->StreamHandle dev-type dev-id (Pointer. 0)))))
         supports-create? (boolean default-stream)
         device (->GPUDevice driver dev-id supports-create?
                             (atom nil) (resource/->Releaser #(resource/release-resource-seq
