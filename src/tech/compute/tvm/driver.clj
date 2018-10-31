@@ -32,8 +32,8 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   (->module [driver sched-data-seq options]))
 
 
-(defprotocol PTVMBuffer
-  (has-byte-offset? [buffer]))
+(defn has-byte-offset? [buffer]
+  (= 0 (bindings/byte-offset buffer)))
 
 
 (defprotocol PTVMStream

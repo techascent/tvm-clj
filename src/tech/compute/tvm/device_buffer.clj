@@ -37,9 +37,9 @@
 (extend-type DLPack$DLTensor
   drv/PBuffer
   (sub-buffer [buffer offset length]
-    (let [base-ptr (.data buffer)
+    (let [base-ptr (dtype-jna/->ptr-backing-store buffer)
           datatype (dtype/get-datatype buffer)
-          byte-offset (.byte_offset buffer)]
+          byte-offset (long (bindings/byte-offset buffer))]
       (bindings/pointer->tvm-ary
        base-ptr
        (long (bindings/device-type->device-type-int
@@ -59,15 +59,11 @@
   (partially-alias? [lhs rhs]
     (drv/partially-alias? (dtype-jna/->typed-pointer lhs) rhs))
 
-  tvm-driver/PTVMBuffer
-  (has-byte-offset? [buffer]
-    (not= 0 (.byte_offset buffer)))
-
   drv/PDeviceProvider
   (get-device [buffer]
     (-> (compute/->driver buffer)
         (compute-tvm/device-id->device
-         (compute-tvm/device-id buffer))))
+         (bindings/device-id buffer))))
 
   drv/PDriverProvider
   (get-driver [buffer]
@@ -78,9 +74,8 @@
 (defn make-device-buffer-of-type
   [device datatype elem-count]
   (bindings/allocate-device-array [elem-count] datatype
-                                  (compute-tvm/device-type device)
-                                  (compute-tvm/device-id device)))
-
+                                  (bindings/device-type device)
+                                  (bindings/device-id device)))
 
 
 (defn copy-device->device
@@ -101,28 +96,27 @@
   bindings/PToTVM
   (->tvm [item]
     ;;This is a specialized conversion because the tensor's dimension change independent
-    ;;of the buffer.  Thus any time we want to use a tensor in tvm we have to create
-    ;;an alias of the base buffer but with variables set describing the current
-    ;;dimensions.
-    (let [^runtime$DLTensor src-dl-tensor (bindings/->tvm (ct/tensor->buffer item))
-          ^runtime$DLContext ctx (.ctx src-dl-tensor)
+    ;;of the buffer.  Thus any time we want to use a tensor in tvm we have to create an
+    ;;alias of the base buffer but with variables set describing the current dimensions.
+    (let [buffer (bindings/->tvm (ct/tensor->buffer item))
           dims (ct/tensor->dimensions item)
           stride-data (when-not (and (ct/dense? item)
                                      (ct-dims/access-increasing?
                                       (ct/tensor->dimensions item)))
                         (:strides dims))]
-      (bindings/pointer->tvm-ary (.data src-dl-tensor)
-                                 (.device_type ctx)
-                                 (.device_id ctx)
+      (bindings/pointer->tvm-ary (dtype-jna/->ptr-backing-store buffer)
+                                 (bindings/device-type buffer)
+                                 (bindings/device-id buffer)
                                  (ct/get-datatype item)
                                  (:shape dims)
                                  stride-data
-                                 (.byte_offset src-dl-tensor))))
+                                 (bindings/byte-offset buffer))))
+
   bindings/PJVMTypeToTVMValue
   (->tvm-value [item]
     (-> (bindings/->tvm item)
         bindings/->tvm-value))
 
-  tvm-driver/PTVMBuffer
-  (has-byte-offset? [tensor]
-    (tvm-driver/has-byte-offset? (ct/tensor->buffer tensor))))
+  bindings/PByteOffset
+  (byte-offset [tensor]
+    (bindings/byte-offset (ct/tensor->buffer tensor))))

@@ -78,7 +78,8 @@
 (defprotocol PTVMDeviceType
   (device-type [item]))
 
-
+(defprotocol PByteOffset
+  (byte-offset [item]))
 
 (def tvm-datatype->keyword-map
   {0 :int
@@ -637,7 +638,10 @@ Argpair is of type [symbol type-coersion]."
   PTVMDeviceType
   (device-type [item]
     (device-type-int->device-type
-     (.device_type (.ctx item)))))
+     (.device_type (.ctx item))))
+
+  PByteOffset
+  (byte-offset [item] (.byte_offset item)))
 
 
 

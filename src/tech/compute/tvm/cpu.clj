@@ -1,5 +1,5 @@
 (ns tech.compute.tvm.cpu
-  (:require [tvm-clj.tvm-bindings :as bindings]
+  (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
@@ -12,8 +12,7 @@
             [tech.compute.tvm :as tvm]
             [tech.compute.registry :as registry]
             [tech.compute :as compute]
-            [tech.datatype.jna :as dtype-jna]
-            [tech.datatype.javacpp :as jcpp-dtype])
+            [tech.datatype.jna :as dtype-jna])
   ;;Setup so these objects (and anything derived from them)
   ;;auto-link to the tvm cpu compute device.
   (:import [org.bytedeco.javacpp.Pointer]
@@ -58,11 +57,11 @@
   drv/PDeviceProvider
   (get-device [_] (device-fn))
 
-  tvm-driver/PTVMDeviceType
-  (device-type [this] (tvm-driver/device-type (device-fn)))
+  bindings/PTVMDeviceType
+  (device-type [this] (bindings/device-type (device-fn)))
 
-  tvm-driver/PTVMDeviceId
-  (device-id [this] (tvm-driver/device-id (device-fn)))
+  bindings/PTVMDeviceId
+  (device-id [this] (bindings/device-id (device-fn)))
 
   cpu-driver/PToCPUStream
   (->cpu-stream [this] stream))
@@ -71,10 +70,10 @@
 (declare make-cpu-device-buffer)
 
 (defrecord CPUDevice [error-atom default-stream]
-  tvm-driver/PTVMDeviceId
+  bindings/PTVMDeviceId
   (device-id [this] 0)
 
-  tvm-driver/PTVMDeviceType
+  bindings/PTVMDeviceType
   (device-type [_] :cpu)
 
   drv/PDevice
@@ -89,7 +88,7 @@
   (default-stream [device] @default-stream)
   (device->device-copy-compatible? [src dest]
     ;;Is it a tvm device?
-    (boolean (satisfies? tvm-driver/PTVMDeviceType dest)))
+    (boolean (satisfies? bindings/PTVMDeviceType dest)))
 
   drv/PDriverProvider
   (get-driver [dev] (driver))
@@ -136,7 +135,7 @@
                         :target-host (:target-host options)
                         :target-name :llvm))
 
-  tvm-driver/PTVMDeviceType
+  bindings/PTVMDeviceType
   (device-type [_] :cpu))
 
 (def driver
@@ -164,29 +163,28 @@
        ~item-cls
      bindings/PToTVM
      {:->tvm (fn [item#]
-               (resource/track
-                (bindings/raw-create-dl-tensor
-                 (-> (dtype-jna/->ptr-backing-store item#)
-                     dtype-jna/pointer->address)
-                 :cpu 0
-                 (dtype/get-datatype item#)
-                 0
-                 (jcpp-dtype/make-pointer-of-type
-                  :int64 (dtype/shape item#)))))}
+               (bindings/pointer->tvm-ary
+                item#
+                :cpu
+                0
+                (dtype/get-datatype item#)
+                (dtype/shape item#)
+                nil
+                0))}
      bindings/PJVMTypeToTVMValue
      {:->tvm-value (fn [item#]
                      (-> item#
                          bindings/->tvm
                          bindings/->tvm-value))}
-     tvm-driver/PTVMDeviceType
+     bindings/PTVMDeviceType
      {:device-type (fn [item#] :cpu)}
-     tvm-driver/PTVMDeviceId
+     bindings/PTVMDeviceId
      {:device-id (fn [item#] 0)}))
 
 
-;; (extend-tvm-bindings com.sun.jna.Pointer)
-;; (extend-tvm-bindings org.bytedeco.javacpp.Pointer)
-;; (extend-tvm-bindings TypedPointer)
+(extend-tvm-bindings com.sun.jna.Pointer)
+(extend-tvm-bindings org.bytedeco.javacpp.Pointer)
+(extend-tvm-bindings TypedPointer)
 
 
 (tvm-reg/register-driver (driver))

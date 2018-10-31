@@ -1,5 +1,5 @@
 (ns tech.compute.tvm.gpu
-  (:require [tvm-clj.tvm-bindings :as bindings]
+  (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
@@ -22,11 +22,11 @@
   bindings/PToTVM
   (->tvm [_] stream)
 
-  tvm-driver/PTVMDeviceType
-  (device-type [_] (tvm/device-type device))
+  bindings/PTVMDeviceType
+  (device-type [_] (bindings/device-type device))
 
-  tvm-driver/PTVMDeviceId
-  (device-id [_] (tvm/device-id device))
+  bindings/PTVMDeviceId
+  (device-id [_] (bindings/device-id device))
 
   drv/PStream
   (copy-host->device [_ host-buffer host-offset
@@ -79,10 +79,10 @@
 
 (defrecord GPUDevice [driver ^long device-id supports-create?
                       default-stream resource-context]
-  tvm-driver/PTVMDeviceType
-  (device-type [this] (tvm-driver/device-type driver))
+  bindings/PTVMDeviceType
+  (device-type [this] (bindings/device-type driver))
 
-  tvm-driver/PTVMDeviceId
+  bindings/PTVMDeviceId
   (device-id [this] device-id)
 
   drv/PDevice
@@ -91,16 +91,16 @@
     {:free 0xFFFFFFFF
      :total 0xFFFFFFF})
   (create-stream [device]
-    (->GPUStream device (bindings/create-stream (tvm-driver/device-type driver)
+    (->GPUStream device (bindings/create-stream (bindings/device-type driver)
                                                 device-id)))
   (allocate-device-buffer [device elem-count elem-type options]
     (dbuf/make-device-buffer-of-type device elem-type elem-count))
   (supports-create-stream? [device] supports-create?)
   (default-stream [device] @default-stream)
   (device->device-copy-compatible? [src dest]
-    (let [src-device-type (tvm-driver/device-type src)
-          dst-device-type (when (satisfies? tvm-driver/PTVMDeviceType dest)
-                            (tvm-driver/device-type dest))]
+    (let [src-device-type (bindings/device-type src)
+          dst-device-type (when (satisfies? bindings/PTVMDeviceType dest)
+                            (bindings/device-type dest))]
       (or (= src-device-type dst-device-type)
           (= :cpu dst-device-type))))
 
@@ -138,7 +138,7 @@
 (def ^:private enumerate-devices
   (memoize
    (fn [driver]
-     (->> (tvm/enumerate-device-ids (tvm-driver/device-type driver))
+     (->> (tvm/enumerate-device-ids (bindings/device-type driver))
           (mapv #(make-gpu-device driver %))))))
 
 
@@ -151,17 +151,16 @@
    :uint64 :int64})
 
 
-(defrecord GPUDriver [^long device-type]
-  tvm-driver/PTVMDeviceType
-  (device-type [this] (bindings/device-type-int->device-type
-                       device-type))
+(defrecord GPUDriver [device-type]
+  bindings/PTVMDeviceType
+  (device-type [this] device-type)
 
   drv/PDriverProvider
   (get-driver [this] this)
 
   drv/PDriver
   (driver-name [this]
-    (tvm-reg/tvm-driver-name (tvm-driver/device-type this)))
+    (tvm-reg/tvm-driver-name (bindings/device-type this)))
   (get-devices [driver]
     (enumerate-devices driver))
   (allocate-host-buffer [driver elem-count elem-type options]
@@ -172,7 +171,7 @@
     (if-let [retval (nth (drv/get-devices driver) dev-id)]
       retval
       (throw (ex-info "Device does not exist"
-                      {:device-type (bindings/device-type-int->device-type device-type)
+                      {:device-type device-type
                        :device-id dev-id}))))
   (gpu-scheduling? [_] true)
   (scalar-datatype->device-datatype [driver scalar-datatype]
@@ -188,8 +187,7 @@
     (api/schedules->fns sched-data-seq
                         :build-config (:build-config options)
                         :target-host (:target-host options)
-                        :target-name (bindings/device-type-int->device-type
-                                      device-type))))
+                        :target-name device-type)))
 
 
 (def gpu-device-types #{:cuda :opencl :rocm})
@@ -198,14 +196,10 @@
 (def driver
   (memoize
    (fn [device-type]
-     (let [device-type (long (if (number? device-type)
-                               device-type
-                               (bindings/device-type->device-type-int device-type)))]
-       (when-not (gpu-device-types (bindings/device-type-int->device-type device-type))
-         (throw (ex-info "Device type does not appear to be a gpu device"
-                         {:device-type (bindings/device-type-int->device-type
-                                        device-type)})))
-       (->GPUDriver device-type)))))
+     (when-not (gpu-device-types device-type)
+       (throw (ex-info "Device type does not appear to be a gpu device"
+                       {:device-type device-type})))
+     (->GPUDriver device-type))))
 
 
 (defn cuda-driver [] (driver :cuda))
