@@ -4,7 +4,8 @@
             [tech.datatype :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
-            [clojure.string :as s]))
+            [clojure.string :as s])
+  (:refer-clojure :exclude [range cast mod min max]))
 
 
 (set! *warn-on-reflection* true)

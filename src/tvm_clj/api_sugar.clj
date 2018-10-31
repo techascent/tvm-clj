@@ -2,8 +2,9 @@
   "Operators and bindings to make the clojure code look and work like the python
 tvm bindings.  This file is purely syntax sugar."
   (:require [tvm-clj.api :as api]
-            [tvm-clj.tvm-bindings :as bindings]
-            [tech.datatype :as dtype]))
+            [tvm-clj.tvm-jna :as bindings]
+            [tech.datatype :as dtype])
+  (:refer-clojure :exclude [+ - * / rem = min max cast]))
 
 (set! *warn-on-reflection* true)
 
@@ -28,15 +29,6 @@ tvm bindings.  This file is purely syntax sugar."
      (if (bindings/is-node-handle? lhs#)
        (~api-fn lhs#)
        (~scalar-fn lhs#))))
-
-(defmacro defapionlyunary
-  [op-symbol api-fn]
-  `(defn op-symbol
-     [lhs#]
-     (when-not (bindings/is-node-handle? lhs#)
-       (throw (ex-info "Operation doesn't have a java equivalent"
-                       {:operation (str ~op-symbol)})))
-     (api-fn lhs#)))
 
 (defbinop + clojure.core/+ api/add)
 (defbinop - clojure.core/- api/sub)

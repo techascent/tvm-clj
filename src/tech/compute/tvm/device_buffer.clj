@@ -4,10 +4,6 @@
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.base :as dtype-base]
             [tech.datatype :as dtype]
-            [tech.datatype.java-primitive :as primitive]
-            [tech.resource :as resource]
-            [clojure.core.matrix.protocols :as mp]
-            [tech.datatype.java-unsigned :as unsigned]
             [tech.compute.tensor :as ct]
             [tech.compute.tensor.dimensions :as ct-dims]
             [tech.compute :as compute]
@@ -37,14 +33,16 @@
 (extend-type DLPack$DLTensor
   drv/PBuffer
   (sub-buffer [buffer offset length]
-    (let [base-ptr (dtype-jna/->ptr-backing-store buffer)
+    ;;We don't use the PToPtr protocol because we do actually
+    ;;need the base ptr address.  ->ptr-backing-store offsets
+    ;;that address.
+    (let [base-ptr (bindings/base-ptr buffer)
           datatype (dtype/get-datatype buffer)
           byte-offset (long (bindings/byte-offset buffer))]
       (bindings/pointer->tvm-ary
        base-ptr
-       (long (bindings/device-type->device-type-int
-              (compute-tvm/device-type buffer)))
-       (long (compute-tvm/device-id buffer))
+       (bindings/device-type buffer)
+       (bindings/device-id buffer)
        datatype
        [length]
        nil
@@ -104,7 +102,7 @@
                                      (ct-dims/access-increasing?
                                       (ct/tensor->dimensions item)))
                         (:strides dims))]
-      (bindings/pointer->tvm-ary (dtype-jna/->ptr-backing-store buffer)
+      (bindings/pointer->tvm-ary (bindings/base-ptr buffer)
                                  (bindings/device-type buffer)
                                  (bindings/device-id buffer)
                                  (ct/get-datatype item)
@@ -119,4 +117,6 @@
 
   bindings/PByteOffset
   (byte-offset [tensor]
-    (bindings/byte-offset (ct/tensor->buffer tensor))))
+    (bindings/byte-offset (ct/tensor->buffer tensor)))
+  (base-ptr [tensor]
+    (bindings/base-ptr (ct/tensor->buffer tensor))))

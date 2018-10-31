@@ -6,7 +6,7 @@
             [tech.datatype.java-primitive :as primitive]
             [clojure.core.matrix.protocols :as mp]
             [tech.resource :as resource]
-            [tech.jna :as jna]
+            [tech.jna :refer [checknil] :as jna]
             [potemkin :as p])
   (:import [com.sun.jna Native NativeLibrary Pointer Function]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
@@ -78,8 +78,15 @@
 (defprotocol PTVMDeviceType
   (device-type [item]))
 
+
 (defprotocol PByteOffset
-  (byte-offset [item]))
+  "Some buffers you cant offset (opengl, for instance).
+So buffers have a logical byte-offset that is passed to functions.
+So we need to get the actual base ptr sometimes."
+  (byte-offset [item])
+  (base-ptr [item]))
+
+
 
 (def tvm-datatype->keyword-map
   {0 :int
@@ -108,6 +115,7 @@
    :int64 :int
    :float32 :float
    :float64 :float})
+
 
 (defn keyword->tvm-datatype
   [kwd]
@@ -401,20 +409,6 @@ Argpair is of type [symbol type-coersion]."
   ^LongByReference [item]
   (jna/ensure-type LongByReference item))
 
-
-
-(defn checknil
-  ^Pointer [value]
-  (let [value (if (satisfies? dtype-jna/PToPtr value)
-                (dtype-jna/->ptr-backing-store value)
-                value)]
-    (if (instance? Pointer value)
-      (checknil (Pointer/nativeValue value))
-      (if (= 0 (long value))
-        (throw (ex-info "Pointer value is nil"
-                        {}))
-        (Pointer. value)))))
-
 (defn- ->long-ptr
   [item]
   (if (instance? Pointer item)
@@ -571,7 +565,13 @@ Argpair is of type [symbol type-coersion]."
      :array-handle])
   dtype-jna/PToPtr
   (->ptr-backing-store [item]
-    (.data item))
+    ;;There should be a check here so that only devices that support
+    ;;pointer offset allow this call.  Other calls should be via
+    ;;the base-ptr protocol
+    (-> (base-ptr item)
+        Pointer/nativeValue
+        (+ (long (byte-offset item)))
+        (Pointer.)))
   dtype-base/PDatatype
   (get-datatype [item] (dl-datatype->datatype (.dtype item)))
   mp/PElementCount
@@ -641,7 +641,8 @@ Argpair is of type [symbol type-coersion]."
      (.device_type (.ctx item))))
 
   PByteOffset
-  (byte-offset [item] (.byte_offset item)))
+  (byte-offset [item] (.byte_offset item))
+  (base-ptr [item] (.data item)))
 
 
 
@@ -771,29 +772,14 @@ Argpair is of type [symbol type-coersion]."
                  [fn-names ptr-ptr])
 
 
-(defn- array-str-data->string-vec
-  [^IntByReference num-fields-ary ^PointerByReference fields]
-  (let [base-address (Pointer/nativeValue (.getValue fields))]
-    (->> (range (.getValue num-fields-ary))
-         (map (fn [name-idx]
-                (let [new-ptr (-> (+ (* (long name-idx) Native/POINTER_SIZE)
-                                     base-address)
-                                  (Pointer.))
-                      char-ptr (case Native/POINTER_SIZE
-                                 8 (.getLong new-ptr 0)
-                                 4 (.getInt new-ptr 0))]
-                  (jna/variable-byte-ptr->string (Pointer. char-ptr)))))
-         sort
-         vec)))
-
-
 (def global-function-names
   (memoize
    (fn []
      (let [int-data (IntByReference.)
            fn-names (PointerByReference.)]
        (check-call (TVMFuncListGlobalNames int-data fn-names))
-       (array-str-data->string-vec int-data fn-names)))))
+       (jna/char-ptr-ptr->string-vec (.getValue int-data)
+                                     (.getValue fn-names))))))
 
 
 (make-tvm-jna-fn TVMFuncGetGlobal
@@ -926,7 +912,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
   (let [fields (PointerByReference.)
         num-fields (IntByReference.)]
     (check-call (TVMNodeListAttrNames handle num-fields fields))
-    (array-str-data->string-vec num-fields fields)))
+    (jna/char-ptr-ptr->string-vec (.getValue num-fields) (.getValue fields))))
 
 
 (make-tvm-jna-fn TVMNodeGetAttr
@@ -1025,6 +1011,11 @@ This is in order to ensure that, for instance, deserialization of a node's field
                          [k (get this k)]))
                   (into {}))
              :raw-ptr (.hashCode this))))
+
+
+(defn is-node-handle?
+  [item]
+  (instance? NodeHandle item))
 
 
 (make-tvm-jna-fn TVMNodeFree
