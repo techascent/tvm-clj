@@ -33,7 +33,7 @@ Centralized registring of drivers allowing a symbolic name->driver table."
 
 
 (defn has-byte-offset? [buffer]
-  (= 0 (bindings/byte-offset buffer)))
+  (not= 0 (bindings/byte-offset buffer)))
 
 
 (defprotocol PTVMStream
