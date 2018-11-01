@@ -4,7 +4,7 @@
             [tech.compute.tensor.utils :refer [when-not-error]]
             [clojure.string :as s]
             [tvm-clj.api :as api]
-            [tvm-clj.tvm-bindings :as bindings]
+            [tvm-clj.tvm-jna :as bindings]
             [tech.resource :as resource]
             [tech.compute.tvm.cpu :as cpu]
             [tech.compute.tvm.gpu]
@@ -15,8 +15,9 @@
             [tech.compute :as compute]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.compute.cpu.driver :as cpu-driver]
+            [tech.datatype.jna :as dtype-jna]
             ;;Need this for the fallbacks
-            [tech.compute.cpu.tensor-math])
+            [tech.compute.cpu.tensor-math :as cpu-tm])
   (:import [tech.compute.tvm.cpu CPUStream]
            [tech.compute.tvm.gpu GPUStream]
            [java.util UUID]))
@@ -83,7 +84,8 @@
        (map-indexed (fn [idx [tensor variable]]
 
                       (let [[result? tensor variable] (if (= tensor :result)
-                                                        [true (first variable) (second variable)]
+                                                        [true (first variable)
+                                                         (second variable)]
                                                         [false tensor variable])
                             shape (ct/shape tensor)]
                         [variable (api/declare-buffer
@@ -159,14 +161,16 @@
 
 
 (defn tensor-read
-  "Perform the math required to get the absolute element offset from the shape/stride combined with the max shape variables"
+  "Perform the math required to get the absolute element offset from the shape/stride
+  combined with the max shape variables"
   [placeholder index-vars shape-stride-tuples]
   (when-not (= (count index-vars)
                (count shape-stride-tuples))
     (throw (ex-info "Count of index vars must count of tensor shape"
                     {:index-var-count (count index-vars)
                      :shape-count (count shape-stride-tuples)})))
-  ;;Generic broadcasting reduction for the destination indexes into any argument's shape.
+  ;;Generic broadcasting reduction for the destination indexes into any argument's
+  ;;shape.
   (api/tget placeholder
             [(->> (map (fn [index-var [shape stride]]
                          (api/mul stride
@@ -185,7 +189,8 @@
   [tensor n-dims]
   (let [tens-shape (left-pad-ones (ct/shape tensor) n-dims)
         tens-stride (ct-dims/extend-strides tens-shape (ct/strides tensor))]
-    ;;Read tensors pass in their backing store so that we have generic broadcasting rules to effect.
+    ;;Read tensors pass in their backing store so that we have generic broadcasting
+    ;;rules to effect.
     (concat [(ct/tensor->buffer tensor)]
             (map int tens-shape)
             (map int tens-stride))))
@@ -320,16 +325,21 @@ lhs = rhs"
   (unary-op! [stream dest x alpha op]
     (cpu-fallback-impl tm/unary-op! stream dest x alpha op))
   (binary-accum-constant! [stream dest dst-alpha scalar operation reverse-operands?]
-    (cpu-fallback-impl tm/binary-accum-constant! stream dest dst-alpha scalar operation reverse-operands?))
+    (cpu-fallback-impl tm/binary-accum-constant! stream dest dst-alpha
+                       scalar operation reverse-operands?))
 
   (binary-op-constant! [stream dest x x-alpha scalar operation reverse-operands?]
-    (cpu-fallback-impl tm/binary-op-constant! stream dest x x-alpha scalar operation reverse-operands?))
+    (cpu-fallback-impl tm/binary-op-constant! stream dest x x-alpha
+                       scalar operation reverse-operands?))
 
-  (binary-accum! [stream dest dest-alpha y y-alpha operation reverse-operands? dest-reduction?]
-   (cpu-fallback-impl tm/binary-accum! stream dest dest-alpha y y-alpha operation reverse-operands? dest-reduction?))
+  (binary-accum! [stream dest dest-alpha y y-alpha operation
+                  reverse-operands? dest-reduction?]
+    (cpu-fallback-impl tm/binary-accum! stream dest dest-alpha
+                       y y-alpha operation reverse-operands? dest-reduction?))
 
   (binary-op! [stream dest x x-alpha y y-alpha operation]
-    (cpu-fallback-impl tm/binary-op! stream dest x x-alpha y y-alpha operation))
+    (cpu-fallback-impl tm/binary-op! stream dest x x-alpha
+                       y y-alpha operation))
 
   (ternary-op! [stream dest
                 x x-alpha

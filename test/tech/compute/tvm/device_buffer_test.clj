@@ -2,7 +2,6 @@
   (:require [tech.compute.tvm :as tvm]
             [tech.datatype.base :as dtype]
             [tech.compute.driver :as drv]
-            [tvm-clj.tvm-bindings :as bindings]
             [tech.resource :as resource]
             [clojure.test :refer :all]))
 

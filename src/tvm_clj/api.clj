@@ -1,12 +1,13 @@
 (ns tvm-clj.api
   "Higher level API to build and compile tvm functions."
-  (:require [tvm-clj.tvm-bindings :as bindings]
+  (:require [tvm-clj.tvm-jna :refer [->node] :as bindings]
+            [tvm-clj.jna.node :as jna-node]
+            [tvm-clj.bindings.protocols :as bindings-proto]
             [tech.datatype :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])
-  (:import [tvm_clj.tvm_bindings NodeHandle]
-           [tvm_clj.tvm runtime runtime$TVMModuleHandle]))
+  (:refer-clojure :exclude [range cast mod min max]))
 
 
 (set! *warn-on-reflection* true)
@@ -18,10 +19,6 @@
   `(when-not (do ~condition)
      (throw ~throw-clause)))
 
-
-(defn ->node
-  [item]
-  (bindings/->node item))
 
 (defn- ->dtype
   ^String [dtype-or-name]
@@ -51,9 +48,6 @@
   (bindings/global-node-function "_Var"
                           (safe-str name)
                           (->dtype dtype)))
-
-
-(declare ->node)
 
 
 (defn placeholder
@@ -207,7 +201,7 @@
             :halide (:op tensor) (:value_index tensor)))))
 
 
-(defmethod bindings/get-extended-node-value :tensor
+(defmethod jna-node/get-extended-node-value :tensor
   [node-handle item-key]
   (cond
     (or (number? item-key)
@@ -479,8 +473,7 @@ expressions,
           body-data (if-not (instance? clojure.lang.Sequential body-data)
                       [body-data]
                       body-data)]
-      (-> (bindings/g-fn "_ComputeOp" (safe-str name) tag attrs compute-dim body-data)
-          (bindings/unpack-node-fields :recurse false)))))
+      (bindings/g-fn "_ComputeOp" (safe-str name) tag attrs compute-dim body-data))))
 
 
 (defn commutative-reduce
@@ -513,8 +506,7 @@ expressions,
 (defn input-tensors
   [compute-op]
   (->> (bindings/global-node-function "_OpInputTensors" compute-op)
-       bindings/tvm-array->jvm
-       (mapv bindings/unpack-node-field)))
+       bindings/tvm-array->jvm))
 
 (defn throw-nil
   [item key-val]
@@ -541,8 +533,7 @@ expressions,
                       [op-seq]
                       op-seq)
                     (mapv ->operation))]
-    (bindings/unpack-node-fields (bindings/g-fn "_CreateSchedule" op-seq)
-                                 :recurse false)))
+    (bindings/g-fn "_CreateSchedule" op-seq)))
 
 
 (defn ->stage
@@ -553,7 +544,7 @@ expressions,
                          (->operation operation))))
 
 
-(defmethod bindings/get-extended-node-value :schedule
+(defmethod jna-node/get-extended-node-value :schedule
   [node-handle item-key]
   (->stage node-handle (->operation item-key)))
 
@@ -620,11 +611,8 @@ expressions,
 (defn schedule-cache-write
   "Returns a new tensor"
   [schedule tensor cache-type]
-  (let [retval (-> (bindings/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)
-                   (bindings/unpack-node-fields :recurse false))
-        schedule (bindings/unpack-node-fields schedule :recurse false)]
-    {:tensor (assoc retval
-                    :op (bindings/unpack-node-fields (:op retval) :recurse false))
+  (let [retval (bindings/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)]
+    {:tensor retval
      :schedule schedule}))
 
 
@@ -879,11 +867,11 @@ the threading macro with the long set of ir pass possibilities."
        The result function, if with_api_wrapper=False
        Then the Stmt before make api is returned.
     "
-  ^NodeHandle [schedule args name
-               & {:keys [build-config bind-map simple-mode?]
-                  :or {bind-map {}
-                       build-config
-                       default-build-config}}]
+  [schedule args name
+   & {:keys [build-config bind-map simple-mode?]
+      :or {bind-map {}
+           build-config
+           default-build-config}}]
   (let [schedule (bindings/g-fn "_ScheduleNormalize" schedule)
         [arg-list bind-map] (bind-arguments args bind-map build-config)
         bounds (bindings/g-fn "schedule.InferBound" schedule)
@@ -922,7 +910,6 @@ the threading macro with the long set of ir pass possibilities."
                  ;;Exit
                  (gfnr "ir_pass.MakeAPI" name arg-list 0
                        (:restricted-func? build-config))
-                 (bindings/unpack-node-fields :recurse false)
                  (update :func_type int->lowered-function-type-map))))))))
 
 
@@ -973,7 +960,6 @@ the threading macro with the long set of ir pass possibilities."
 
 
 (defn lowered-functions->module
-  ^runtime$TVMModuleHandle
   [lowered-function-seq & {:keys [build-config target-name target-host]
                            :or {target-name :llvm
                                 target-host :llvm
@@ -1010,7 +996,7 @@ the threading macro with the long set of ir pass possibilities."
         host-fns
         (mapv (fn [host-fn]
                 (bindings/g-fn "ir_pass.BindDeviceType" host-fn
-                        (bindings/device-type->device-type-int target-host))
+                               (bindings/device-type->int target-host))
                 (-> (bindings/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
                     (gfnr "ir_pass.LowerIntrin" (name target-host))
                     (gfnr "ir_pass.CombineContextCall")))
@@ -1021,7 +1007,7 @@ the threading macro with the long set of ir pass possibilities."
       (resource/with-resource-context
         (->> (mapv #(bindings/g-fn "ir_pass.LowerIntrin" % (name target-name)) device-fns)
              (#(bindings/g-fn "codegen._Build" % (name target-name)))
-             (runtime/TVMModImport mhost))))
+             (bindings/mod-import mhost))))
     mhost))
 
 
@@ -1070,9 +1056,7 @@ the threading macro with the long set of ir pass possibilities."
           (into {}))}))
 
 
-(extend-protocol bindings/PConvertToNode
-  NodeHandle
-  (->node [item] item)
+(extend-protocol bindings-proto/PConvertToNode
   Boolean
   (->node [item] (const item "uint1x1"))
   Byte

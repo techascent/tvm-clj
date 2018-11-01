@@ -1,13 +1,14 @@
-/target
+target
 /classes
 /checkouts
 pom.xml
 pom.xml.asc
 *.jar
 *.class
-/.lein-*
-/.nrepl-port
+.lein-*
+.nrepl-port
 .hgignore
 .hg/
 java/tvm_clj/tvm/runtime.java
 java/native
+resources/

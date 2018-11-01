@@ -4,23 +4,22 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [techascent/tech.compute "1.10"]
+                 [techascent/tech.compute "1.13"]
                  [potemkin "0.4.4"]]
 
   :profiles {:dev
              ;;Unit tests need this.
-             {:dependencies [[techascent/tech.opencv "1.2"]]}}
+             {:dependencies [[techascent/tech.opencv "1.5"]]}}
 
   :java-source-paths ["java"]
-  :native-path "java/native/"
-  :tvm-clj-runtime-path "java/tvm_clj/tvm/runtime.java"
-  :jni-path "java/native"
-  ;;In order to have a full clean (including jni stuff)
-  ;;we need to have the jni step as part of the jar-building step.
+  :native-path "java/native"
+
   :clean-targets
   ^{:protect false} [:target-path :compile-path]
   :aot [tvm-clj.jni]
   :test-selectors {:default (complement :cuda)
                    :cuda :cuda}
+  :jar {:prep-tasks ["compile" ["jni" "install-tvm-libs"]
+                     "compile" ["javac"]]}
 
   :aliases {"jni" ["run" "-m" "tvm-clj.jni"]})

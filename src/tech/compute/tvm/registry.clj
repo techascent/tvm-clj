@@ -1,6 +1,6 @@
 (ns tech.compute.tvm.registry
   (:require [tech.compute.registry :as registry]
-            [tvm-clj.tvm-bindings :as bindings]
+            [tvm-clj.tvm-jna :as bindings]
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.compute.driver :as drv]
             [tech.compute :as compute]
@@ -43,7 +43,7 @@
   [driver]
   (registry/register-driver driver)
   (add-driver-name (drv/driver-name driver)
-                   (tvm-driver/device-type driver)))
+                   (bindings/device-type driver)))
 
 
 (defn device-type->driver

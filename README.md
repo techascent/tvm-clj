@@ -166,13 +166,9 @@ cmake ..
 make -j8
 popd
 popd
-
-lein clean && lein jni build-jni-java && lein jni build-and-install-jni
 ```
 
-
-At this point you should have the bindings under `java/tvm_clj/tvm/runtime/java` and a couple native libraries
-under the `java/native/linux/x86_64` pathway.
+At this point you should have native libraries under tvm/build/
 
 Building a jar or uberjar will package all of these things into a good place.
 

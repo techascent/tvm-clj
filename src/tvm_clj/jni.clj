@@ -1,11 +1,12 @@
 (ns tvm-clj.jni
   (:gen-class)
   (:require [clojure.java.io :as io]
-            [clojure.string :as string])
-  (:import [org.bytedeco.javacpp.tools Builder]))
+            [clojure.string :as string]
+            [tech.jna :as jna])
+  (:import [com.sun.jna Platform]))
 
 
-(defn lib-filename [libname] (System/mapLibraryName libname))
+(defn lib-filename [libname] (jna/map-shared-library-name libname))
 
 
 (defn filepath [& parts] (string/join (java.io.File/separator) parts))
@@ -16,60 +17,19 @@
   (apply filepath (System/getProperty "user.dir") parts))
 
 
-(defn os-name-and-arch
-  []
-  (let [os-name (string/lower-case (string/replace (System/getProperty "os.name") #"\s+" ""))
-        arch (System/getProperty "os.arch")]
-    ;;Queue shitloads of special cases...
-    (cond
-      (and (= os-name "linux")
-           (= arch "amd64"))
-      [os-name "x86_64"]
-      :else
-      [os-name arch])))
-
-
 (defn native-path []
-  (apply relpath "java" "native" (os-name-and-arch)))
+  ;;Use the jna subsystem for this type of thing
+  (relpath "resources" Platform/RESOURCE_PREFIX))
 
 
-(defn build-java-stub
-  []
-  (Builder/main (into-array String ["tvm_clj.tvm.presets.runtime" "-d" "java"])))
-
-
-(defn build-jni-lib
-  []
-  (Builder/main (into-array String ["tvm_clj.tvm.runtime" "-d" (native-path)
-                                    "-nodelete" ;;When shit doesn't work this is very helpful
-                                    "-Xcompiler"
-                                    (str "-I" (relpath "tvm" "include" "tvm"))
-                                    "-Xcompiler"
-                                    (str "-I" (relpath "tvm" "3rdparty" "dlpack" "include"))
-                                    "-Xcompiler"
-                                    "-std=c++11"
-                                    ;; This option breaks on OSX/Xcode/clang
-                                    ;;"-Xcompiler"
-                                    ;;(str "-Wl," "--no-as-needed")
-                                    "-Xcompiler"
-                                    (str "-Wl," "-ltvm_topi")
-                                    "-Xcompiler"
-                                    (str "-L" (relpath "tvm" "build"))])))
-
-
-(defn install-jni-lib
-  []
-  (.mkdirs (io/file (native-path)))
-  (doall (map #(io/copy (io/file (relpath "tvm" "build" (lib-filename %)))
-                        (io/file (filepath (native-path) (lib-filename %))))
-              ["tvm" "tvm_topi"])))
-
-
-
-(defn build-and-install-jni-lib
-  []
-  (build-jni-lib)
-  (install-jni-lib))
+(defn install-tvm-libs
+  [& [libs]]
+  (let [libs (or libs ["tvm" "tvm_topi"])]
+    (.mkdirs (io/file (native-path)))
+    (->> libs
+         (map #(io/copy (io/file (relpath "tvm" "build" (lib-filename %)))
+                        (io/file (filepath (native-path) (lib-filename %)))))
+         doall)))
 
 
 (defn -main
@@ -79,11 +39,5 @@
                   (keyword arg-val)
                   :build-jni-java)]
     (condp = command
-      :build-jni-java ;;step 1
-      (build-java-stub)
-      :build-jni
-      (build-jni-lib)
-      :install-jni
-      (install-jni-lib)
-      :build-and-install-jni
-      (build-and-install-jni-lib))))
+      :install-tvm-libs
+      (install-tvm-libs))))

@@ -1,15 +1,17 @@
 (ns tech.compute.tvm.gpu
-  (:require [tvm-clj.tvm-bindings :as bindings]
+  (:require [tvm-clj.tvm-jna :as bindings]
+            [tvm-clj.bindings.protocols :as tvm-proto]
             [tvm-clj.api :as api]
+            [tvm-clj.jna.stream :as tvm-jna-stream]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.base :as dtype]
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.tvm :as tvm]
-            [tech.resource :as resource])
-  (:import [tvm_clj.tvm runtime$TVMStreamHandle]
-           [org.bytedeco.javacpp Pointer]))
+            [tech.resource :as resource]
+            [tech.datatype.jna :as dtype-jna])
+  (:import [com.sun.jna Pointer]))
 
 
 (declare cuda-driver)
@@ -19,14 +21,14 @@
 
 
 (defrecord GPUStream [device stream]
-  bindings/PToTVM
+  tvm-proto/PToTVM
   (->tvm [_] stream)
 
-  tvm-driver/PTVMDeviceType
-  (device-type [_] (tvm/device-type device))
+  tvm-proto/PTVMDeviceType
+  (device-type [_] (bindings/device-type device))
 
-  tvm-driver/PTVMDeviceId
-  (device-id [_] (tvm/device-id device))
+  tvm-proto/PTVMDeviceId
+  (device-id [_] (bindings/device-id device))
 
   drv/PStream
   (copy-host->device [_ host-buffer host-offset
@@ -44,27 +46,19 @@
                               dev-b dev-b-off
                               elem-count stream))
   (sync-with-host [_]
-    (bindings/sync-stream-with-host (-> (tvm/device-type device)
-                                        (bindings/device-type->device-type-int))
-                                    (tvm/device-id device)
-                                    stream))
+    (bindings/sync-stream-with-host stream))
   (sync-with-stream [src-stream dst-stream]
     (when-not (= (tvm/device-type src-stream) (tvm/device-type dst-stream))
       (throw (ex-info "Cannot synchronize streams of two different device types"
                       {:src-device-type (tvm/device-type src-stream)
                        :dst-device-type (tvm/device-type dst-stream)})))
-    (bindings/sync-stream-with-stream (-> (tvm/device-type device)
-                                          (bindings/device-type->device-type-int))
-                                      (tvm/device-id device)
-                                      (bindings/->tvm src-stream)
-                                      (bindings/->tvm dst-stream)))
+    (bindings/sync-stream-with-stream src-stream dst-stream))
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
-    (when (.address ^Pointer (bindings/->tvm stream))
-      (bindings/set-current-thread-stream (bindings/device-type->device-type-int
-                                           (tvm/device-type device))
-                                          (tvm/device-id device)
-                                          stream))
+    (let [stream-ptr (-> (bindings/->tvm stream)
+                         (dtype-jna/->ptr-backing-store))]
+      (when-not (= 0 (Pointer/nativeValue stream-ptr))
+        (bindings/set-current-thread-stream stream)))
     (apply fn arg-list))
 
   drv/PDeviceProvider
@@ -79,10 +73,10 @@
 
 (defrecord GPUDevice [driver ^long device-id supports-create?
                       default-stream resource-context]
-  tvm-driver/PTVMDeviceType
-  (device-type [this] (tvm-driver/device-type driver))
+  tvm-proto/PTVMDeviceType
+  (device-type [this] (bindings/device-type driver))
 
-  tvm-driver/PTVMDeviceId
+  tvm-proto/PTVMDeviceId
   (device-id [this] device-id)
 
   drv/PDevice
@@ -91,16 +85,16 @@
     {:free 0xFFFFFFFF
      :total 0xFFFFFFF})
   (create-stream [device]
-    (->GPUStream device (bindings/create-stream (tvm-driver/device-type driver)
+    (->GPUStream device (bindings/create-stream (bindings/device-type driver)
                                                 device-id)))
   (allocate-device-buffer [device elem-count elem-type options]
     (dbuf/make-device-buffer-of-type device elem-type elem-count))
   (supports-create-stream? [device] supports-create?)
   (default-stream [device] @default-stream)
   (device->device-copy-compatible? [src dest]
-    (let [src-device-type (tvm-driver/device-type src)
-          dst-device-type (when (satisfies? tvm-driver/PTVMDeviceType dest)
-                            (tvm-driver/device-type dest))]
+    (let [src-device-type (bindings/device-type src)
+          dst-device-type (when (satisfies? tvm-proto/PTVMDeviceType dest)
+                            (bindings/device-type dest))]
       (or (= src-device-type dst-device-type)
           (= :cpu dst-device-type))))
 
@@ -118,15 +112,14 @@
 (defn- make-gpu-device
   "Never call this external; devices are centrally created and registered."
   [driver dev-id]
-  (let [dev-type (-> (tvm/device-type driver)
-                     (bindings/device-type->device-type-int))
+  (let [dev-type (tvm/device-type driver)
         {default-stream :return-value
          resource-seq :resource-seq}
         (resource/return-resource-seq
          (try
            (bindings/create-stream dev-type dev-id)
            (catch Throwable e
-             (bindings/->StreamHandle dev-type dev-id (runtime$TVMStreamHandle.)))))
+             (tvm-jna-stream/->StreamHandle dev-type dev-id (Pointer. 0)))))
         supports-create? (boolean default-stream)
         device (->GPUDevice driver dev-id supports-create?
                             (atom nil) (resource/->Releaser #(resource/release-resource-seq
@@ -138,7 +131,7 @@
 (def ^:private enumerate-devices
   (memoize
    (fn [driver]
-     (->> (tvm/enumerate-device-ids (tvm-driver/device-type driver))
+     (->> (tvm/enumerate-device-ids (bindings/device-type driver))
           (mapv #(make-gpu-device driver %))))))
 
 
@@ -151,17 +144,16 @@
    :uint64 :int64})
 
 
-(defrecord GPUDriver [^long device-type]
-  tvm-driver/PTVMDeviceType
-  (device-type [this] (bindings/device-type-int->device-type
-                       device-type))
+(defrecord GPUDriver [device-type]
+  tvm-proto/PTVMDeviceType
+  (device-type [this] device-type)
 
   drv/PDriverProvider
   (get-driver [this] this)
 
   drv/PDriver
   (driver-name [this]
-    (tvm-reg/tvm-driver-name (tvm-driver/device-type this)))
+    (tvm-reg/tvm-driver-name (bindings/device-type this)))
   (get-devices [driver]
     (enumerate-devices driver))
   (allocate-host-buffer [driver elem-count elem-type options]
@@ -172,7 +164,7 @@
     (if-let [retval (nth (drv/get-devices driver) dev-id)]
       retval
       (throw (ex-info "Device does not exist"
-                      {:device-type (bindings/device-type-int->device-type device-type)
+                      {:device-type device-type
                        :device-id dev-id}))))
   (gpu-scheduling? [_] true)
   (scalar-datatype->device-datatype [driver scalar-datatype]
@@ -188,8 +180,7 @@
     (api/schedules->fns sched-data-seq
                         :build-config (:build-config options)
                         :target-host (:target-host options)
-                        :target-name (bindings/device-type-int->device-type
-                                      device-type))))
+                        :target-name device-type)))
 
 
 (def gpu-device-types #{:cuda :opencl :rocm})
@@ -198,14 +189,10 @@
 (def driver
   (memoize
    (fn [device-type]
-     (let [device-type (long (if (number? device-type)
-                               device-type
-                               (bindings/device-type->device-type-int device-type)))]
-       (when-not (gpu-device-types (bindings/device-type-int->device-type device-type))
-         (throw (ex-info "Device type does not appear to be a gpu device"
-                         {:device-type (bindings/device-type-int->device-type
-                                        device-type)})))
-       (->GPUDriver device-type)))))
+     (when-not (gpu-device-types device-type)
+       (throw (ex-info "Device type does not appear to be a gpu device"
+                       {:device-type device-type})))
+     (->GPUDriver device-type))))
 
 
 (defn cuda-driver [] (driver :cuda))

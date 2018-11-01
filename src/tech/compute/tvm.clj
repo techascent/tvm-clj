@@ -2,7 +2,7 @@
   (:require [tech.compute.tvm.driver :as tvm-driver]
             [tech.compute :as compute]
             [tvm-clj.api :as tvm-api]
-            [tvm-clj.tvm-bindings :as bindings]
+            [tvm-clj.tvm-jna :as bindings]
             [tech.compute.tvm.registry :as tvm-reg]))
 
 
@@ -30,7 +30,7 @@
   [item]
   (-> item
       compute/->driver
-      tvm-driver/device-type))
+      bindings/device-type))
 
 
 (defn device-id
@@ -38,7 +38,7 @@
   [item]
   (-> item
       compute/->device
-      tvm-driver/device-id))
+      bindings/device-id))
 
 
 (defn cpu?
@@ -104,9 +104,8 @@
 
 (defn enumerate-device-ids
   [device-type]
-  (let [device-type-int (bindings/device-type->device-type-int device-type)]
-    (->> (range)
-         (take-while #(= 1 (bindings/device-exists? device-type-int %))))))
+  (->> (range)
+       (take-while #(bindings/device-exists? device-type %))))
 
 
 (defn make-cpu-device-buffer
