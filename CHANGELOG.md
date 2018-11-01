@@ -7,8 +7,8 @@ probably fucked while a change in Y means you may not be fucked.
 
 
 
-## [1.5]
-### Added 
+## [2.0]
+### Added
 * example project with dockerfile so anyone can try out the ubuntu version with
 only opencv installed.
 ### Fixed/Changed
