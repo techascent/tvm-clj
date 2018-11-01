@@ -8,7 +8,8 @@
             [tvm-clj.api :as api]
             [tech.compute.verify.tensor :as verify-tensor]
             ;;Add in syntactic sugar
-            [tvm-clj.api-sugar :refer :all]))
+            [tvm-clj.api-sugar :refer :all])
+  (:refer-clojure :exclude [+ - * / rem = min max cast]))
 
 
 ;;uint8 input/output tensors.

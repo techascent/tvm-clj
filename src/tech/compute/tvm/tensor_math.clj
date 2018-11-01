@@ -15,8 +15,9 @@
             [tech.compute :as compute]
             [tech.datatype.javacpp :as jcpp-dtype]
             [tech.compute.cpu.driver :as cpu-driver]
+            [tech.datatype.jna :as dtype-jna]
             ;;Need this for the fallbacks
-            [tech.compute.cpu.tensor-math])
+            [tech.compute.cpu.tensor-math :as cpu-tm])
   (:import [tech.compute.tvm.cpu CPUStream]
            [tech.compute.tvm.gpu GPUStream]
            [java.util UUID]))

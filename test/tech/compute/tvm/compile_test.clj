@@ -187,5 +187,4 @@
   (try
     (println "Compiled (cuda) tensor took:" (run-test #(tvm-image-test :cuda)))
     (catch Throwable e
-      nil))
-  )
+      nil)))
