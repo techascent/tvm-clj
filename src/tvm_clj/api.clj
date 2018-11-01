@@ -1,6 +1,8 @@
 (ns tvm-clj.api
   "Higher level API to build and compile tvm functions."
-  (:require [tvm-clj.tvm-jna :as bindings]
+  (:require [tvm-clj.tvm-jna :refer [->node] :as bindings]
+            [tvm-clj.jna.node :as jna-node]
+            [tvm-clj.bindings.protocols :as bindings-proto]
             [tech.datatype :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
@@ -17,10 +19,6 @@
   `(when-not (do ~condition)
      (throw ~throw-clause)))
 
-
-(defn ->node
-  [item]
-  (bindings/->node item))
 
 (defn- ->dtype
   ^String [dtype-or-name]
@@ -50,9 +48,6 @@
   (bindings/global-node-function "_Var"
                           (safe-str name)
                           (->dtype dtype)))
-
-
-(declare ->node)
 
 
 (defn placeholder
@@ -206,7 +201,7 @@
             :halide (:op tensor) (:value_index tensor)))))
 
 
-(defmethod bindings/get-extended-node-value :tensor
+(defmethod jna-node/get-extended-node-value :tensor
   [node-handle item-key]
   (cond
     (or (number? item-key)
@@ -549,7 +544,7 @@ expressions,
                          (->operation operation))))
 
 
-(defmethod bindings/get-extended-node-value :schedule
+(defmethod jna-node/get-extended-node-value :schedule
   [node-handle item-key]
   (->stage node-handle (->operation item-key)))
 
@@ -1001,7 +996,7 @@ the threading macro with the long set of ir pass possibilities."
         host-fns
         (mapv (fn [host-fn]
                 (bindings/g-fn "ir_pass.BindDeviceType" host-fn
-                        (bindings/device-type->device-type-int target-host))
+                               (bindings/device-type->int target-host))
                 (-> (bindings/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
                     (gfnr "ir_pass.LowerIntrin" (name target-host))
                     (gfnr "ir_pass.CombineContextCall")))
@@ -1061,7 +1056,7 @@ the threading macro with the long set of ir pass possibilities."
           (into {}))}))
 
 
-(extend-protocol bindings/PConvertToNode
+(extend-protocol bindings-proto/PConvertToNode
   Boolean
   (->node [item] (const item "uint1x1"))
   Byte

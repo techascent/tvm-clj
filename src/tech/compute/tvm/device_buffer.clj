@@ -1,5 +1,6 @@
 (ns tech.compute.tvm.device-buffer
   (:require [tvm-clj.tvm-jna :as bindings]
+            [tvm-clj.bindings.protocols :as tvm-proto]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.base :as dtype-base]
@@ -91,7 +92,7 @@
 
 
 (extend-type Tensor
-  bindings/PToTVM
+  tvm-proto/PToTVM
   (->tvm [item]
     ;;This is a specialized conversion because the tensor's dimension change independent
     ;;of the buffer.  Thus any time we want to use a tensor in tvm we have to create an
@@ -110,12 +111,12 @@
                                  stride-data
                                  (bindings/byte-offset buffer))))
 
-  bindings/PJVMTypeToTVMValue
+  tvm-proto/PJVMTypeToTVMValue
   (->tvm-value [item]
     (-> (bindings/->tvm item)
         bindings/->tvm-value))
 
-  bindings/PByteOffset
+  tvm-proto/PByteOffset
   (byte-offset [tensor]
     (bindings/byte-offset (ct/tensor->buffer tensor)))
   (base-ptr [tensor]

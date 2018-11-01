@@ -1,6 +1,8 @@
 (ns tech.compute.tvm.gpu
   (:require [tvm-clj.tvm-jna :as bindings]
+            [tvm-clj.bindings.protocols :as tvm-proto]
             [tvm-clj.api :as api]
+            [tvm-clj.jna.stream :as tvm-jna-stream]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
             [tech.compute.tvm.driver :as tvm-driver]
@@ -19,13 +21,13 @@
 
 
 (defrecord GPUStream [device stream]
-  bindings/PToTVM
+  tvm-proto/PToTVM
   (->tvm [_] stream)
 
-  bindings/PTVMDeviceType
+  tvm-proto/PTVMDeviceType
   (device-type [_] (bindings/device-type device))
 
-  bindings/PTVMDeviceId
+  tvm-proto/PTVMDeviceId
   (device-id [_] (bindings/device-id device))
 
   drv/PStream
@@ -71,10 +73,10 @@
 
 (defrecord GPUDevice [driver ^long device-id supports-create?
                       default-stream resource-context]
-  bindings/PTVMDeviceType
+  tvm-proto/PTVMDeviceType
   (device-type [this] (bindings/device-type driver))
 
-  bindings/PTVMDeviceId
+  tvm-proto/PTVMDeviceId
   (device-id [this] device-id)
 
   drv/PDevice
@@ -91,7 +93,7 @@
   (default-stream [device] @default-stream)
   (device->device-copy-compatible? [src dest]
     (let [src-device-type (bindings/device-type src)
-          dst-device-type (when (satisfies? bindings/PTVMDeviceType dest)
+          dst-device-type (when (satisfies? tvm-proto/PTVMDeviceType dest)
                             (bindings/device-type dest))]
       (or (= src-device-type dst-device-type)
           (= :cpu dst-device-type))))
@@ -117,7 +119,7 @@
          (try
            (bindings/create-stream dev-type dev-id)
            (catch Throwable e
-             (bindings/->StreamHandle dev-type dev-id (Pointer. 0)))))
+             (tvm-jna-stream/->StreamHandle dev-type dev-id (Pointer. 0)))))
         supports-create? (boolean default-stream)
         device (->GPUDevice driver dev-id supports-create?
                             (atom nil) (resource/->Releaser #(resource/release-resource-seq
@@ -143,7 +145,7 @@
 
 
 (defrecord GPUDriver [device-type]
-  bindings/PTVMDeviceType
+  tvm-proto/PTVMDeviceType
   (device-type [this] device-type)
 
   drv/PDriverProvider

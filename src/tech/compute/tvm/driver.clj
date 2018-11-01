@@ -4,22 +4,6 @@ Centralized registring of drivers allowing a symbolic name->driver table."
   (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.api :as tvm-api]))
 
-(defn cpu-device-type
-  ^long []
-  (bindings/device-type->device-type-int :cpu))
-
-(defn cuda-device-type
-  ^long []
-  (bindings/device-type->device-type-int :cuda))
-
-(defn opencl-device-type
-  ^long []
-  (bindings/device-type->device-type-int :opencl))
-
-(defn rocm-device-type
-  ^long []
-  (bindings/device-type->device-type-int :rocm))
-
 
 (defprotocol PTVMDriver
   (device-id->device [driver device-id])

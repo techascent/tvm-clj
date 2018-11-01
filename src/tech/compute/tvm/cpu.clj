@@ -1,5 +1,6 @@
 (ns tech.compute.tvm.cpu
   (:require [tvm-clj.tvm-jna :as bindings]
+            [tvm-clj.bindings.protocols :as tvm-proto]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
             [tech.compute.tvm.registry :as tvm-reg]
@@ -57,10 +58,10 @@
   drv/PDeviceProvider
   (get-device [_] (device-fn))
 
-  bindings/PTVMDeviceType
+  tvm-proto/PTVMDeviceType
   (device-type [this] (bindings/device-type (device-fn)))
 
-  bindings/PTVMDeviceId
+  tvm-proto/PTVMDeviceId
   (device-id [this] (bindings/device-id (device-fn)))
 
   cpu-driver/PToCPUStream
@@ -70,10 +71,10 @@
 (declare make-cpu-device-buffer)
 
 (defrecord CPUDevice [error-atom default-stream]
-  bindings/PTVMDeviceId
+  tvm-proto/PTVMDeviceId
   (device-id [this] 0)
 
-  bindings/PTVMDeviceType
+  tvm-proto/PTVMDeviceType
   (device-type [_] :cpu)
 
   drv/PDevice
@@ -88,7 +89,7 @@
   (default-stream [device] @default-stream)
   (device->device-copy-compatible? [src dest]
     ;;Is it a tvm device?
-    (boolean (satisfies? bindings/PTVMDeviceType dest)))
+    (boolean (satisfies? tvm-proto/PTVMDeviceType dest)))
 
   drv/PDriverProvider
   (get-driver [dev] (driver))
@@ -135,7 +136,7 @@
                         :target-host (:target-host options)
                         :target-name :llvm))
 
-  bindings/PTVMDeviceType
+  tvm-proto/PTVMDeviceType
   (device-type [_] :cpu))
 
 (def driver
@@ -161,7 +162,7 @@
   [item-cls]
   `(clojure.core/extend
        ~item-cls
-     bindings/PToTVM
+     tvm-proto/PToTVM
      {:->tvm (fn [item#]
                (bindings/pointer->tvm-ary
                 item#
@@ -171,14 +172,14 @@
                 (dtype/shape item#)
                 nil
                 0))}
-     bindings/PJVMTypeToTVMValue
+     tvm-proto/PJVMTypeToTVMValue
      {:->tvm-value (fn [item#]
                      (-> item#
                          bindings/->tvm
                          bindings/->tvm-value))}
-     bindings/PTVMDeviceType
+     tvm-proto/PTVMDeviceType
      {:device-type (fn [item#] :cpu)}
-     bindings/PTVMDeviceId
+     tvm-proto/PTVMDeviceId
      {:device-id (fn [item#] 0)}))
 
 
