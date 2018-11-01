@@ -7,13 +7,15 @@
 
 
 ;;Setup library search paths
-(jna/add-library-path tvm-library-name :system tvm-library-name)
 ;;Add the full path to the development system
 (jna/add-library-path tvm-library-name :system (str (System/getProperty "user.dir")
                                               File/separator
                                               "tvm/build"
                                               File/separator
                                               (jna/map-shared-library-name tvm-library-name)))
+(jna/add-library-path tvm-library-name :system tvm-library-name)
 ;;Then if nothing else works use the packaged library
 ;;that only supports a couple things if any and may not load.
 (jna/add-library-path tvm-library-name :java-library-path tvm-library-name)
+;;And unpack resources if we have to.
+(jna/add-library-path tvm-library-name :resource {:path tvm-library-name})

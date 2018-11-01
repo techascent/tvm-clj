@@ -12,15 +12,14 @@
              {:dependencies [[techascent/tech.opencv "1.5"]]}}
 
   :java-source-paths ["java"]
-  :native-path "java/native/"
-  :tvm-clj-runtime-path "java/tvm_clj/tvm/runtime.java"
-  :jni-path "java/native"
-  ;;In order to have a full clean (including jni stuff)
-  ;;we need to have the jni step as part of the jar-building step.
+  :native-path "java/native"
+
   :clean-targets
   ^{:protect false} [:target-path :compile-path]
   :aot [tvm-clj.jni]
   :test-selectors {:default (complement :cuda)
                    :cuda :cuda}
+  :jar {:prep-tasks ["compile" ["jni" "install-tvm-libs"]
+                     "compile" ["javac"]]}
 
   :aliases {"jni" ["run" "-m" "tvm-clj.jni"]})
