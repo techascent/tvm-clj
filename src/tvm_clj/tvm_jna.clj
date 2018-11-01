@@ -173,8 +173,11 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
 
 (defn device-exists?
   [device-type ^long device-id]
-  (g-fn "_GetDeviceAttr" (tvm-jna-base/device-type->int device-type) device-id
-        (definitions/device-attribute-map :exists)))
+  (if (= device-type :cpu)
+    (= device-id 0)
+    (= 1
+       (g-fn "_GetDeviceAttr" (tvm-jna-base/device-type->int device-type) device-id
+             (definitions/device-attribute-map :exists)))))
 
 
 (defn get-module-function

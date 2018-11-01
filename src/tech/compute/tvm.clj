@@ -105,7 +105,7 @@
 (defn enumerate-device-ids
   [device-type]
   (->> (range)
-       (take-while #(= 1 device-type))))
+       (take-while #(bindings/device-exists? device-type %))))
 
 
 (defn make-cpu-device-buffer
