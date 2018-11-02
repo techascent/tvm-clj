@@ -1,15 +1,15 @@
 # An Introduction To The Tensor Virtual Machine
 
 
-The Tensor Virtual Machine, or [TVM](https://github.com/dmlc/tvm) is a system built on
-top of the [Halide](https://github.com/halide/Halide) compiler.  Today we will be using
+The Tensor Virtual Machine, or [TVM](https://github.com/dmlc/tvm) is a system for dynamically
+generating extremely high performance numeric code.  Today we will be using
 [clojure](https://github.com/tech-ascent/tvm-clj) bindings to explore what exactly is
 going on.
 
 
 We will be using material from datatype, native-pointers, opencv, and
 high-performance-compilers.  If you haven't read those then the magic behind the scenes
-won't make any sense but I think this post is still digestable without those sections.
+won't make any sense but we are hoping this post is still digestable without those sections.
 
 
 Our motivating example is a 3x3 box blur algorithm.  This is a simple enough algorithm
@@ -112,11 +112,13 @@ before attempting to unpack jar resources.
 
 * `lambda`: A 'fn' but with metadata describing the argument list.
 * `tvar`: A scalar variable.
+* `tlet`: Not used, but you can use 'let' statements in the tensor code.
 
 The algorithm creates a padded image, then an image blurred only in X, finally a fully
 blurred image and then casts the result back into the base uint8 datatype.  Blurring
 reduces the blurred dimension by 2 pixels as the 3x3 kernel hits the edge pixel.  The
 input is clamped-to-edge meaning edge pixels are repeated.
+
 
 A compute operation has a number of 'members':  Input tensors, output tensors, iteration
 axis, etc.  The output tensors refer back to the generating operation via their 'op' member.
@@ -523,12 +525,19 @@ produce box_blur {
 ## An Optimized Schedule
 
 
-Of course I spent some time and attempted my hand at created a schedule that is pretty
+Of course I spent some time and attempted to create a schedule that is pretty
 quick.  I was unable to match opencv in this case, however.  I think most likely I am
 missing access to some vector instructions that work particularly well for this case.
 [Here](https://github.com/tech-ascent/tvm-clj/blob/master/README.md#image-scaling-tvm-vs-opencv)
 I have implementations of area and bilinear resizing of image that do outperform their
-opencv counterparts.
+opencv counterparts.  
+
+
+One thing to note is that the above algorithm would extend easily
+to an arbitrary number of channels *and* and arbitrary base datatypes.  This is useful,
+for instance, in satellite imagery where you can have far more than 3 channels and you may
+have also unsigned short datatypes.  I do not believe this to be true of the sse-optimized versions
+present in openCV.
 
 
 
@@ -622,7 +631,7 @@ produce box_blur {
   }
 }
 
-"Elapsed time: 5.955538 msecs"
+"Elapsed time: 24.955538 msecs"
 ```
 
 
@@ -640,11 +649,10 @@ blog.tvm.box-blur> (time-opencv)
 TVM comes with many backends - cpu (llvm), cuda, opencl, vulkan...and many more!  We
 have setup our structure carefully to allow opencl to work identically.  In this case
 we cannot do zero-copy transfer to/from the device.  Note this all builds on the
-compute-device framework.  The machine this was done on was using an NVIDIA 1070 GPU.
+compute-device framework.  This test was done on a machine with an NVIDIA 1070 GPU.
 
 In a laptop with an integrated GPU you would not expect to see such improvements but
 hey, you can still at least use opencl to offload some work.
-
 
 
 ```clojure
@@ -686,7 +694,7 @@ produce box_blur {
 Original Image: ![original](test/data/test.jpg)
 
 
-Blurred Image: ![blurred](images/result.jpg)
+Blurred Image: ![blurred](images/result-cpu.jpg)
 
 
 1.  We defined an algorithm.
@@ -702,7 +710,7 @@ that is capable of state of the art performance.
 ## What this means to me
 
 
-I am really proud to bring you this.  For me this is a great thing to see a field that
+I am really happy to bring you this.  For me this is a great thing to see a field that
 was so extremely difficult and arcane (high performance computing) start to open up with
 more general and powerful tools.  I have been a part of GPGPU programming since it
 started it has always required quite specialized knowledge along with extensive and
@@ -711,7 +719,7 @@ error prone re-write of algorithms.
 
 It is clear that high performance numeric programming is very important to the future of
 computing.  It is also clear that high performance architectures will continue to change
-and their complexity, especially in a programmatic sense will never decrease
+and their complexity, especially in a programmatic sense, will never decrease
 substantially.  A codebase described as above will be much faster to adapt to new
 architectures.
 
@@ -724,6 +732,5 @@ those programs require high performance numerics.
 
 
 I have used clojure since 2008.  I enjoy it and gain the most leverage from it
-compared to any language that I know.  Access to a compiler like Halide with an
-ecosystem and infrastructure like TVM enables me to attack a class of problems using
-clojure that I was previously unable to seriously consider.
+compared to any language that I know.  Access to a compiler, infrastruct, and ecosystem like TVM 
+enables me to attack a class of problems using clojure that I was previously unable to seriously consider.
