@@ -7,9 +7,13 @@ generating extremely high performance numeric code.  Today we will be using
 going on.
 
 
-We will be using material from datatype, native-pointers, opencv, and
-high-performance-compilers.  If you haven't read those then the magic behind the scenes
-won't make any sense but we are hoping this post is still digestable without those sections.
+We will be using the foundation from [datatype](http://techascent.com/blog/datatype-library.html), 
+[native-pointers](http://techascent.com/blog/native-pointers.html), 
+[opencv](http://techascent.com/blog/opencv-love.html), 
+the [tech.compute](https://github.com/tech-ascent/tech.compute) library, and 
+[high-performance-compilers](http://techascent.com/blog/high-performance-compilers.html).  
+If you haven't read those then the magic behind the scenes make sense but we are think this 
+post is still digestable without those sections.
 
 
 Our motivating example is a 3x3 box blur algorithm.  This is a simple enough algorithm
