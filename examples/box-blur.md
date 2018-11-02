@@ -736,5 +736,5 @@ those programs require high performance numerics.
 
 
 I have used clojure since 2008.  I enjoy it and gain the most leverage from it
-compared to any language that I know.  Access to a compiler, infrastruct, and ecosystem like TVM 
+compared to any language that I know.  Access to a compiler, infrastructure, and ecosystem like TVM 
 enables me to attack a class of problems using clojure that I was previously unable to seriously consider.
