@@ -191,9 +191,9 @@
                         ;;Else we upload the image to the device returning a new
                         ;;tensor that has a buffer on the device.
                         ct/clone-to-device)
-           ;;opencv images implement tech.datatype.base/PPrototype
-           ;;Clone is efficient using c library memcpy under the covers to copy the data.
-           dst-img (dtype/clone src-img)
+           ;;opencv images implement tech.datatype.base/PPrototype.
+           ;;So we can create on like this one or we can clone exactly this one.
+           dst-img (dtype/from-prototype src-img)
 
            ;;A terse way of stating the if condition above.  cond-> threads the first
            ;;argument through the clauses that are true and then returns the result.
