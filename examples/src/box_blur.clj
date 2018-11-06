@@ -1,7 +1,7 @@
 (ns box-blur
   (:require [tvm-clj.api :as api]
             [tech.opencv :as opencv]
-            [tech.datatype.base :as dtype]
+            [tech.datatype :as dtype]
             [tech.compute.tvm :as tvm]
             [tech.compute.verify.tensor :as vf]
             [tech.compute :as compute]
@@ -172,47 +172,67 @@
 
 
 (defn time-schedule
-  [schedule-fn & {:keys [device-type algorithm]
+  [schedule-fn & {:keys [device-type algorithm-fn]
                   :or {device-type :cpu
                        ;;Could also try no-sugar
-                       algorithm box-blur-fn}}]
+                       algorithm-fn box-blur-fn}}]
   (let [driver (tvm/driver device-type)]
+    ;;Bind the default compute stream for the default device for this driver
+    ;;Bind the default datatype to use if non are provided.
     (vf/tensor-default-context
      driver
      :uint8
-     (let [src-tensor (cond-> (opencv/load "test/data/test.jpg")
-                        (not= :cpu device-type)
+
+     (let [src-img (opencv/load "test/data/test.jpg")
+           src-tensor (if (= :cpu device-type)
+                        ;;If we are a cpu device then we can use the opencv image
+                        ;;directly as a tensor.
+                        src-img
+                        ;;Else we upload the image to the device returning a new
+                        ;;tensor that has a buffer on the device.
                         ct/clone-to-device)
-           [src-height src-width src-chan] (m/shape src-tensor)
-           dst-img (opencv/new-mat src-height src-width src-chan
-                                   :dtype :uint8)
+           ;;opencv images implement tech.datatype.base/PPrototype
+           ;;Clone is efficient using c library memcpy under the covers to copy the data.
+           dst-img (dtype/clone src-img)
+
+           ;;A terse way of stating the if condition above.  cond-> threads the first
+           ;;argument through the clauses that are true and then returns the result.
            dst-tensor (cond-> dst-img
                         (not= :cpu device-type)
                         ct/clone-to-device)
-           ;;Try changing the intermediate datatype
-           {:keys [arglist schedule bind-map]} (-> (box-blur-fn :uint16)
+
+           ;;Call the algorithm-fn.  This generates an AST that describes our algorithm
+           ;;Then schedule it on the given device type.
+           {:keys [arglist schedule bind-map]} (-> (algorithm-fn :uint16)
                                                    (schedule-fn device-type))
+           ;;Always helpful
            _ (println (api/schedule->str schedule arglist "box_blur"))
+           ;;Schedule the function and return a normal clojure function that will do the
+           ;;thing.
            box-blur (tvm/schedule->fn driver {:schedule schedule
                                               :arglist arglist
                                               :name :blox-blur
                                               :bind-map (or bind-map {})})]
-       ;;Note that on the cpu, the opencv image itself is used with no
-       ;;copy nor transformation.  TVM can operate directly on items that
-       ;;implement enough protocols:
-       ;; (tech.compute.tvm.driver/acceptible-tvm-device-buffer)
 
-        ;;warmup
+       ;;Note that on the cpu, the opencv image itself is used with no copy nor
+       ;;transformation.  TVM can operate directly on items that implement enough
+       ;;protocols: (tech.compute.tvm.driver/acceptable-tvm-device-buffer?).
+       ;;This is the 'warmup' run.
         (box-blur src-tensor dst-tensor)
 
         _ (when-not (= :cpu device-type)
-            (ct/assign! dst-img dst-tensor)
-            (compute/sync-with-host (ct-defaults/infer-stream {})))
+            ;;If we aren't on the cpu then transfer the data back to the cpu.
+            (ct/assign! dst-img dst-tensor))
+
         (let [time-result
               (simple-time
                (box-blur src-tensor dst-tensor)
+               ;;We need to sync with the host in order to fairly time the algorithm.
+               ;;Without this the algorithm continues to run in the background but the
+               ;;save immediately below would write indeterminate results to the disk.
                (compute/sync-with-host (ct-defaults/infer-stream {})))]
 
+          ;;Write the result and off we go!
           (opencv/save dst-img (format "result-%s.jpg" (name device-type)))
           time-result)))))
 
