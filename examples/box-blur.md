@@ -708,33 +708,15 @@ Blurred Image: ![blurred](images/result-cpu.jpg)
 
 
 We enabled generalized high performance numeric programming in clojure with compiler
-that is capable of state of the art performance.
+that is capable of and has demonstrated state of the art performance.
 
 
-## What this means to me
-
-
-I am really happy to bring you this.  For me this is a great thing to see a field that
-was so extremely difficult and arcane (high performance computing) start to open up with
-more general and powerful tools.  I have been a part of GPGPU programming since it
-started it has always required quite specialized knowledge along with extensive and
-error prone re-write of algorithms.
+## Summing it all up
 
 
 It is clear that high performance numeric programming is very important to the future of
 computing.  It is also clear that high performance architectures will continue to change
 and their complexity, especially in a programmatic sense, will never decrease
 substantially.  A codebase described as above will be much faster to adapt to new
-architectures.
-
-
-One thing that Rich consistently points out is that maintaining programs over a long period
-of time is difficult and requires them to change in ways the original designers will have
-never considered.  Hardware architectures also change and thus the ability to
-adapt to new ones is a large and important component to maintaining programs over time if
-those programs require high performance numerics.
-
-
-I have used clojure since 2008.  I enjoy it and gain the most leverage from it
-compared to any language that I know.  Access to a compiler, infrastructure, and ecosystem like TVM 
-enables me to attack a class of problems using clojure that I was previously unable to seriously consider.
+architectures.  Access from clojure gives you an extremely rapid test cycle and access
+from a language that is quite powerful yet still garbage collected.
