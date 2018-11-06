@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [tvm-clj "2.2-SNAPSHOT"]
+                 [tvm-clj "2.2"]
                  [techascent/tech.opencv "1.8"]]
   ;;This is useful if you want to see where the loaded tvm library
   ;;is coming from.  We really recommend that you install a tvm
