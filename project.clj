@@ -1,4 +1,4 @@
-(defproject tvm-clj "2.1-SNAPSHOT"
+(defproject tvm-clj "2.1"
   :description "Clojure bindings and exploration of the tvm library"
   :url "http://github.com/tech-ascent/tvm-clj"
   :license {:name "Eclipse Public License"
@@ -9,7 +9,7 @@
 
   :profiles {:dev
              ;;Unit tests need this.
-             {:dependencies [[techascent/tech.opencv "1.5"]]}}
+             {:dependencies [[techascent/tech.opencv "1.8"]]}}
 
   :java-source-paths ["java"]
   :native-path "java/native"
