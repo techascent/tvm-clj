@@ -1,4 +1,4 @@
-# Example project
+# Examples
 
 If you don't want to build the tvm library yourself (which we recommend)
 you can run
