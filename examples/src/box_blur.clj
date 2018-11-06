@@ -180,16 +180,15 @@
     (vf/tensor-default-context
      driver
      :uint8
-     (let [src-img (opencv/load "test/data/test.jpg")
-           src-tensor (cond-> (tvm/as-cpu-tensor src-img)
+     (let [src-tensor (cond-> (opencv/load "test/data/test.jpg")
                         (not= :cpu device-type)
-                        ct/clone)
-           [src-height src-width src-chan] (m/shape src-img)
+                        ct/clone-to-device)
+           [src-height src-width src-chan] (m/shape src-tensor)
            dst-img (opencv/new-mat src-height src-width src-chan
                                    :dtype :uint8)
-           dst-tensor (cond-> (tvm/as-cpu-tensor dst-img)
+           dst-tensor (cond-> dst-img
                         (not= :cpu device-type)
-                        ct/clone)
+                        ct/clone-to-device)
            ;;Try changing the intermediate datatype
            {:keys [arglist schedule bind-map]} (-> (box-blur-fn :uint16)
                                                    (schedule-fn device-type))
@@ -198,19 +197,24 @@
                                               :arglist arglist
                                               :name :blox-blur
                                               :bind-map (or bind-map {})})]
-       ;;warmup
-       (box-blur src-tensor dst-tensor)
+       ;;Note that on the cpu, the opencv image itself is used with no
+       ;;copy nor transformation.  TVM can operate directly on items that
+       ;;implement enough protocols:
+       ;; (tech.compute.tvm.driver/acceptible-tvm-device-buffer)
 
-       _ (when-not (= :cpu device-type)
-           (ct/assign! (tvm/as-cpu-tensor dst-img) dst-tensor)
-           (compute/sync-with-host (ct-defaults/infer-stream {})))
-       (let [time-result
-             (simple-time
+        ;;warmup
+        (box-blur src-tensor dst-tensor)
+
+        _ (when-not (= :cpu device-type)
+            (ct/assign! dst-img dst-tensor)
+            (compute/sync-with-host (ct-defaults/infer-stream {})))
+        (let [time-result
+              (simple-time
                (box-blur src-tensor dst-tensor)
                (compute/sync-with-host (ct-defaults/infer-stream {})))]
 
-         (opencv/save dst-img (format "result-%s.jpg" (name device-type)))
-         time-result)))))
+          (opencv/save dst-img (format "result-%s.jpg" (name device-type)))
+          time-result)))))
 
 
 (defn base-schedule
