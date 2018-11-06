@@ -2,7 +2,9 @@
   "Additional protocols for tvm drivers, devices, and streams.
 Centralized registring of drivers allowing a symbolic name->driver table."
   (:require [tvm-clj.tvm-jna :as bindings]
-            [tvm-clj.api :as tvm-api]))
+            [tvm-clj.api :as tvm-api]
+            [tvm-clj.bindings.protocols :as tvm-proto]
+            [tech.datatype.jna :as dtype-jna]))
 
 
 (defprotocol PTVMDriver
@@ -22,3 +24,14 @@ Centralized registring of drivers allowing a symbolic name->driver table."
 
 (defprotocol PTVMStream
   (call-function [stream fn arg-list]))
+
+
+(defn acceptable-tvm-device-buffer?
+  [item]
+  (and (dtype-jna/typed-pointer? item)
+       (every? #(satisfies? % item)
+               [tvm-proto/PToTVM
+                tvm-proto/PJVMTypeToTVMValue
+                tvm-proto/PByteOffset
+                tvm-proto/PTVMDeviceType
+                tvm-proto/PTVMDeviceId])))

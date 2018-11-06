@@ -130,7 +130,7 @@
             ;;It would also be possible to do a zero-copy conversion using the
             ;; opencl matrix ptr.
             ;;Note that tvm supports unsigned datatypes.
-            nocopy-tensor (tvm/as-cpu-tensor mat)
+            nocopy-tensor mat
             ;;If as-tensor fails then we go through the whole upload process.
             img-tensor (if (= dev-type :cpu)
                          nocopy-tensor
@@ -140,7 +140,7 @@
                          ;;operations (a copy that boils down to a memcpy).  Note that
                          ;;certain select operations result in dense tensors while
                          ;;others do not.
-                         (ct/clone nocopy-tensor))
+                         (ct/clone-to-device nocopy-tensor))
             result-tensor (ct/new-tensor
                            (concat [3]
                                    (take 2 (mp/get-shape mat)))

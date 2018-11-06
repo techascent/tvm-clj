@@ -90,6 +90,8 @@
   (device->device-copy-compatible? [src dest]
     ;;Is it a tvm device?
     (boolean (satisfies? tvm-proto/PTVMDeviceType dest)))
+  (acceptable-device-buffer? [device item]
+    (tvm-driver/acceptable-tvm-device-buffer? item))
 
   drv/PDriverProvider
   (get-driver [dev] (driver))
@@ -180,7 +182,10 @@
      tvm-proto/PTVMDeviceType
      {:device-type (fn [item#] :cpu)}
      tvm-proto/PTVMDeviceId
-     {:device-id (fn [item#] 0)}))
+     {:device-id (fn [item#] 0)}
+     tvm-proto/PByteOffset
+     {:byte-offset (fn [item#] 0)
+      :base-ptr (fn [item#] (dtype-jna/->ptr-backing-store item#))}))
 
 
 (extend-tvm-bindings com.sun.jna.Pointer)

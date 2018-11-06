@@ -97,6 +97,8 @@
                             (bindings/device-type dest))]
       (or (= src-device-type dst-device-type)
           (= :cpu dst-device-type))))
+  (acceptable-device-buffer? [device item]
+    (tvm-driver/acceptable-tvm-device-buffer? item))
 
   drv/PDriverProvider
   (get-driver [dev] driver)

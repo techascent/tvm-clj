@@ -235,17 +235,22 @@ This is in order to ensure that, for instance, deserialization of a node's field
 
 (defn call-function
   [tvm-fn & args]
-  (let [fn-ret-val
-        (resource/with-resource-context
-          (let [retval (LongByReference.)
-                rettype (IntByReference.)
-                [tvm-args arg-types n-args] (arg-list->tvm-args args)]
-            (check-call
-             (TVMFuncCall tvm-fn
-                          tvm-args arg-types n-args
-                          retval rettype))
-            [(.getValue retval) (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
-    (apply tvm-value->jvm fn-ret-val)))
+  (try
+    (let [fn-ret-val
+          (resource/with-resource-context
+            (let [retval (LongByReference.)
+                  rettype (IntByReference.)
+                  [tvm-args arg-types n-args] (arg-list->tvm-args args)]
+              (check-call
+               (TVMFuncCall tvm-fn
+                            tvm-args arg-types n-args
+                            retval rettype))
+              [(.getValue retval) (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
+      (apply tvm-value->jvm fn-ret-val))
+    (catch Throwable e
+      (throw (ex-info "Error during function call!"
+                      {:error e
+                       :fn-args args})))))
 
 
 (defn global-function

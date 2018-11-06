@@ -58,6 +58,9 @@
     item))
 
 
+(declare allocate-device-array)
+
+
 (extend-type DLPack$DLTensor
   bindings-proto/PToTVM
   (->tvm [item] item)
@@ -92,6 +95,11 @@
   (get-value [ptr ^long offset]
     (check-cpu-tensor ptr)
     (dtype-base/get-value (dtype-jna/->typed-pointer ptr) offset))
+  dtype-base/PPrototype
+  (from-prototype [item datatype shape]
+    (allocate-device-array shape datatype
+                           (bindings-proto/device-type item)
+                           (bindings-proto/device-id item)))
   resource/PResource
   (release-resource [ary]
     (check-call (TVMArrayFree ary)))
