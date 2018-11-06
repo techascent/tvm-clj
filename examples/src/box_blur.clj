@@ -192,7 +192,7 @@
                         ;;tensor that has a buffer on the device.
                         ct/clone-to-device)
            ;;opencv images implement tech.datatype.base/PPrototype.
-           ;;So we can create on like this one or we can clone exactly this one.
+           ;;We can create on like this one or we can clone exactly this one.
            dst-img (dtype/from-prototype src-img)
 
            ;;A terse way of stating the if condition above.  cond-> threads the first
