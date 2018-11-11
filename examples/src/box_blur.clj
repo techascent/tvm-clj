@@ -263,6 +263,16 @@
     (assoc item :schedule schedule)))
 
 
+(defn split-axis
+  [{:keys [box-blur y-blur x-blur] :as item} device-type]
+  (let [schedule (api/create-schedule [box-blur])
+        [x-x-axis x-chan-axis x-y-axis] (:axis x-blur)
+        [y-axis x-axis chan-axis] (:axis box-blur)]
+    (api/stage-split-axis (schedule box-blur) y-axis 16)
+    (assoc item :schedule schedule)))
+
+
+
 (defn tiled-schedule
   [{:keys [box-blur y-blur] :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
