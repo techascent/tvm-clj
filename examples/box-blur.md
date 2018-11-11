@@ -654,7 +654,7 @@ And there you have it.
 
 #### What Happened?
 
-Original Image: ![original](test/data/jen.jpg)
+Original Image: ![original](test/data/test.jpg)
 
 Blurred Image: ![blurred](images/result-cpu.jpg)
 
