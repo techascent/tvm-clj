@@ -22,7 +22,7 @@
   (vt/assign-constant! (tvm/driver :cpu) *datatype*))
 
 (def-opencl-dtype-test assign-constant-opencl!
-  (vt/assign-constant! (tvm/driver :opencl) *datatype*))
+  (vt/assign-constant! (tvm/driver :opencl) :float32))
 
 (def-all-dtype-test assign-cpu!
   (vt/assign-marshal (tvm/driver :cpu) *datatype*))
