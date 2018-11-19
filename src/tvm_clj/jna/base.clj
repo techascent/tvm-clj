@@ -89,7 +89,7 @@ Argpair is of type [symbol type-coersion]."
   (if (instance? Pointer item)
     item
     (-> (dtype-jna/make-typed-pointer :int64 item)
-        dtype-jna/->ptr-backing-store)))
+        jna/->ptr-backing-store)))
 
 
 (defn device-type->int

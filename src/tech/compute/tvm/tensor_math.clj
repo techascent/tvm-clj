@@ -25,10 +25,6 @@
 
 (defonce ^:dynamic *fn-map* (atom {}))
 
-(defrecord PRemoveFunction [device-type device-id fn-name]
-  resource/PResource
-  (release-resource [_] (swap! *fn-map* dissoc [device-type device-id fn-name])))
-
 
 (defn y-dim-tvm-fn
   [n-dims detailed-fn]
@@ -114,7 +110,7 @@
       retval
       (let [retval (fn-create-fn)]
         (swap! *fn-map* assoc fn-name retval)
-        (resource/track (->PRemoveFunction device-type device-id fn-name))
+        (resource/make-resource #(swap! *fn-map* dissoc fn-name))
         retval))))
 
 
@@ -407,16 +403,10 @@ lhs = rhs"
     (assign! stream lhs rhs)))
 
 
-(defn device-buffer->tensor
-  [dev-buf dimensions]
-  (ct/construct-tensor dimensions
-                       dev-buf))
-
-
 (defn as-cpu-tensor
   [data & {:keys [shape datatype]}]
-  (when (satisfies? jcpp-dtype/PToPtr data)
+  (when (dtype-jna/typed-pointer? data)
     (let [shape (or shape (ct/shape data))
           datatype (or datatype (ct/get-datatype data))]
       (-> (cpu/ptr->device-buffer data :dtype datatype)
-          (device-buffer->tensor (ct-dims/dimensions shape))))))
+          (ct/ensure-tensor)))))

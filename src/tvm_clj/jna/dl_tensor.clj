@@ -8,7 +8,7 @@
                                       datatype->dl-datatype
                                       dl-datatype->datatype]]
             [tvm-clj.jna.stream :as stream]
-            [tech.resource :as resource]
+            [tech.gc-resource :as gc-resource]
             [tvm-clj.bindings.protocols :refer [->tvm
                                                 base-ptr
                                                 ->tvm-value
@@ -42,7 +42,7 @@
 (make-tvm-jna-fn TVMArrayFree
                  "Free a TVM array allocated with TVMArrayAlloc"
                  Integer
-                 [item ensure-array])
+                 [item jna/ensure-ptr])
 
 
 (defn check-cpu-tensor
@@ -70,7 +70,7 @@
     [(-> (.getPointer item)
          Pointer/nativeValue)
      :array-handle])
-  dtype-jna/PToPtr
+  jna/PToPtr
   (->ptr-backing-store [item]
     ;;There should be a check here so that only devices that support
     ;;pointer offset allow this call.  Other calls should be via
@@ -100,9 +100,6 @@
     (allocate-device-array shape datatype
                            (bindings-proto/device-type item)
                            (bindings-proto/device-id item)))
-  resource/PResource
-  (release-resource [ary]
-    (check-call (TVMArrayFree ary)))
 
   ;;Do jna buffer to take advantage of faster memcpy, memset, and
   ;;other things jna datatype bindings provide.
@@ -125,6 +122,12 @@
   (->array-copy [src]
     (check-cpu-tensor src)
     (primitive/->array-copy (dtype-jna/->typed-pointer src)))
+
+  ;;This is here so that auto-conversion to tensors is possible but it is not going to
+  ;;work as it would change the shape of the dl-tensor
+  primitive/POffsetable
+  (offset-item [item offset]
+    (throw (ex-info "Item is not offsetable" {:item item})))
 
 
   mp/PDimensionInfo
@@ -182,7 +185,8 @@
                     device-type device-id
                     retval-ptr))
     (-> (DLPack$DLTensor. (.getValue retval-ptr))
-        resource/track)))
+        ;;We allow the gc to help us clean up these things.
+        (gc-resource/track #(TVMArrayFree (.getValue retval-ptr))))))
 
 
 (defn ensure-tensor
@@ -257,7 +261,7 @@
                        :int64 strides))
         datatype (or datatype (dtype/get-datatype ptr))
         ;;Get the real pointer
-        address (-> (dtype-jna/->ptr-backing-store ptr)
+        address (-> (jna/->ptr-backing-store ptr)
                     dtype-jna/pointer->address)
         retval (DLPack$DLTensor.)
         ctx (DLPack$DLContext.)]
@@ -270,8 +274,8 @@
     (set! (.ctx retval) ctx)
     (set! (.ndim retval) (count shape))
     (set! (.dtype retval) (datatype->dl-datatype datatype))
-    (set! (.shape retval) (dtype-jna/->ptr-backing-store shape-ptr))
+    (set! (.shape retval) (jna/->ptr-backing-store shape-ptr))
     (when strides-ptr
-      (set! (.strides retval) (dtype-jna/->ptr-backing-store strides-ptr)))
+      (set! (.strides retval) (jna/->ptr-backing-store strides-ptr)))
     (set! (.byte_offset retval) (long byte-offset))
     retval))

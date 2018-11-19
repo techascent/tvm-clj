@@ -5,7 +5,6 @@
             [tech.datatype.base :as dtype-base]
             [tech.datatype.java-primitive :as primitive]
             [clojure.core.matrix.protocols :as mp]
-            [tech.resource :as resource]
             [tech.jna :refer [checknil] :as jna]
             ;;Standard paths for the tvm library
             [tvm-clj.jna.library-paths :as jna-lib-paths]

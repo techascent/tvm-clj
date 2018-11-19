@@ -10,7 +10,8 @@
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.tvm :as tvm]
             [tech.resource :as resource]
-            [tech.datatype.jna :as dtype-jna])
+            [tech.datatype.jna :as dtype-jna]
+            [tech.jna :as jna])
   (:import [com.sun.jna Pointer]))
 
 
@@ -56,7 +57,7 @@
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
     (let [stream-ptr (-> (bindings/->tvm stream)
-                         (dtype-jna/->ptr-backing-store))]
+                         (jna/->ptr-backing-store))]
       (when-not (= 0 (Pointer/nativeValue stream-ptr))
         (bindings/set-current-thread-stream stream)))
     (apply fn arg-list))
