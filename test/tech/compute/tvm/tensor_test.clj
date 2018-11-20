@@ -137,3 +137,23 @@
 
 (deftest ^:cuda cuda-tvm-gemm-upgrade
   (tvm-gemm-upgrade (tvm/driver :cuda) *datatype*))
+
+
+(deftest gc-rooted-tensors
+  (testing "Ensure that gc-rooted tensors will *not* get cleaned up before their time"
+    ;;Indexed tensor test tends to root out this stuff well, so we make it harder in
+    ;;a way exactly designed to break the gc system if it is not correct.
+    (vt/tensor-default-context
+     (tvm/driver :opencl)
+     :int64
+     (let [sel-tens (ct/select (ct/->tensor (repeat 2 (partition 3 (range 9))))
+                               :all :all [1 2])]
+       ;;Note: there is no direct reference to the root data at all at this point.
+       (System/gc)
+       (Thread/sleep 100)
+       ;;If the gc ran this will most likely crash.  In order to get the data into
+       ;;a double array we have to copy it and that won't work if the source tensor
+       ;;is freed.  This is the sort of subtle, non-deterministic thing that happens
+       ;;when you mix gc-rooted things with external-to-gc things.
+       (is (m/equals [1 2 4 5 7 8 1 2 4 5 7 8]
+                     (vec (ct/to-double-array sel-tens))))))))
