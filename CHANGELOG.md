@@ -6,6 +6,17 @@ this project adheres to a 2-part versioning scheme X,Y where a change in X means
 probably fucked while a change in Y means you may not be fucked.
 
 
+## [3.0]
+### Fixed/Changed
+ * Moved to newer versions of tech-ascent datatype libraries.
+ * TVM things (tensors, AST-nodes, modules, functions, etc) are now both
+   scope-based and gc-rooted things.  So the gc can help keep memory and total
+   object counts lower especially when you are describing complex systems using
+   the api.  Most AST nodes, for instance, when exposed to clojure are not really
+   relevant to the larger picture and thus if they happen to be gc'd sooner than
+   the resource context winds up then all the better.
+
+
 
 ## [2.0]
 ### Added
