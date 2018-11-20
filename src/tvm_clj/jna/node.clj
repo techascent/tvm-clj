@@ -15,7 +15,7 @@
             [tvm-clj.bindings.protocols :as bindings-proto]
             [potemkin :as p]
             [tech.jna :refer [checknil] :as jna]
-            [tech.resource :as resource])
+            [tech.gc-resource :as gc-resource])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]))
 
@@ -165,10 +165,7 @@
   (->tvm [item]
     item)
   bindings-proto/PConvertToNode
-  (->node [item] item)
-  resource/PResource
-  (release-resource [item]
-    (TVMNodeFree (:tvm-jcpp-handle item))))
+  (->node [item] item))
 
 
 (make-tvm-jna-fn TVMNodeGetTypeIndex
@@ -243,7 +240,7 @@ explicitly; it is done for you."
 (defmethod tvm-value->jvm :node-handle
   [long-val val-type-kwd]
   (-> (construct-node (Pointer. long-val))
-      resource/track))
+      (gc-resource/track #(TVMNodeFree (Pointer. long-val)))))
 
 
 (defn get-node-type

@@ -14,7 +14,7 @@
                                                 base-ptr
                                                 ->tvm-value
                                                 byte-offset] :as bindings-proto]
-            [tech.resource :as resource]
+            [tech.gc-resource :as gc-resource]
             [tech.datatype.jna :as dtype-jna]
             )
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
@@ -34,17 +34,14 @@
   (->tvm [item] item)
   bindings-proto/PJVMTypeToTVMValue
   (->tvm-value [item] [(Pointer/nativeValue tvm-hdl) :module-handle])
-  dtype-jna/PToPtr
-  (->ptr-backing-store [item] tvm-hdl)
-  resource/PResource
-  (release-resource [item]
-    (check-call (TVMModFree item))))
+  jna/PToPtr
+  (->ptr-backing-store [item] tvm-hdl))
 
 
 (defmethod tvm-value->jvm :module-handle
   [long-val val-type-kwd]
   (-> (->ModuleHandle (Pointer. long-val))
-      resource/track))
+      (gc-resource/track #(TVMModFree (Pointer. long-val)))))
 
 
 (make-tvm-jna-fn TVMFuncFree
@@ -56,11 +53,8 @@
 (defrecord ModuleFunctionHandle [^Pointer handle]
   bindings-proto/PToTVM
   (->tvm [item] item)
-  dtype-jna/PToPtr
-  (->ptr-backing-store [item] handle)
-  resource/PResource
-  (release-resource [item]
-    (check-call (TVMFuncFree handle))))
+  jna/PToPtr
+  (->ptr-backing-store [item] handle))
 
 
 (make-tvm-jna-fn TVMModGetFunction
@@ -79,7 +73,8 @@
     (when (= 0 (Pointer/nativeValue (.getValue retval)))
       (throw (ex-info "Could not find module function"
                       {:fn-name fn-name})))
-    (resource/track (->ModuleFunctionHandle (.getValue retval)))))
+    (gc-resource/track (->ModuleFunctionHandle (.getValue retval))
+                       #(TVMFuncFree (.getValue retval)))))
 
 
 (defn get-module-source

@@ -1,0 +1,63 @@
+:tech.gc-resource Reference thread starting
+
+lein test tech.compute.tvm.tensor-test
+Library tvm found at [:system "/home/chrisn/dev/tvm-clj/tvm/build/libtvm.so"]
+allocated tensor of shape [18] : 140036096288064
+Library c found at [:system "c"]
+allocated tensor of shape [6] : 140036096278464
+deriving from root of shape [18] : 140036096288064
+before-gc
+after-gc
+allocated tensor of shape [2 3 6] : 140036085045632
+allocated tensor of shape [36] : 140036093667840
+copying
+copy finished
+host-copy-finished
+freeing root tensor of shape [36] : 140036093667840
+freeing root tensor of shape [2 3 6] : 140036085045632
+allocated tensor of shape [5] : 140036096457344
+deriving from root of shape [18] : 140036096288064
+new-tensor
+allocated tensor of shape [15] : 140036096449408
+before-gc-2
+freeing root tensor of shape [18] : 140036096288064
+freeing root tensor of shape [6] : 140036096278464
+freeing derived tensor of address: 140036096288064
+after-gc-2
+to-double-start
+allocated tensor of shape [15] : 140036071269952
+copying
+copy finished
+host-copy-finished
+freeing root tensor of shape [15] : 140036071269952
+
+lein test :only tech.compute.tvm.tensor-test/indexed-tensor-int64
+
+FAIL in (indexed-tensor-int64) (tensor.clj:620)
+Center loss use case
+expected: (m/equals [0 1 2 3 4 5 0 1 2 6 7 8 3 4 5] (vec (ct/to-double-array batch-data)))
+  actual: (not (m/equals [0 1 2 3 4 5 0 1 2 6 7 8 3 4 5] [1.40036093652544E14 1.0 2.0 3.0 4.0 5.0 1.40036093652544E14 1.0 2.0 6.0 7.0 8.0 3.0 4.0 5.0]))
+  to-double-end
+  to-double-start
+  allocated tensor of shape [5 3] : 140036097440448
+  allocated tensor of shape [15] : 140036097469504
+  copying
+  freeing root tensor of shape [15] : 140036096449408
+  copy finished
+  host-copy-finished
+  freeing root tensor of shape [15] : 140036097469504
+  freeing root tensor of shape [5 3] : 140036097440448
+
+lein test :only tech.compute.tvm.tensor-test/indexed-tensor-int64
+
+FAIL in (indexed-tensor-int64) (tensor.clj:628)
+Center loss use case
+expected: (m/equals [0 3 6 9 12 15 0 3 6 12 14 16 9 12 15] (vec (ct/to-double-array centers)))
+  actual: (not (m/equals [0 3 6 9 12 15 0 3 6 12 14 16 9 12 15] [4.20108280957632E14 3.0 6.0 9.0 12.0 15.0 4.20108280957632E14 3.0 6.0 12.0 14.0 16.0 9.0 12.0 15.0]))
+  to-double-end
+  freeing derived tensor of address: 140036096288064
+  freeing root tensor of shape [5] : 140036096457344
+
+Ran 1 tests containing 5 assertions.
+2 failures, 0 errors.
+Tests failed.

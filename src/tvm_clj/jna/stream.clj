@@ -4,7 +4,7 @@
                                       device-id->int
                                       ptr-ptr
                                       check-call]]
-            [tech.resource :as resource]
+            [tech.gc-resource :as gc-resource]
             [tvm-clj.bindings.protocols :refer [->tvm] :as bindings-proto]
             [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])
@@ -28,7 +28,7 @@
                  Integer
                  [device_type device-type->int]
                  [device_id device-id->int]
-                 [stream ensure-stream->ptr])
+                 [stream jna/ensure-ptr])
 
 
 (make-tvm-jna-fn TVMSetStream
@@ -58,11 +58,8 @@
 (defrecord StreamHandle [device-type ^long device-id tvm-hdl]
   bindings-proto/PToTVM
   (->tvm [item] item)
-  dtype-jna/PToPtr
+  jna/PToPtr
   (->ptr-backing-store [item] tvm-hdl)
-  resource/PResource
-  (release-resource [item]
-    (TVMStreamFree item item item))
   bindings-proto/PTVMDeviceId
   (device-id [item] device-id)
   bindings-proto/PTVMDeviceType
@@ -73,14 +70,15 @@
   [item]
   (let [item (->tvm item)]
     (jna/ensure-type StreamHandle item)
-    (dtype-jna/->ptr-backing-store item)))
+    (jna/->ptr-backing-store item)))
 
 
 (defn create-stream
   ^StreamHandle [device-type ^long device-id]
   (let [retval (PointerByReference.)]
     (check-call (TVMStreamCreate device-type device-id retval))
-    (resource/track (->StreamHandle device-type device-id (.getValue retval)))))
+    (gc-resource/track (->StreamHandle device-type device-id (.getValue retval))
+                       #(TVMStreamFree (.getValue retval)))))
 
 
 (defn sync-stream-with-host

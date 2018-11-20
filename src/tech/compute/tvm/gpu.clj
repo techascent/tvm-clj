@@ -10,7 +10,8 @@
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.tvm :as tvm]
             [tech.resource :as resource]
-            [tech.datatype.jna :as dtype-jna])
+            [tech.datatype.jna :as dtype-jna]
+            [tech.jna :as jna])
   (:import [com.sun.jna Pointer]))
 
 
@@ -56,7 +57,7 @@
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
     (let [stream-ptr (-> (bindings/->tvm stream)
-                         (dtype-jna/->ptr-backing-store))]
+                         (jna/->ptr-backing-store))]
       (when-not (= 0 (Pointer/nativeValue stream-ptr))
         (bindings/set-current-thread-stream stream)))
     (apply fn arg-list))
@@ -98,7 +99,9 @@
       (or (= src-device-type dst-device-type)
           (= :cpu dst-device-type))))
   (acceptable-device-buffer? [device item]
-    (tvm-driver/acceptable-tvm-device-buffer? item))
+    (and (tvm-driver/acceptable-tvm-device-buffer? item)
+         (= (bindings/device-type device)
+            (bindings/device-type item))))
 
   drv/PDriverProvider
   (get-driver [dev] driver)
@@ -160,6 +163,8 @@
     (enumerate-devices driver))
   (allocate-host-buffer [driver elem-count elem-type options]
     (tvm/make-cpu-device-buffer elem-type elem-count))
+  (acceptable-host-buffer? [driver buffer]
+    (tvm-driver/acceptable-tvm-host-buffer? buffer))
 
   tvm-driver/PTVMDriver
   (device-id->device [driver dev-id]

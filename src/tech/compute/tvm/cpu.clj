@@ -13,7 +13,8 @@
             [tech.compute.tvm :as tvm]
             [tech.compute.registry :as registry]
             [tech.compute :as compute]
-            [tech.datatype.jna :as dtype-jna])
+            [tech.datatype.jna :as dtype-jna]
+            [tech.jna :as jna])
   ;;Setup so these objects (and anything derived from them)
   ;;auto-link to the tvm cpu compute device.
   (:import [org.bytedeco.javacpp.Pointer]
@@ -43,9 +44,6 @@
     (drv/sync-with-host stream))
   (sync-with-stream [_ dst-stream]
     (drv/sync-with-stream stream (:stream dst-stream)))
-
-  resource/PResource
-  (release-resource [_] )
 
   tvm-driver/PTVMStream
   (call-function [_ fn arg-list]
@@ -122,6 +120,8 @@
     (cpu-devices))
   (allocate-host-buffer [driver elem-count elem-type options]
     (make-cpu-device-buffer elem-type elem-count))
+  (acceptable-host-buffer? [driver buffer]
+    (tvm-driver/acceptable-tvm-host-buffer? buffer))
 
   tvm-driver/PTVMDriver
   (device-id->device [driver dev-id]
@@ -185,7 +185,7 @@
      {:device-id (fn [item#] 0)}
      tvm-proto/PByteOffset
      {:byte-offset (fn [item#] 0)
-      :base-ptr (fn [item#] (dtype-jna/->ptr-backing-store item#))}))
+      :base-ptr (fn [item#] (jna/->ptr-backing-store item#))}))
 
 
 (extend-tvm-bindings com.sun.jna.Pointer)

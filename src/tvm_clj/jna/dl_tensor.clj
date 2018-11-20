@@ -8,7 +8,7 @@
                                       datatype->dl-datatype
                                       dl-datatype->datatype]]
             [tvm-clj.jna.stream :as stream]
-            [tech.resource :as resource]
+            [tech.gc-resource :as gc-resource]
             [tvm-clj.bindings.protocols :refer [->tvm
                                                 base-ptr
                                                 ->tvm-value
@@ -20,12 +20,15 @@
             [tech.datatype.base :as dtype-base]
             [tech.datatype.java-primitive :as primitive]
             [clojure.core.matrix.protocols :as mp]
-            [tech.datatype :as dtype]
-            )
+            [tech.datatype :as dtype])
+
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
             DLPack$DLManagedTensor]))
+
+
+(def ^:dynamic *debug-dl-tensor-lifespan* false)
 
 
 (defn ensure-array
@@ -42,7 +45,7 @@
 (make-tvm-jna-fn TVMArrayFree
                  "Free a TVM array allocated with TVMArrayAlloc"
                  Integer
-                 [item ensure-array])
+                 [item jna/ensure-ptr])
 
 
 (defn check-cpu-tensor
@@ -70,7 +73,7 @@
     [(-> (.getPointer item)
          Pointer/nativeValue)
      :array-handle])
-  dtype-jna/PToPtr
+  jna/PToPtr
   (->ptr-backing-store [item]
     ;;There should be a check here so that only devices that support
     ;;pointer offset allow this call.  Other calls should be via
@@ -100,9 +103,6 @@
     (allocate-device-array shape datatype
                            (bindings-proto/device-type item)
                            (bindings-proto/device-id item)))
-  resource/PResource
-  (release-resource [ary]
-    (check-call (TVMArrayFree ary)))
 
   ;;Do jna buffer to take advantage of faster memcpy, memset, and
   ;;other things jna datatype bindings provide.
@@ -125,6 +125,12 @@
   (->array-copy [src]
     (check-cpu-tensor src)
     (primitive/->array-copy (dtype-jna/->typed-pointer src)))
+
+  ;;This is here so that auto-conversion to tensors is possible but it is not going to
+  ;;work as it would change the shape of the dl-tensor
+  primitive/POffsetable
+  (offset-item [item offset]
+    (throw (ex-info "Item is not offsetable" {:item item})))
 
 
   mp/PDimensionInfo
@@ -181,8 +187,15 @@
                     (.code dl-dtype) (.bits dl-dtype) (.lanes dl-dtype)
                     device-type device-id
                     retval-ptr))
-    (-> (DLPack$DLTensor. (.getValue retval-ptr))
-        resource/track)))
+    (let [retval (DLPack$DLTensor. (.getValue retval-ptr))
+          address (Pointer/nativeValue (.data retval))]
+      (when *debug-dl-tensor-lifespan*
+        (println "allocated root tensor of shape" shape ":" address))
+      ;;We allow the gc to help us clean up these things.
+      (gc-resource/track retval #(do
+                                   (when *debug-dl-tensor-lifespan*
+                                     (println "freeing root tensor of shape" shape ":" address))
+                                   (TVMArrayFree (.getValue retval-ptr)))))))
 
 
 (defn ensure-tensor
@@ -246,21 +259,29 @@
 (defn pointer->tvm-ary
   "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
   have a byte_offset member that you can use to make an array not start at the pointer's
-  base address."
+  base address.  If provided this new object will keep the gc-root alive in the eyes
+  of the gc."
   ^DLPack$DLTensor [ptr device-type device-id
                     datatype shape strides
-                    byte-offset]
+                    byte-offset & [gc-root]]
+  ;;Allocate child pointers untracked.  We have to manually track them because on the
+  ;;actual dl-tensor object, they are stored in separate structures that only share the
+  ;;long address.  Thus the GC, after this method, believes that the shape-ptr and
+  ;;strides-ptr objects are free to be cleaned up.
   (let [shape-ptr (dtype-jna/make-typed-pointer
-                   :int64 shape)
+                   :int64 shape {:untracked? true})
         strides-ptr (when strides
                       (dtype-jna/make-typed-pointer
-                       :int64 strides))
+                       :int64 strides {:untracked? true}))
         datatype (or datatype (dtype/get-datatype ptr))
         ;;Get the real pointer
-        address (-> (dtype-jna/->ptr-backing-store ptr)
+        address (-> (jna/->ptr-backing-store ptr)
                     dtype-jna/pointer->address)
         retval (DLPack$DLTensor.)
-        ctx (DLPack$DLContext.)]
+        ctx (DLPack$DLContext.)
+        gc-root-options {:gc-root gc-root}]
+    (when *debug-dl-tensor-lifespan*
+      (println "deriving from root of shape" shape ":" address))
     (when-not (> address 0)
       (throw (ex-info "Failed to get pointer for buffer."
                       {:original-ptr ptr})))
@@ -270,8 +291,26 @@
     (set! (.ctx retval) ctx)
     (set! (.ndim retval) (count shape))
     (set! (.dtype retval) (datatype->dl-datatype datatype))
-    (set! (.shape retval) (dtype-jna/->ptr-backing-store shape-ptr))
+    (set! (.shape retval) (jna/->ptr-backing-store shape-ptr))
     (when strides-ptr
-      (set! (.strides retval) (dtype-jna/->ptr-backing-store strides-ptr)))
+      (set! (.strides retval) (jna/->ptr-backing-store strides-ptr)))
     (set! (.byte_offset retval) (long byte-offset))
-    retval))
+
+    ;;Attach any free calls to the dl-tensor object itself.  Not to its data members.
+    (gc-resource/track
+     retval
+     #(do
+        ;;This is important to establish a valid chain of scopes for the gc system
+        ;;between whatever is providing the ptr data *and* the derived tensor
+        (when *debug-dl-tensor-lifespan*
+          (println "freeing derived tensor of shape" shape ":"
+                   (-> (jna/->ptr-backing-store ptr)
+                       dtype-jna/pointer->address)))
+        ;;Call into the gc root object with a general protocol so it is rooted in this
+        ;;closure.  Then throw it away.
+        (get gc-root-options :gc-root)
+        (-> (jna/->ptr-backing-store shape-ptr)
+            dtype-jna/unsafe-free-ptr)
+        (when strides-ptr
+          (-> (jna/->ptr-backing-store strides-ptr)
+              dtype-jna/unsafe-free-ptr))))))

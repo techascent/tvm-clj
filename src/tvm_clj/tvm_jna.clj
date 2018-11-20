@@ -5,7 +5,6 @@
             [tech.datatype.base :as dtype-base]
             [tech.datatype.java-primitive :as primitive]
             [clojure.core.matrix.protocols :as mp]
-            [tech.resource :as resource]
             [tech.jna :refer [checknil] :as jna]
             ;;Standard paths for the tvm library
             [tvm-clj.jna.library-paths :as jna-lib-paths]
@@ -134,10 +133,10 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
   base address."
   [ptr device-type device-id
    datatype shape strides
-   byte-offset]
+   byte-offset & [gc-root]]
   (dl-tensor/pointer->tvm-ary ptr device-type device-id
                               datatype shape strides
-                              byte-offset))
+                              byte-offset gc-root))
 
 (defn call-function
   [tvm-fn & args]
