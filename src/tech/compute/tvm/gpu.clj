@@ -163,6 +163,8 @@
     (enumerate-devices driver))
   (allocate-host-buffer [driver elem-count elem-type options]
     (tvm/make-cpu-device-buffer elem-type elem-count))
+  (acceptable-host-buffer? [driver buffer]
+    (tvm-driver/acceptable-tvm-host-buffer? buffer))
 
   tvm-driver/PTVMDriver
   (device-id->device [driver dev-id]

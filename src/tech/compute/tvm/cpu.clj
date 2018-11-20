@@ -120,6 +120,8 @@
     (cpu-devices))
   (allocate-host-buffer [driver elem-count elem-type options]
     (make-cpu-device-buffer elem-type elem-count))
+  (acceptable-host-buffer? [driver buffer]
+    (tvm-driver/acceptable-tvm-host-buffer? buffer))
 
   tvm-driver/PTVMDriver
   (device-id->device [driver dev-id]

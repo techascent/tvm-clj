@@ -35,3 +35,10 @@ Centralized registring of drivers allowing a symbolic name->driver table."
                 tvm-proto/PByteOffset
                 tvm-proto/PTVMDeviceType
                 tvm-proto/PTVMDeviceId])))
+
+
+(defn acceptable-tvm-host-buffer?
+  "Things that pass this will work in copy-host->device."
+  [item]
+  (and (acceptable-tvm-device-buffer? item)
+       (= :cpu (tvm-proto/device-type item))))

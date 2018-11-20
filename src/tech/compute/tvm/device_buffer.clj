@@ -10,7 +10,9 @@
             [tech.compute :as compute]
             [tech.compute.tvm :as compute-tvm]
             [tech.compute.tvm.driver :as tvm-driver]
-            [tech.datatype.jna :as dtype-jna])
+            [tech.datatype.jna :as dtype-jna]
+            [tech.gc-resource :as gc-resource]
+            [tech.jna :as jna])
   (:import  [tvm_clj.tvm DLPack$DLTensor]
             [com.sun.jna Pointer]
             [tech.compute.tensor Tensor]))
@@ -34,24 +36,25 @@
 (extend-type DLPack$DLTensor
   drv/PBuffer
   (sub-buffer [buffer offset length]
-    ;;We don't use the PToPtr protocol because we do actually
-    ;;need the base ptr address.  ->ptr-backing-store offsets
-    ;;that address.
+    ;;We don't use the PToPtr protocol because we do actually need the base ptr address.
+    ;;->ptr-backing-store offsets that address.
     (let [base-ptr (bindings/base-ptr buffer)
           datatype (dtype/get-datatype buffer)
           byte-offset (long (bindings/byte-offset buffer))]
-      (bindings/pointer->tvm-ary
-       base-ptr
-       (bindings/device-type buffer)
-       (bindings/device-id buffer)
-       datatype
-       [length]
-       nil
-       ;;add the byte offset where the new pointer should start
-       (+ byte-offset
-          (* (long offset)
-             (long (dtype/datatype->byte-size
-                    datatype)))))))
+      (bindings/pointer->tvm-ary base-ptr
+                                 (bindings/device-type buffer)
+                                 (bindings/device-id buffer)
+                                 datatype
+                                 [length]
+                                 nil
+                                 ;;add the byte offset where the new pointer should start
+                                 (+ byte-offset
+                                    (* (long offset)
+                                       (long (dtype/datatype->byte-size
+                                              datatype))))
+                                 ;;Use the passed in buffer as a gc-root object; obviously the new thing
+                                 ;;should refer back to the source.
+                                 buffer)))
   (alias? [lhs rhs]
     (drv/alias? (dtype-jna/->typed-pointer lhs) rhs))
 
@@ -103,13 +106,17 @@
                                      (ct-dims/access-increasing?
                                       (ct/tensor->dimensions item)))
                         (:strides dims))]
-      (bindings/pointer->tvm-ary (bindings/base-ptr buffer)
-                                 (bindings/device-type buffer)
-                                 (bindings/device-id buffer)
-                                 (ct/get-datatype item)
-                                 (:shape dims)
-                                 stride-data
-                                 (bindings/byte-offset buffer))))
+      (if (and (nil? stride-data)
+               (= (dtype/shape buffer)
+                  (:shape dims)))
+        buffer
+        (bindings/pointer->tvm-ary (bindings/base-ptr buffer)
+                                   (bindings/device-type buffer)
+                                   (bindings/device-id buffer)
+                                   (ct/get-datatype item)
+                                   (:shape dims)
+                                   stride-data
+                                   (bindings/byte-offset buffer)))))
 
   tvm-proto/PJVMTypeToTVMValue
   (->tvm-value [item]

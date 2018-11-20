@@ -133,10 +133,10 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
   base address."
   [ptr device-type device-id
    datatype shape strides
-   byte-offset]
+   byte-offset & [gc-root]]
   (dl-tensor/pointer->tvm-ary ptr device-type device-id
                               datatype shape strides
-                              byte-offset))
+                              byte-offset gc-root))
 
 (defn call-function
   [tvm-fn & args]
