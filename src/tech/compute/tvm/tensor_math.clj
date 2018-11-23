@@ -110,7 +110,7 @@
       retval
       (let [retval (fn-create-fn)]
         (swap! *fn-map* assoc fn-name retval)
-        (resource/make-resource #(swap! *fn-map* dissoc fn-name))
+        (resource/track #(swap! *fn-map* dissoc fn-name))
         retval))))
 
 

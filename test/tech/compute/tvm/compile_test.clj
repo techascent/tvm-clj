@@ -100,7 +100,7 @@
 (defn java-by-hand-image-test
   []
   (ct/enable-cpu-tensors!)
-  (resource/with-resource-context
+  (resource/stack-resource-context
     (let [mat (opencv/load "test/data/jen.jpg")
           img-tensor (ct/->tensor mat :datatype :uint8)
           result-tensor (ct/new-tensor (concat [3]
@@ -122,7 +122,7 @@
 
 (defn tvm-image-test
   [dev-type]
-  (resource/with-resource-context
+  (resource/stack-resource-context
     (ct-defaults/tensor-driver-context
      (tvm/driver dev-type)
      :float32

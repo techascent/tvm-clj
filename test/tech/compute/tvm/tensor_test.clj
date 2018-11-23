@@ -101,7 +101,7 @@
   math level.  This is realy to benefit TVM and external parties using it's gemm
   functionality.  It has no benefit for tech.compute or the compute tvm backend."
   [driver datatype]
-  (resource/with-resource-context
+  (resource/stack-resource-context
     (vt/tensor-default-context
      driver datatype
      (let [tens-a (ct/->tensor (partition 3 (range 9)))

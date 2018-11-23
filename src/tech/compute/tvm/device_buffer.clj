@@ -11,7 +11,6 @@
             [tech.compute.tvm :as compute-tvm]
             [tech.compute.tvm.driver :as tvm-driver]
             [tech.datatype.jna :as dtype-jna]
-            [tech.gc-resource :as gc-resource]
             [tech.jna :as jna])
   (:import  [tvm_clj.tvm DLPack$DLTensor]
             [com.sun.jna Pointer]

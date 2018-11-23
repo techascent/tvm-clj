@@ -1004,8 +1004,9 @@ the threading macro with the long set of ir pass possibilities."
         ^runtime$TVMModuleHandle mhost (bindings/g-fn "codegen._Build" host-fns
                                                (name target-host))]
     (when (seq device-fns)
-      (resource/with-resource-context
-        (->> (mapv #(bindings/g-fn "ir_pass.LowerIntrin" % (name target-name)) device-fns)
+      (resource/stack-resource-context
+       (->> (mapv #(bindings/g-fn "ir_pass.LowerIntrin" % (name target-name))
+                  device-fns)
              (#(bindings/g-fn "codegen._Build" % (name target-name)))
              (bindings/mod-import mhost))))
     mhost))

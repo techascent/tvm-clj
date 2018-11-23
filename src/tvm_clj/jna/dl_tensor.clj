@@ -8,7 +8,7 @@
                                       datatype->dl-datatype
                                       dl-datatype->datatype]]
             [tvm-clj.jna.stream :as stream]
-            [tech.gc-resource :as gc-resource]
+            [tech.resource :as resource]
             [tvm-clj.bindings.protocols :refer [->tvm
                                                 base-ptr
                                                 ->tvm-value
@@ -192,10 +192,11 @@
       (when *debug-dl-tensor-lifespan*
         (println "allocated root tensor of shape" shape ":" address))
       ;;We allow the gc to help us clean up these things.
-      (gc-resource/track retval #(do
-                                   (when *debug-dl-tensor-lifespan*
-                                     (println "freeing root tensor of shape" shape ":" address))
-                                   (TVMArrayFree (.getValue retval-ptr)))))))
+      (resource/track retval #(do
+                                (when *debug-dl-tensor-lifespan*
+                                  (println "freeing root tensor of shape" shape ":" address))
+                                (TVMArrayFree (.getValue retval-ptr)))
+                      [:stack :gc]))))
 
 
 (defn ensure-tensor
@@ -297,7 +298,7 @@
     (set! (.byte_offset retval) (long byte-offset))
 
     ;;Attach any free calls to the dl-tensor object itself.  Not to its data members.
-    (gc-resource/track
+    (resource/track
      retval
      #(do
         ;;This is important to establish a valid chain of scopes for the gc system
@@ -313,4 +314,5 @@
             dtype-jna/unsafe-free-ptr)
         (when strides-ptr
           (-> (jna/->ptr-backing-store strides-ptr)
-              dtype-jna/unsafe-free-ptr))))))
+              dtype-jna/unsafe-free-ptr)))
+     [:gc :stack])))

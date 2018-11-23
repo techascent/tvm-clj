@@ -11,7 +11,7 @@
 
 (defn test-add-fn
   [device-type]
-  (resource/with-resource-context
+  (resource/stack-resource-context
     (let [device (tvm/device device-type)
           stream (compute/default-stream device)
           add-fn (api-test/create-myadd-fn device-type)

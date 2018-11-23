@@ -9,7 +9,7 @@
 (deftest host-read-write
   (testing "Efficient bulk transfer to/from tvm device buffer"
     (with-bindings {#'dtype/*error-on-slow-path* true}
-      (resource/with-resource-context
+      (resource/stack-resource-context
         (let [test-data [1 2 3 253 254 255]
               short-buf (short-array test-data)
               ;;This test has a hidden difficulty.  255 is not representable in
@@ -26,7 +26,7 @@
 (deftest host-buffer-offset
   (testing "Test using offsets"
     (with-bindings {#'dtype/*error-on-slow-path* true}
-      (resource/with-resource-context
+      (resource/stack-resource-context
         (let [test-data [1 2 3 243 244 245]
               short-buf (short-array test-data)
               test-buf (tvm/make-cpu-device-buffer :uint8 6)
@@ -39,7 +39,7 @@
 
 (deftest host-sub-buffer
   (testing "Sub buffer works"
-    (resource/with-resource-context
+    (resource/stack-resource-context
       (let [test-data [1 2 3 4 5 6]
             short-buf (short-array test-data)
             test-buf (tvm/make-cpu-device-buffer :float32 6)

@@ -9,7 +9,7 @@
             [tech.datatype.base :as dtype]
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.tvm :as tvm]
-            [tech.resource :as resource]
+            [tech.resource.stack :as stack]
             [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])
   (:import [com.sun.jna Pointer]))
@@ -68,7 +68,7 @@
   drv/PDriverProvider
   (get-driver [_] (drv/get-driver device))
 
-  resource/PResource
+  stack/PResource
   (release-resource [_] ))
 
 
@@ -109,9 +109,9 @@
   drv/PDeviceProvider
   (get-device [dev] dev)
 
-  resource/PResource
+  stack/PResource
   (release-resource [_]
-    (resource/release-resource resource-context)))
+    (stack/release-resource resource-context)))
 
 
 (defn- make-gpu-device
@@ -120,15 +120,15 @@
   (let [dev-type (tvm/device-type driver)
         {default-stream :return-value
          resource-seq :resource-seq}
-        (resource/return-resource-seq
+        (stack/return-resource-seq
          (try
            (bindings/create-stream dev-type dev-id)
            (catch Throwable e
              (tvm-jna-stream/->StreamHandle dev-type dev-id (Pointer. 0)))))
         supports-create? (boolean default-stream)
         device (->GPUDevice driver dev-id supports-create?
-                            (atom nil) (resource/->Releaser #(resource/release-resource-seq
-                                                              resource-seq)))]
+                            (atom nil) #(stack/release-resource-seq
+                                         resource-seq))]
     (swap! (:default-stream device) (constantly (->GPUStream device default-stream)))
     device))
 

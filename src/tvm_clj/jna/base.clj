@@ -237,7 +237,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
   [tvm-fn & args]
   (try
     (let [fn-ret-val
-          (resource/with-resource-context
+          (resource/stack-resource-context
             (let [retval (LongByReference.)
                   rettype (IntByReference.)
                   [tvm-args arg-types n-args] (arg-list->tvm-args args)]

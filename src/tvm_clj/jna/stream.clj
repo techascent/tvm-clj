@@ -4,7 +4,7 @@
                                       device-id->int
                                       ptr-ptr
                                       check-call]]
-            [tech.gc-resource :as gc-resource]
+            [tech.resource :as resource]
             [tvm-clj.bindings.protocols :refer [->tvm] :as bindings-proto]
             [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])
@@ -77,8 +77,9 @@
   ^StreamHandle [device-type ^long device-id]
   (let [retval (PointerByReference.)]
     (check-call (TVMStreamCreate device-type device-id retval))
-    (gc-resource/track (->StreamHandle device-type device-id (.getValue retval))
-                       #(TVMStreamFree (.getValue retval)))))
+    (resource/track (->StreamHandle device-type device-id (.getValue retval))
+                    #(TVMStreamFree (.getValue retval))
+                    [:gc :stack])))
 
 
 (defn sync-stream-with-host

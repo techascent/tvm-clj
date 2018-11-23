@@ -8,7 +8,7 @@
             [tech.compute.tvm.device-buffer :as dbuf]
             [tech.compute.cpu.driver :as cpu-driver]
             [tech.compute.registry :as registry]
-            [tech.resource :as resource]
+            [tech.resource.stack :as stack]
             [tech.datatype :as dtype]
             [tech.compute.tvm :as tvm]
             [tech.compute.registry :as registry]
@@ -97,7 +97,7 @@
   drv/PDeviceProvider
   (get-device [dev] dev)
 
-  resource/PResource
+  stack/PResource
   (release-resource [dev]))
 
 
