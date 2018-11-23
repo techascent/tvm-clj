@@ -6,6 +6,11 @@ this project adheres to a 2-part versioning scheme X,Y where a change in X means
 probably fucked while a change in Y means you may not be fucked.
 
 
+## [4.0]
+### Fixed/Changed
+* Changed to newer resource system.  Mainly naming changes and code reorganization bubbling
+up through the stack.
+
 ## [3.0]
 ### Fixed/Changed
  * Moved to newer versions of tech-ascent datatype libraries.
