@@ -1,4 +1,4 @@
-(defproject tvm-clj "4.1-SNAPSHOT"
+(defproject tvm-clj "4.1"
   :description "Clojure bindings and exploration of the tvm library"
   :url "http://github.com/tech-ascent/tvm-clj"
   :license {:name "Eclipse Public License"
@@ -6,8 +6,6 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [techascent/tech.compute "3.1"]
                  [potemkin "0.4.4"]]
-
-  :plugins [[walmartlabs/vizdeps "0.1.6"]]
 
   :profiles {:dev
              ;;Unit tests need this.
