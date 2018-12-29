@@ -1,10 +1,10 @@
-(defproject tvm-clj "4.2-SNAPSHOT"
+(defproject tvm-clj "4.3"
   :description "Clojure bindings and exploration of the tvm library"
   :url "http://github.com/tech-ascent/tvm-clj"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [techascent/tech.compute "3.1"]
+                 [techascent/tech.compute "3.2"]
                  [potemkin "0.4.4"]]
 
   :profiles {:dev
