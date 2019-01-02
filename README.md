@@ -2,7 +2,7 @@
 
 Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) library, part of the [dmlc](https://github.com/dmlc) ecosystem.
 
-We have a primer on the theory [here](http://techascent.com/blog/high-performance-compilers.html) with a simple example you can read about on our [blog](http://techascent.com/blog/tvm-for-the-win.html) and try out the code yourself in the example [project](examples/src/box-blur.clj).
+We have a primer on the theory [here](http://techascent.com/blog/high-performance-compilers.html) with a simple example you can read about on our [blog](http://techascent.com/blog/tvm-for-the-win.html) and try out the code yourself in the example [project](examples/src/box-blur.clj).  For a more discoursive introduction, checkout Daniel Compton's repl [podcast](https://www.therepl.net/episodes/13/).
 
 
 [![Clojars Project](https://img.shields.io/clojars/v/tvm-clj.svg)](https://clojars.org/tvm-clj)
