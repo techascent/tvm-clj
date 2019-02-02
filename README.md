@@ -154,6 +154,11 @@ sudo apt install ocl-icd-* opencl-headers
 ## intel graphics adapter support
 sudo apt install beignet beignet-opencl-icd
 
+
+makedir -p tvm/build
+# Config setup for intel and such.
+cp config.cmake tvm/build
+
 pushd tvm
 
 
