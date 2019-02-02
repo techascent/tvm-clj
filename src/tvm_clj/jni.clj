@@ -34,10 +34,4 @@
 
 (defn -main
   [& args]
-  (let [arg-val (first args)
-        command (if arg-val
-                  (keyword arg-val)
-                  :build-jni-java)]
-    (condp = command
-      :install-tvm-libs
-      (install-tvm-libs))))
+  (install-tvm-libs))
