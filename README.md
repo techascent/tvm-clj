@@ -177,7 +177,18 @@ popd
 
 At this point you should have native libraries under tvm/build/
 
-Building a jar or uberjar will package all of these things into a good place.
+If you want the binaries packaged with the jar, run:
+
+```clojure
+lein jni
+```
+
+This will copy the libs into a platform-specific directory that jna should find.
+
+Another options is to install the tvm libs themselves.  We recommend this pathway as
+then the tvm libraries will work with the python bindings.  In fact, it can be worth it
+to install the python bindings as there are a lot of examples in python that are
+instructive to work with.
 
 
 ## License
