@@ -29,7 +29,7 @@
 # - ON: enable CUDA with cmake's auto search
 # - OFF: disbale CUDA
 # - /path/to/cuda: use specific path to cuda toolkit
-set(USE_CUDA OFF)
+set(USE_CUDA ON)
 
 # Whether enable ROCM runtime
 #
@@ -115,7 +115,7 @@ set(USE_NNPACK OFF)
 set(USE_CUDNN OFF)
 
 # Whether use cuBLAS
-set(USE_CUBLAS OFF)
+set(USE_CUBLAS ON)
 
 # Whether use MIOpen
 set(USE_MIOPEN OFF)
