@@ -1,9 +1,19 @@
 # Changelog
 
 
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 this project adheres to a 2-part versioning scheme X,Y where a change in X means you are
 probably fucked while a change in Y means you may not be fucked.
+
+
+## [4.6]
+We will be staying on major versions now for TVM instead of tracking master.  TVM has
+sufficiently matured that tracking master is unnecessary unless we want to make a major
+change to the TVM library itself.
+### Fixed/Changed
+ - tech.compute 3.18
+ - tvm release v0.5
 
 
 ## [4.0]
