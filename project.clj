@@ -3,13 +3,13 @@
   :url "http://github.com/tech-ascent/tvm-clj"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.9.0"]
-                 [techascent/tech.compute "3.18"]
+  :dependencies [[org.clojure/clojure "1.10.1"]
+                 [techascent/tech.datatype "4.21"]
                  [potemkin "0.4.4"]]
 
   :profiles {:dev
              ;;Unit tests need this.
-             {:dependencies [[techascent/tech.opencv "3.7"]]}}
+             {:dependencies [[techascent/tech.opencv "4.21"]]}}
 
   :java-source-paths ["java"]
   :native-path "java/native"
