@@ -6,7 +6,6 @@
                                       check-call]]
             [tech.resource :as resource]
             [tvm-clj.bindings.protocols :refer [->tvm] :as bindings-proto]
-            [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]))

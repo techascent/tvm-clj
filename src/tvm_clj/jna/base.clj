@@ -1,7 +1,7 @@
 (ns tvm-clj.jna.base
   (:require [tech.jna :refer [checknil] :as jna]
-            [tech.datatype.jna :as dtype-jna]
-            [tech.datatype :as dtype]
+            [tech.v2.datatype :as dtype]
+            [tech.v2.datatype.typed-buffer :as typed-buffer]
             [tvm-clj.jna.library-paths :as jna-lib-paths]
             [tvm-clj.bindings.definitions :as definitions]
             [tvm-clj.bindings.protocols :refer [->tvm-value ->tvm ->node
@@ -88,7 +88,7 @@ Argpair is of type [symbol type-coersion]."
   [item]
   (if (instance? Pointer item)
     item
-    (-> (dtype-jna/make-typed-pointer :int64 item)
+    (-> (dtype/make-container :native-buffer :int64 item)
         jna/->ptr-backing-store)))
 
 
@@ -185,16 +185,16 @@ Argpair is of type [symbol type-coersion]."
 (defn arg-list->tvm-args
  [args]
   (let [num-args (count args)
-        arg-vals (dtype-jna/make-typed-pointer :int64 num-args)
-        arg-types (dtype-jna/make-typed-pointer :int32 num-args)]
+        arg-vals (dtype/make-container :native-buffer :int64 num-args)
+        arg-types (dtype/make-container :native-buffer :int32 num-args)]
     (->> args
          (map-indexed (fn [idx arg]
                         (let [[long-val dtype] (->tvm-value arg)]
                           (dtype/set-value! arg-vals idx long-val)
-                          (dtype/set-value! arg-types idx (keyword->tvm-datatype dtype)))))
+                          (dtype/set-value! arg-types idx
+                                            (keyword->tvm-datatype dtype)))))
          dorun)
     [arg-vals arg-types num-args]))
-
 
 
 (defmulti tvm-value->jvm
@@ -245,7 +245,8 @@ This is in order to ensure that, for instance, deserialization of a node's field
                (TVMFuncCall tvm-fn
                             tvm-args arg-types n-args
                             retval rettype))
-              [(.getValue retval) (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
+              [(.getValue retval)
+               (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
       (apply tvm-value->jvm fn-ret-val))
     (catch Throwable e
       (throw (ex-info "Error during function call!"

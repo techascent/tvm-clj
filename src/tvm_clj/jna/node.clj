@@ -175,7 +175,7 @@
                  [out_index int-ptr])
 
 
-(defn- get-node-type-index
+(defn get-node-type-index
   [^Pointer handle]
   (let [node-type-data (IntByReference.)]
     (check-call

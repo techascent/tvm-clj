@@ -14,9 +14,7 @@
                                                 base-ptr
                                                 ->tvm-value
                                                 byte-offset] :as bindings-proto]
-            [tech.resource :as resource]
-            [tech.datatype.jna :as dtype-jna]
-            )
+            [tech.resource :as resource])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType

@@ -13,15 +13,13 @@
                                                 base-ptr
                                                 ->tvm-value
                                                 byte-offset] :as bindings-proto]
-            [tech.datatype.jna :as dtype-jna]
             [tvm-clj.bindings.definitions :refer [device-type-int->device-type]]
 
             [tech.jna :refer [checknil] :as jna]
-            [tech.datatype.base :as dtype-base]
-            [tech.datatype.java-primitive :as primitive]
-            [clojure.core.matrix.protocols :as mp]
-            [tech.datatype :as dtype])
-
+            [tech.v2.datatype :as dtype]
+            [tech.v2.datatype.protocols :as dtype-proto]
+            [tech.v2.datatype.jna :as dtype-jna]
+            [tech.v2.datatype.casting :as casting])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
@@ -64,6 +62,15 @@
 (declare allocate-device-array)
 
 
+(defn- as-typed-buffer
+  [^DLPack$DLTensor dl-tensor]
+  (dtype-jna/unsafe-ptr->typed-pointer
+   (jna/->ptr-backing-store dl-tensor)
+   (* (dtype/ecount dl-tensor)
+      (casting/numeric-byte-width (dtype/get-datatype dl-tensor)))
+   (dtype/get-datatype dl-tensor)))
+
+
 (extend-type DLPack$DLTensor
   bindings-proto/PToTVM
   (->tvm [item] item)
@@ -74,6 +81,7 @@
          Pointer/nativeValue)
      :array-handle])
   jna/PToPtr
+  (convertible-to-ptr? [item] true)
   (->ptr-backing-store [item]
     ;;There should be a check here so that only devices that support
     ;;pointer offset allow this call.  Other calls should be via
@@ -82,23 +90,18 @@
         Pointer/nativeValue
         (+ (long (byte-offset item)))
         (Pointer.)))
-  dtype-base/PDatatype
+  dtype-proto/PDatatype
   (get-datatype [item] (dl-datatype->datatype (.dtype item)))
-  mp/PElementCount
-  (element-count [item] (apply * (mp/get-shape item)))
-  dtype-base/PAccess
-  (set-value! [ptr ^long offset value]
-    (check-cpu-tensor ptr)
-    (dtype-base/set-value!
-     (dtype-jna/->typed-pointer ptr)
-     offset value))
-  (set-constant! [ptr offset value elem-count]
-    (check-cpu-tensor ptr)
-    (dtype-base/set-constant! (dtype-jna/->typed-pointer ptr) offset value elem-count))
-  (get-value [ptr ^long offset]
-    (check-cpu-tensor ptr)
-    (dtype-base/get-value (dtype-jna/->typed-pointer ptr) offset))
-  dtype-base/PPrototype
+  dtype-proto/PShape
+  (shape [item]
+    (-> (dtype-jna/unsafe-address->typed-pointer
+         (.shape item)
+         (* (.ndim item) Long/BYTES)
+         :int64))
+    (dtype/->vector))
+  dtype-proto/PCountable
+  (ecount [item] (apply * (dtype/shape item)))
+  dtype-proto/PPrototype
   (from-prototype [item datatype shape]
     (allocate-device-array shape datatype
                            (bindings-proto/device-type item)
@@ -106,48 +109,13 @@
 
   ;;Do jna buffer to take advantage of faster memcpy, memset, and
   ;;other things jna datatype bindings provide.
-  dtype-base/PContainerType
-  (container-type [ptr] :jna-buffer)
-
-  dtype-base/PCopyRawData
+  dtype-proto/PCopyRawData
   (copy-raw->item! [raw-data ary-target target-offset options]
     (check-cpu-tensor raw-data)
-    (dtype-base/copy-raw->item! (dtype-jna/->typed-pointer raw-data) ary-target
-                                target-offset options))
-
-  primitive/PToBuffer
-  (->buffer-backing-store [src]
-    (check-cpu-tensor src)
-    (primitive/->buffer-backing-store (dtype-jna/->typed-pointer src)))
-
-  primitive/PToArray
-  (->array [src] nil)
-  (->array-copy [src]
-    (check-cpu-tensor src)
-    (primitive/->array-copy (dtype-jna/->typed-pointer src)))
-
-  ;;This is here so that auto-conversion to tensors is possible but it is not going to
-  ;;work as it would change the shape of the dl-tensor
-  primitive/POffsetable
-  (offset-item [item offset]
-    (throw (ex-info "Item is not offsetable" {:item item})))
+    (dtype-proto/copy-raw->item! (as-typed-buffer raw-data) ary-target
+                                 target-offset options))
 
 
-  mp/PDimensionInfo
-  (dimensionality [m] (count (mp/get-shape m)))
-  (get-shape [m] (dtype-base/->vector (dtype-jna/->TypedPointer
-                                       (.shape m)
-                                       (* (.ndim m) Long/BYTES)
-                                       :int64)))
-  (is-scalar? [m] false)
-  (is-vector? [m] true)
-  (dimension-count [m dimension-number]
-    (let [shape (mp/get-shape m)]
-      (if (<= (count shape) (long dimension-number))
-        (get shape dimension-number)
-        (throw (ex-info "Array does not have specific dimension"
-                        {:dimension-number dimension-number
-                         :shape shape})))))
 
   bindings-proto/PTVMDeviceId
   (device-id [item]

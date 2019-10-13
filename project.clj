@@ -5,6 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [techascent/tech.datatype "4.21"]
+                 [cnuernber/libpython-clj "1.5"]
                  [potemkin "0.4.4"]]
 
   :profiles {:dev

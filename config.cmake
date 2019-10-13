@@ -27,15 +27,15 @@
 #
 # Possible values:
 # - ON: enable CUDA with cmake's auto search
-# - OFF: disbale CUDA
+# - OFF: disable CUDA
 # - /path/to/cuda: use specific path to cuda toolkit
-set(USE_CUDA ON)
+set(USE_CUDA OFF)
 
 # Whether enable ROCM runtime
 #
 # Possible values:
 # - ON: enable ROCM with cmake's auto search
-# - OFF: disbale ROCM
+# - OFF: disable ROCM
 # - /path/to/rocm: use specific path to rocm
 set(USE_ROCM OFF)
 
@@ -55,12 +55,15 @@ set(USE_METAL OFF)
 #
 # Possible values:
 # - ON: enable Vulkan with cmake's auto search
-# - OFF: disbale vulkan
+# - OFF: disable vulkan
 # - /path/to/vulkan-sdk: use specific path to vulkan-sdk
 set(USE_VULKAN OFF)
 
 # Whether enable OpenGL runtime
 set(USE_OPENGL OFF)
+
+# Whether enable MicroTVM runtime
+set(USE_MICRO OFF)
 
 # Whether to enable SGX runtime
 #
@@ -85,12 +88,18 @@ set(USE_GRAPH_RUNTIME ON)
 # Whether enable additional graph debug functions
 set(USE_GRAPH_RUNTIME_DEBUG OFF)
 
+# Whether enable additional vm profiler functions
+set(USE_VM_PROFILER OFF)
+
+# Whether enable uTVM standalone runtime
+set(USE_MICRO_STANDALONE_RUNTIME ON)
+
 # Whether build with LLVM support
 # Requires LLVM version >= 4.0
 #
 # Possible values:
 # - ON: enable llvm with cmake's find search
-# - OFF: disbale llvm
+# - OFF: disable llvm
 # - /path/to/llvm-config: enable specific LLVM when multiple llvm-dev is available.
 set(USE_LLVM ON)
 
@@ -103,6 +112,7 @@ set(USE_BLAS openblas)
 # /path/to/mkl: mkl root path when use mkl blas library
 # set(USE_MKL_PATH /opt/intel/mkl) for UNIX
 # set(USE_MKL_PATH ../IntelSWTools/compilers_and_libraries_2018/windows/mkl) for WIN32
+# set(USE_MKL_PATH <path to venv or site-packages directory>) if using `pip install mkl`
 set(USE_MKL_PATH none)
 
 # Whether use contrib.random in runtime
@@ -115,7 +125,7 @@ set(USE_NNPACK OFF)
 set(USE_CUDNN OFF)
 
 # Whether use cuBLAS
-set(USE_CUBLAS ON)
+set(USE_CUBLAS OFF)
 
 # Whether use MIOpen
 set(USE_MIOPEN OFF)
@@ -131,3 +141,15 @@ set(USE_SORT ON)
 
 # Build ANTLR parser for Relay text format
 set(USE_ANTLR OFF)
+
+# Whether use Relay debug mode
+set(USE_RELAY_DEBUG OFF)
+
+# Whether to build fast VTA simulator driver
+set(USE_VTA_FSIM ON)
+
+# Whether to build cycle-accurate VTA simulator driver
+set(USE_VTA_TSIM ON)
+
+# Whether to build VTA FPGA driver (device side only)
+set(USE_VTA_FPGA OFF)

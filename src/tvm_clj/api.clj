@@ -3,7 +3,12 @@
   (:require [tvm-clj.tvm-jna :refer [->node] :as bindings]
             [tvm-clj.jna.node :as jna-node]
             [tvm-clj.bindings.protocols :as bindings-proto]
-            [tech.datatype :as dtype]
+            [tvm-clj.jna.fns.global :as global-fns]
+            [tvm-clj.jna.fns.schedule :as schedule-fns]
+            [tvm-clj.jna.fns.ir-pass :as ir-pass-fns]
+            [tvm-clj.jna.fns.codegen :as codegen-fns]
+            [tvm-clj.jna.fns.make :as make-fns]
+            [tech.v2.datatype :as dtype]
             [tech.resource :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])
@@ -58,7 +63,8 @@
                      [shape]
                      shape)
                    (mapv ->node))]
-    (bindings/global-node-function "_Placeholder" shape (->dtype dtype) (safe-str name))))
+    (bindings/global-node-function "_Placeholder" shape (->dtype dtype)
+                                   (safe-str name))))
 
 
 (defn range
@@ -675,42 +681,6 @@ expressions,
     retval))
 
 
-(def default-build-config
-  "Comments from tvm/build_module.h"
-  {;;/*! \brief Threshold of number of steps in the loop to be automatically unrolled */
-   :auto-unroll-max-step 0
-   ;;/*! \brief The maximum nested level of loops that can be automatically unrolled */
-   :auto-unroll-max-depth 8
-   ;;/*! \brief The maximum extent of loop that will be unrolled */
-   :auto-unroll-max-extent 0
-   ;; /*!
-   ;; * \brief Whether to explicitly unroll the loop. If set to false, the unroll hint will
-   ;; * be passed to the CodeGen phase. Set to true if CodeGen supports unroll pragma.
-   ;; */
-   :unroll-explicit? true
-   ;;/*! \brief Whether to detect global barrier */
-   :detect-global-barrier? false
-   ;;/*! \brief Whether to partition const loop */
-   :partition-const-loop? false
-   ;; /*!
-   ;; * \brief The offset factor to use when constructing buffers. If this is set to
-   ;; * 0, then the offset field is not used.
-   ;; */
-   :offset-factor 0
-   ;; /*!
-   ;; * \brief The data alignment to use when constructing buffers. If this is set to
-   ;; * -1, then TVM's internal default will be used
-   ;; */
-   :data-alignment -1
-   ;;/*! \brief Set to true if buffer arguments do not overlap. This enables more optimization. */
-   :restricted-func? true
-   ;; /*!
-   ;; * \brief Splitting factor for loop splitting. If this is set to zero, no splitting will be
-   ;; * done. Otherwise, a split will be done with this factor and the inner loop will be unrolled.
-   ;; */
-   :double-buffer-split-loop 1})
-
-
 (defn declare-buffer
   "Decleare a new symbolic buffer.
 
@@ -787,10 +757,12 @@ expressions,
         elem-offset (if elem-offset elem-offset 0)
         data (if data data (variable name :dtype "handle"))
         offset-factor 0]
-    (bindings/global-node-function "_Buffer"
-                            data (->dtype dtype) shape strides elem-offset
-                            (safe-str name) scope
-                            data-alignment offset-factor)))
+
+    (global-fns/_Buffer
+     data (->dtype dtype) shape strides elem-offset
+     (safe-str name) scope
+     data-alignment offset-factor
+     "")))
 
 
 (defn bind-arguments
@@ -808,7 +780,7 @@ a different buffer type than this then you need to bind it yourself."
                 (let [shape (:shape arg)
                       new-buf (declare-buffer
                                (:shape arg) :dtype (:dtype arg)
-                               :data-alignment (:data-alignment build-config))]
+                               :data-alignment (:data_alignment build-config))]
                   [(conj arg-list new-buf) (assoc bind-map arg new-buf)]))
               :buffer
               [(conj arg-list arg) bind-map]
@@ -820,10 +792,11 @@ a different buffer type than this then you need to bind it yourself."
 
 (defn- gfnr
   "Like global-node-function but the first argument is assumed to be the 'this' object
-and the second is the function to call.  We need this slight transposition in order to use
-the threading macro with the long set of ir pass possibilities."
+  and the second is the function to call.  We need this slight transposition in order
+  to use the threading macro with the long set of ir pass possibilities."
   [item fn-name & args]
-  ;;These are all nodes but don't upack fields; this causes too much unnecessary unpacking.
+  ;;These are all nodes but don't upack fields; this causes too much unnecessary
+  ;;unpacking.
   (apply bindings/g-fn fn-name item args))
 
 
@@ -835,6 +808,41 @@ the threading macro with the long set of ir pass possibilities."
 
 
 (def int->lowered-function-type-map (c-set/map-invert lowered-function-type->int-map))
+
+
+(def build-config-node-defaults
+  {
+   "auto_unroll_max_step" 0
+   "auto_unroll_max_depth" 8
+   "auto_unroll_max_extent" 0
+   "unroll_explicit" true
+   "detect_global_barrier" false
+   "partition_const_loop" false
+   "offset_factor" 0
+   "data_alignment" -1
+   "restricted_func" true
+   "double_buffer_split_loop" 1
+   "dump_pass_ir" false
+   "instrument_bound_checkers" false
+   "disable_select_rewriting" false
+   "disable_vectorize" false
+   })
+
+(defn make-build-config
+  []
+  (apply make-fns/_Node "BuildConfig"
+         (flatten (seq build-config-node-defaults))))
+
+(defn- form-body
+  [schedule]
+  (let [sch (global-fns/_ScheduleNormalize schedule)]
+    (-> sch
+        (schedule-fns/ScheduleOps(schedule-fns/InferBound sch))
+        (ir-pass-fns/InjectPrefetch))))
+
+(defn get-build-config
+  [& [build-config]]
+  (or build-config (global-fns/_GetCurrentBuildConfig)))
 
 
 (defn schedule->lowered-function
@@ -868,49 +876,61 @@ the threading macro with the long set of ir pass possibilities."
        Then the Stmt before make api is returned.
     "
   [schedule args name
-   & {:keys [build-config bind-map simple-mode?]
+   & {:keys [build-config bind-map simple-mode? cache-line-size]
       :or {bind-map {}
-           build-config
-           default-build-config}}]
-  (let [schedule (bindings/g-fn "_ScheduleNormalize" schedule)
-        [arg-list bind-map] (bind-arguments args bind-map build-config)
-        bounds (bindings/g-fn "schedule.InferBound" schedule)
-        cache-line-size 64]
-    (-> schedule
-        ;;Phase 0
-        (gfnr "schedule.ScheduleOps" bounds)
-        (gfnr "ir_pass.InjectPrefetch")
+           build-config (get-build-config)
+           cache-line-size 64}}]
+  (let [[arg-list bind-map] (bind-arguments args bind-map build-config)
+        stmt (form-body schedule)
+        compact (ir-pass-fns/VerifyCompactBuffer stmt)
+        ;;unpack the build config
+        {:keys [instrument_bound_checkers
+                partition_const_loop
+                double_buffer_split_loop
+                auto_unroll_max_step
+                auto_unroll_max_depth
+                auto_unroll_max_extent
+                unroll_explicit
+                disable_select_rewriting
+                disable_vectorize
+                restricted_func]
+         } build-config
         ;;Phase 1
-        (gfnr "ir_pass.StorageFlatten" bind-map cache-line-size)
-        (gfnr "ir_pass.CanonicalSimplify")
+        stmt
+        (-> stmt
+            (ir-pass-fns/StorageFlatten bind-map cache-line-size
+                                        instrument_bound_checkers)
+            (ir-pass-fns/CanonicalSimplify))
+
         ;;Phase 2
-        ((fn [stmt]
-           (if simple-mode?
-             stmt
-             (gfnr stmt "ir_pass.LoopPartition"
-                   (:partition-const-loop? build-config)))))
-        (gfnr "ir_pass.VectorizeLoop")
-        (gfnr "ir_pass.InjectVirtualThread")
-        (gfnr "ir_pass.InjectDoubleBuffer" (:double-buffer-split-loop build-config))
-        (gfnr "ir_pass.StorageRewrite")
-        (gfnr "ir_pass.UnrollLoop"
-              (:auto-unroll-max-step build-config)
-              (:auto-unroll-max-depth build-config)
-              (:auto-unroll-max-extent build-config)
-              (:unroll-explicit? build-config))
-        ;;Phase 3
-        (gfnr "ir_pass.Simplify")
-        (gfnr "ir_pass.LowerStorageAccessInfo")
-        (gfnr "ir_pass.RemoveNoOp")
-        (gfnr "ir_pass.RewriteUnsafeSelect")
-        ((fn [stmt]
-           (if simple-mode?
-             stmt
-             (-> stmt
-                 ;;Exit
-                 (gfnr "ir_pass.MakeAPI" name arg-list 0
-                       (:restricted-func? build-config))
-                 (update :func_type int->lowered-function-type-map))))))))
+        stmt (if simple-mode?
+               stmt
+               (ir-pass-fns/LoopPartition stmt partition_const_loop))
+        stmt (if (not= 0 disable_vectorize)
+               (ir-pass-fns/SkipVectorize stmt)
+               (ir-pass-fns/VectorizeLoop stmt))
+
+        stmt (-> stmt
+                 (ir-pass-fns/InjectVirtualThread)
+                 (ir-pass-fns/InjectDoubleBuffer double_buffer_split_loop)
+                 (ir-pass-fns/StorageRewrite)
+                 (ir-pass-fns/UnrollLoop auto_unroll_max_step
+                                         auto_unroll_max_depth
+                                         auto_unroll_max_extent
+                                         unroll_explicit))
+        stmt (-> stmt
+                 (ir-pass-fns/Simplify)
+                 (ir-pass-fns/LowerStorageAccessInfo)
+                 (ir-pass-fns/RemoveNoOp))
+        stmt (if (not= 0 disable_select_rewriting)
+               stmt
+               (ir-pass-fns/RewriteUnsafeSelect stmt))
+        stmt (if (not= 0 instrument_bound_checkers)
+               (ir-pass-fns/InstrumentBoundCheckers stmt)
+               stmt)]
+    (if simple-mode?
+      stmt
+      (ir-pass-fns/MakeAPI stmt name arg-list 0 restricted_func))))
 
 
 (defn node->str
@@ -963,7 +983,7 @@ the threading macro with the long set of ir pass possibilities."
   [lowered-function-seq & {:keys [build-config target-name target-host]
                            :or {target-name :llvm
                                 target-host :llvm
-                                build-config default-build-config}}]
+                                build-config (get-build-config)}}]
   (let [arg-type-list (map bindings/get-node-type lowered-function-seq)]
     (when-not-error (= #{:lowered-function} (set arg-type-list))
       (ex-info "Argumentis not a sequence of lowered functions"
@@ -977,17 +997,18 @@ the threading macro with the long set of ir pass possibilities."
         [host-fns device-fns]
         (reduce (fn [[host-fns device-fns] lowered-fn]
                   (condp = (:func_type lowered-fn)
-                    :host-function
+                    1 ;kHostFunc
                     [(conj host-fns lowered-fn) device-fns]
-                    :device-function
+                    2 ;kDeviceFunc
                     [host-fns (conj device-fns lowered-fn)]
-                    :mixed-function
+                    0 ;kMixedFunc
                     (let [warp-size (long (target-name->thread-warp-size target-name))
-                          fsplits (-> (if (:detect-global-barrier? build-config)
-                                        (bindings/g-fn "ir_pass.ThreadSync" lowered-fn "global")
+                          fsplits (-> (if (not= 0 (:detect_global_barrier
+                                                   build-config))
+                                        (ir-pass-fns/ThreadSync lowered-fn "global")
                                         lowered-fn)
-                                      (gfnr "ir_pass.LowerThreadAllreduce" warp-size)
-                                      (gfnr "ir_pass.SplitHostDevice")
+                                      (ir-pass-fns/LowerThreadAllreduce warp-size)
+                                      (ir-pass-fns/SplitHostDevice)
                                       (bindings/tvm-array->jvm))]
                       [(conj host-fns (first fsplits))
                        (concat device-fns (rest fsplits))])))
@@ -995,14 +1016,16 @@ the threading macro with the long set of ir pass possibilities."
                 lowered-function-seq)
         host-fns
         (mapv (fn [host-fn]
-                (bindings/g-fn "ir_pass.BindDeviceType" host-fn
-                               (bindings/device-type->int target-host))
-                (-> (bindings/g-fn "ir_pass.LowerTVMBuiltin" host-fn)
-                    (gfnr "ir_pass.LowerIntrin" (name target-host))
-                    (gfnr "ir_pass.CombineContextCall")))
+                (ir-pass-fns/BindDeviceType
+                 host-fn
+                 (bindings/device-type->int target-host))
+                (-> (ir-pass-fns/LowerTVMBuiltin host-fn)
+                    (ir-pass-fns/LowerIntrin (name target-host))
+                    (ir-pass-fns/CombineContextCall)))
               host-fns)
-        ^runtime$TVMModuleHandle mhost (bindings/g-fn "codegen._Build" host-fns
-                                               (name target-host))]
+        ^runtime$TVMModuleHandle mhost (codegen-fns/_Build
+                                        host-fns
+                                        (name target-host))]
     (when (seq device-fns)
       (resource/stack-resource-context
        (->> (mapv #(bindings/g-fn "ir_pass.LowerIntrin" % (name target-name))
@@ -1028,7 +1051,7 @@ the threading macro with the long set of ir pass possibilities."
   [sched-data-seq & {:keys [build-config
                             target-name
                             target-host]
-                     :or {build-config default-build-config
+                     :or {build-config (get-build-config)
                           target-name :llvm
                           target-host :llvm}}]
   (let [sched-data-seq (map (fn [{:keys [name] :as entry}]

@@ -1,10 +1,6 @@
 (ns tvm-clj.tvm-jna
   (:require [clojure.set :as c-set]
-            [tech.datatype.jna :as dtype-jna]
-            [tech.datatype :as dtype]
-            [tech.datatype.base :as dtype-base]
-            [tech.datatype.java-primitive :as primitive]
-            [clojure.core.matrix.protocols :as mp]
+            [tech.v2.datatype :as dtype]
             [tech.jna :refer [checknil] :as jna]
             ;;Standard paths for the tvm library
             [tvm-clj.jna.library-paths :as jna-lib-paths]
