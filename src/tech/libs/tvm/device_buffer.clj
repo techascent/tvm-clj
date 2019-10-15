@@ -2,19 +2,10 @@
   (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.bindings.protocols :as tvm-proto]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.driver :as tvm-driver]
-            [tech.datatype.base :as dtype-base]
-            [tech.datatype :as dtype]
-            [tech.compute.tensor :as ct]
-            [tech.compute.tensor.dimensions :as ct-dims]
-            [tech.compute :as compute]
-            [tech.compute.tvm :as compute-tvm]
-            [tech.compute.tvm.driver :as tvm-driver]
-            [tech.datatype.jna :as dtype-jna]
-            [tech.jna :as jna])
+            [tech.v2.datatype :as dtype]
+            [tech.compute :as compute])
   (:import  [tvm_clj.tvm DLPack$DLTensor]
-            [com.sun.jna Pointer]
-            [tech.compute.tensor Tensor]))
+            [com.sun.jna Pointer]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -22,7 +13,7 @@
 
 (defn is-cpu-device?
   [device]
-  (= :cpu (compute-tvm/device-type device)))
+  (= :cpu (bindings/device-type device)))
 
 
 (defn check-cpu-array!
@@ -126,4 +117,5 @@
   (byte-offset [tensor]
     (bindings/byte-offset (ct/tensor->buffer tensor)))
   (base-ptr [tensor]
-    (bindings/base-ptr (ct/tensor->buffer tensor))))
+    (bindings/base-ptr (ct/tensor->buffer tensor)))
+  )

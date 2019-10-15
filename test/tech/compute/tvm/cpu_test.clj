@@ -6,7 +6,7 @@
             [tech.compute :as compute]
             [tech.compute.tvm :as tvm]
             [tvm-clj.api-test :as api-test]
-            [tech.compute.tvm.cpu]))
+            [tech.libs.tvm.cpu]))
 
 
 (defn test-add-fn
