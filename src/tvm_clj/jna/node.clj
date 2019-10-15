@@ -17,7 +17,8 @@
             [tvm-clj.bindings.protocols :as bindings-proto]
             [tech.jna :refer [checknil] :as jna]
             [tech.resource :as resource]
-            [tvm-clj.jna.fns.global :as global-fns])
+            [tvm-clj.jna.fns.global :as global-fns]
+            [tech.v2.datatype :as dtype])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [java.util Map List RandomAccess]
@@ -62,13 +63,6 @@
                  [out_value long-ptr]
                  [out_type_code int-ptr]
                  [out_success int-ptr])
-
-
-(defn tvm-map->jvm
-  [tvm-map-node]
-  (->> (global-fns/_MapItems tvm-map-node)
-       tvm-array->jvm
-       (apply hash-map)))
 
 
 (defn get-node-field
@@ -325,7 +319,8 @@
   "Called when something like a shape needs to be passed into a tvm function.  Most users will not need to call this
 explicitly; it is done for you."
   [& args]
-  (apply global-function "_Array" args))
+  (->> (map bindings-proto/->node args)
+       (apply global-fns/_Array)))
 
 
 (defn tvm-map
@@ -335,7 +330,8 @@ explicitly; it is done for you."
                       2))
     (throw (ex-info "Map fn call must have even arg count"
                     {:args args})))
-  (apply global-function "_Map" args))
+  (->> (map bindings-proto/->node args)
+       (apply global-fns/_Map)))
 
 
 (defmethod tvm-value->jvm :node-handle
@@ -361,3 +357,42 @@ explicitly; it is done for you."
                                        (apply concat))))
       (nil? value)
       [(long 0) :null])))
+
+(defn ->dtype
+  ^String [dtype-or-name]
+  (cond
+    (keyword? dtype-or-name)
+    (name dtype-or-name)
+    (string? dtype-or-name)
+    dtype-or-name
+    :else
+    (throw (ex-info "Invalid datatype detected"
+                    {:dtype dtype-or-name}))))
+
+(defn const
+  "Convert an item to a const (immediate) value"
+  [numeric-value & [dtype]]
+  (let [dtype (->dtype (or dtype
+                           (dtype/get-datatype numeric-value)))]
+    (global-fns/_const numeric-value dtype)))
+
+
+(extend-protocol bindings-proto/PConvertToNode
+  Boolean
+  (->node [item] (const item "uint1x1"))
+  Byte
+  (->node [item] (const item "int8"))
+  Short
+  (->node [item] (const item "int16"))
+  Integer
+  (->node [item] (const item "int32"))
+  Long
+  (->node [item] (const item "int64"))
+  Float
+  (->node [item] (const item "float32"))
+  Double
+  (->node [item] (const item "float64"))
+  RandomAccess
+  (->node [item] (apply tvm-array item))
+  Map
+  (->node [item] (apply tvm-map (apply concat item))))

@@ -2,7 +2,6 @@
   "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.tvm-jna :refer [->node] :as bindings]
             [tvm-clj.jna.node :as jna-node]
-            [tvm-clj.bindings.protocols :as bindings-proto]
             [tvm-clj.jna.fns.global :as global-fns]
             [tvm-clj.jna.fns.schedule :as schedule-fns]
             [tvm-clj.jna.fns.ir-pass :as ir-pass-fns]
@@ -25,16 +24,9 @@
      (throw ~throw-clause)))
 
 
-(defn- ->dtype
+(defn ->dtype
   ^String [dtype-or-name]
-  (cond
-    (keyword? dtype-or-name)
-    (name dtype-or-name)
-    (string? dtype-or-name)
-    dtype-or-name
-    :else
-    (throw (ex-info "Invalid datatype detected"
-                    {:dtype dtype-or-name}))))
+  (jna-node/->dtype dtype-or-name))
 
 (def ^:dynamic *varname-prefix* "")
 
@@ -76,9 +68,7 @@
 (defn const
   "Convert an item to a const (immediate) value"
   [numeric-value & [dtype]]
-  (let [dtype (->dtype (or dtype
-                           (dtype/get-datatype numeric-value)))]
-    (bindings/global-node-function "_const" numeric-value dtype)))
+  (jna-node/const numeric-value dtype))
 
 
 (defn static-cast
@@ -1078,22 +1068,3 @@ a different buffer type than this then you need to bind it yourself."
                    [name (fn [& args]
                            (apply bindings/call-function mod-fn args))])))
           (into {}))}))
-
-
-(extend-protocol bindings-proto/PConvertToNode
-  Boolean
-  (->node [item] (const item "uint1x1"))
-  Byte
-  (->node [item] (const item "int8"))
-  Short
-  (->node [item] (const item "int16"))
-  Integer
-  (->node [item] (const item "int32"))
-  Long
-  (->node [item] (const item "int64"))
-  Float
-  (->node [item] (const item "float32"))
-  Double
-  (->node [item] (const item "float64"))
-  clojure.lang.Sequential
-  (->node [item] (apply bindings/tvm-array (map ->node item))))

@@ -163,14 +163,9 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
   [node-handle]
   (node/get-node-type node-handle))
 
-(defn tvm-array->jvm
-  [tvm-ary]
-  (node/tvm-array->jvm tvm-ary))
-
 (defn tvm-array
   [jvm-ary]
   (node/tvm-array jvm-ary))
-
 
 (defn device-exists?
   [device-type ^long device-id]
