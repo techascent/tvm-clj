@@ -10,8 +10,6 @@
             [tech.compute.registry :as registry]
             [tech.resource.stack :as stack]
             [tech.datatype :as dtype]
-            [tech.compute.tvm :as tvm]
-            [tech.compute.registry :as registry]
             [tech.compute :as compute]
             [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])

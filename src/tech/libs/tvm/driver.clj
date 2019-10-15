@@ -1,4 +1,4 @@
-(ns tech.compute.tvm.driver
+(ns tech.libs.tvm.driver
   "Additional protocols for tvm drivers, devices, and streams.
 Centralized registring of drivers allowing a symbolic name->driver table."
   (:require [tvm-clj.tvm-jna :as bindings]

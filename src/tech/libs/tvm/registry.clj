@@ -1,7 +1,6 @@
-(ns tech.compute.tvm.registry
+(ns tech.libs.tvm.registry
   (:require [tech.compute.registry :as registry]
             [tvm-clj.tvm-jna :as bindings]
-            [tech.compute.tvm.driver :as tvm-driver]
             [tech.compute.driver :as drv]
             [tech.compute :as compute]
             [clojure.set :as c-set]))
@@ -9,7 +8,7 @@
 
 (defn tvm-driver-name
   [tvm-device-type-kwd]
-  (-> (str "tech.compute.tvm." (name tvm-device-type-kwd))
+  (-> (str "tech.libs.tvm." (name tvm-device-type-kwd))
       keyword))
 
 

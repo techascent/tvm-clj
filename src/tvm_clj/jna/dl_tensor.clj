@@ -404,3 +404,11 @@
                         strides)
                   nil)]
     (pointer->tvm-ary ptr :cpu 0 datatype shape strides 0 descriptor)))
+
+
+(extend-type Object
+  bindings-proto/PToTVM
+  (->tvm [item]
+    (if-let [buf-desc (dtype-proto/->buffer-descriptor item)]
+      (buffer-desc->dl-tensor buf-desc)
+      (throw (Exception. "Tensor is not native-buffer-backed")))))
