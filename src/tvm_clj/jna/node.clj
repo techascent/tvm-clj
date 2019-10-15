@@ -189,11 +189,6 @@
       (throw (Exception. "Too many arguments to () operator")))))
 
 
-(defmethod print-method NodeHandle
-  [hdl w]
-  (.write ^Writer w (.toString hdl)))
-
-
 (defn is-node-handle?
   [item]
   (bindings-proto/is-node-handle? item))
@@ -290,6 +285,18 @@
       (throw (Exception. "Too many arguments to () operator")))))
 
 
+(defmethod print-method NodeHandle
+  [hdl w]
+  (.write ^Writer w (.toString hdl)))
+
+(defmethod print-method ArrayHandle
+  [hdl w]
+  (.write ^Writer w (.toString hdl)))
+
+(defmethod print-method MapHandle
+  [hdl w]
+  (.write ^Writer w (.toString hdl)))
+
 (defmulti construct-node
   (fn [ptr]
     (-> (NodeHandle. ptr #{})
@@ -339,11 +346,6 @@ explicitly; it is done for you."
   (-> (construct-node (Pointer. long-val))
       (resource/track #(TVMNodeFree (Pointer. long-val))
                       [:gc :stack])))
-
-
-(defn get-node-type
-  [node-handle]
-  (get node-handle :tvm-type-kwd))
 
 
 (extend-protocol bindings-proto/PJVMTypeToTVMValue

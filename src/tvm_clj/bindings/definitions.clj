@@ -196,11 +196,6 @@
     :let})
 
 
-(defn is-expression-node?
-  [node]
-  (expression-set (:tvm-type-kwd node)))
-
-
 (def kwd->device-type-map
   {:cpu 1
    :cpu-pinned 3

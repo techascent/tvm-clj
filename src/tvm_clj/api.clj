@@ -399,7 +399,8 @@ expressions,
               :iteration-type iteration-type}))
 
   (let [domain (when domain
-                 (if (= :range (bindings/get-node-type domain))
+                 (if (and (bindings/is-node-handle? domain)
+                          (= :range (bindings/get-node-type domain)))
                    domain
                    (range (first domain) (second domain))))
         v (variable name)]
@@ -501,8 +502,7 @@ expressions,
 
 (defn input-tensors
   [compute-op]
-  (->> (bindings/global-node-function "_OpInputTensors" compute-op)
-       bindings/tvm-array->jvm))
+  (global-fns/_OpInputTensors compute-op))
 
 (defn throw-nil
   [item key-val]
@@ -515,7 +515,7 @@ expressions,
 
 (defn ->operation
   [tens-or-op]
-  (case (:tvm-type-kwd tens-or-op)
+  (case (bindings/get-node-type tens-or-op)
     :tensor (throw-nil tens-or-op :op)
     :compute-operation tens-or-op
     :scan-operation tens-or-op
@@ -529,12 +529,12 @@ expressions,
                       [op-seq]
                       op-seq)
                     (mapv ->operation))]
-    (bindings/g-fn "_CreateSchedule" op-seq)))
+    (global-fns/_CreateSchedule op-seq)))
 
 
 (defn ->stage
   [stage-or-schedule operation]
-  (case (:tvm-type-kwd stage-or-schedule)
+  (case (bindings/get-node-type stage-or-schedule)
     :stage stage-or-schedule
     :schedule (throw-nil (:stage_map stage-or-schedule)
                          (->operation operation))))
@@ -547,19 +547,19 @@ expressions,
 
 (defn stage-split-axis
   [stage iter-var factor]
-  (bindings/tvm-array->jvm (bindings/g-fn "_StageSplitByFactor" stage iter-var factor)))
+  (global-fns/_StageSplitByFactor stage iter-var factor))
 
 
 (defn stage-bind
   "Bind an iter-var to a stage variable"
   [stage iter-var thread-ivar]
-  (bindings/g-fn "_StageBind" stage iter-var thread-ivar))
+  (global-fns/_StageBind stage iter-var thread-ivar))
 
 
 (defn stage-compute-at
   "Compute src stage at dst stage dst axis"
   [src-stage dst-stage dst-axis]
-  (bindings/g-fn "_StageComputeAt" src-stage dst-stage dst-axis))
+  (global-fns/_StageComputeAt src-stage dst-stage dst-axis))
 
 
 (defn stage-fuse
@@ -568,46 +568,44 @@ expressions,
   ;;If there is only one axis, then fusing is pointless
   (if (= 1 (count axis-args))
     (first axis-args)
-    (bindings/g-fn "_StageFuse" stage axis-args)))
+    (global-fns/_StageFuse stage axis-args)))
 
 
 (defn stage-parallel
   "Indicate that this axis has complete parallelism"
   [stage axis]
-  (bindings/g-fn "_StageParallel" stage axis))
+  (global-fns/_StageParallel stage axis))
 
 
 (defn stage-inline
   [stage]
-  (bindings/g-fn "_StageComputeInline" stage))
+  (global-fns/_StageComputeInline stage))
 
 
 (defn stage-tile
   [stage outer-axis inner-axis outer-dim inner-dim]
-  (->
-   (bindings/g-fn "_StageTile" stage outer-axis inner-axis outer-dim inner-dim)
-   bindings/tvm-array->jvm))
+  (global-fns/_StageTile stage outer-axis inner-axis outer-dim inner-dim))
 
 
 (defn stage-reorder
   [stage axis-seq]
-  (bindings/g-fn "_StageReorder" stage axis-seq))
+  (global-fns/_StageReorder stage axis-seq))
 
 
 (defn stage-vectorize
   [stage axis]
-  (bindings/g-fn "_StageVectorize" stage axis))
+  (global-fns/_StageVectorize stage axis))
 
 
 (defn stage-unroll
   [stage axis]
-  (bindings/g-fn "_StageUnroll" stage axis))
+  (global-fns/_StageUnroll stage axis))
 
 
 (defn schedule-cache-write
   "Returns a new tensor"
   [schedule tensor cache-type]
-  (let [retval (bindings/g-fn "_ScheduleCacheWrite" schedule tensor cache-type)]
+  (let [retval (global-fns/_ScheduleCacheWrite schedule tensor cache-type)]
     {:tensor retval
      :schedule schedule}))
 
@@ -741,13 +739,12 @@ expressions,
     then the resulting function becomes fully generic."
   [shape & {:keys [dtype name data strides elem-offset scope data-alignment]
             :or {name "buffer" dtype "float32" scope "" data-alignment -1}}]
-  (let [shape (if (sequential? shape)
+  (let [shape (if (instance? java.util.RandomAccess shape)
                 shape
                 [shape])
         elem-offset (if elem-offset elem-offset 0)
         data (if data data (variable name :dtype "handle"))
         offset-factor 0]
-
     (global-fns/_Buffer
      data (->dtype dtype) shape strides elem-offset
      (safe-str name) scope
@@ -998,8 +995,7 @@ a different buffer type than this then you need to bind it yourself."
                                         (ir-pass-fns/ThreadSync lowered-fn "global")
                                         lowered-fn)
                                       (ir-pass-fns/LowerThreadAllreduce warp-size)
-                                      (ir-pass-fns/SplitHostDevice)
-                                      (bindings/tvm-array->jvm))]
+                                      (ir-pass-fns/SplitHostDevice))]
                       [(conj host-fns (first fsplits))
                        (concat device-fns (rest fsplits))])))
                 [[] []]

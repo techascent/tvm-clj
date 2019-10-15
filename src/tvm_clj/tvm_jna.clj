@@ -63,11 +63,6 @@
   (bindings-proto/base-ptr item))
 
 
-(defn is-expression-node?
-  [node]
-  (definitions/is-expression-node? node))
-
-
 (defn device-type->int
   ^long [device-type]
   (tvm-jna-base/device-type->int device-type))
@@ -159,13 +154,20 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
   [item]
   (node/is-node-handle? item))
 
+
 (defn get-node-type
   [node-handle]
-  (node/get-node-type node-handle))
+  (get definitions/node-type-name->keyword-map
+       (bindings-proto/node-type-name node-handle)))
+
+(defn is-expression-node?
+  [node]
+  (definitions/expression-set (get-node-type node)))
+
 
 (defn tvm-array
   [jvm-ary]
-  (node/tvm-array jvm-ary))
+  (apply node/tvm-array jvm-ary))
 
 (defn device-exists?
   [device-type ^long device-id]
