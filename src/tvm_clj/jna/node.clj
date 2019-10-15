@@ -9,15 +9,21 @@
                                       int-ptr
                                       long-ptr
                                       global-function
-                                      tvm-value->jvm]]
+                                      tvm-value->jvm]
+             :as jna-base]
             [tvm-clj.bindings.definitions :refer [tvm-datatype->keyword-nothrow
-                                                  node-type-name->keyword-map]]
+                                                  node-type-name->keyword-map]
+             :as bindings-defs]
             [tvm-clj.bindings.protocols :as bindings-proto]
-            [potemkin :as p]
             [tech.jna :refer [checknil] :as jna]
-            [tech.resource :as resource])
+            [tech.resource :as resource]
+            [tvm-clj.jna.fns.global :as global-fns])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
-           [com.sun.jna.ptr PointerByReference IntByReference LongByReference]))
+           [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
+           [java.util Map List RandomAccess]
+           [java.io Writer]
+           [tech.v2.datatype ObjectReader ObjectWriter]
+           [clojure.lang MapEntry IFn]))
 
 
 
@@ -58,15 +64,9 @@
                  [out_success int-ptr])
 
 
-(defn tvm-array->jvm
-  [tvm-array-node]
-  (->> (range (global-function "_ArraySize" tvm-array-node))
-       (mapv #(global-function "_ArrayGetItem" tvm-array-node (int %1)))))
-
-
 (defn tvm-map->jvm
   [tvm-map-node]
-  (->> (global-function "_MapItems" tvm-map-node)
+  (->> (global-fns/_MapItems tvm-map-node)
        tvm-array->jvm
        (apply hash-map)))
 
@@ -92,81 +92,6 @@
       (tvm-value->jvm (.getValue out-tvm-val)
                       (tvm-datatype->keyword-nothrow (.getValue out-type-code)))
       nil)))
-
-
-(p/def-map-type NodeHandle [^Pointer tvm-jcpp-handle fields data]
-  (get [this key default-value]
-       (or
-        (condp = key
-          :tvm-jcpp-handle tvm-jcpp-handle
-          :data data
-          :fields fields
-          (if-let [retval (get data key default-value)]
-            retval
-            (if (fields key)
-              (let [retval (get-node-field tvm-jcpp-handle key)]
-                (cond
-                  (= :array (:tvm-type-kwd retval))
-                  (tvm-array->jvm retval)
-                  (= :map (:tvm-type-kwd retval))
-                  (tvm-map->jvm retval)
-                  :else
-                  retval))
-              (get-extended-node-value this key))))
-        default-value))
-  (assoc [this key value]
-         (if (= key :tvm-jcpp-handle)
-           (NodeHandle. value fields data)
-           (NodeHandle. tvm-jcpp-handle fields (assoc data key value))))
-  (dissoc [this key]
-          (NodeHandle. tvm-jcpp-handle fields (dissoc data key)))
-  (keys [this]
-        (set (concat [:tvm-jcpp-handle] (keys data) fields)))
-  (meta [this]
-        (meta data))
-  (with-meta [this meta]
-    (NodeHandle. tvm-jcpp-handle fields (with-meta data meta)))
-  ;;There is no equivalence-type system.  Two node handles are equal, equivalent
-  ;;if they point to the same raw-object.  Else they aren't.  Additional data
-  ;;saved on each on can't matter for the API to work correctly.
-  (hasheq [this]
-          (.hashCode this))
-  (equiv [this other]
-         (.equals this other))
-  (equals [a b]
-          (= (.hashCode a) (.hashCode b)))
-  (hashCode [this]
-            (global-function "_raw_ptr" this))
-  (toString [this]
-            (assoc
-             (->> (keys this)
-                  (map (fn [k]
-                         [k (get this k)]))
-                  (into {}))
-             :raw-ptr (.hashCode this))))
-
-
-(defn is-node-handle?
-  [item]
-  (instance? NodeHandle item))
-
-
-(make-tvm-jna-fn TVMNodeFree
-                 "Free a tvm node."
-                 Integer
-                 [handle checknil])
-
-
-(extend-type NodeHandle
-  bindings-proto/PJVMTypeToTVMValue
-  (->tvm-value [item]
-    [(Pointer/nativeValue (.tvm-jcpp-handle item)) :node-handle])
-  bindings-proto/PToTVM
-  (->tvm [item]
-    item)
-  bindings-proto/PConvertToNode
-  (->node [item] item))
-
 
 (make-tvm-jna-fn TVMNodeGetTypeIndex
                  "Get the type index of a node."
@@ -198,15 +123,202 @@
     (.getValue int-data)))
 
 
-(def node-type-index->keyword
-  (memoize
-   (fn [type-index]
-     (->> node-type-name->keyword-map
-          (map (fn [[type-name keyword]]
-                 (when (= type-index (node-type-name->index type-name))
-                   keyword)))
-          (remove nil?)
-          first))))
+(defonce node-type-index->name*
+  (delay
+   (->> (keys node-type-name->keyword-map)
+        (map (fn [type-name]
+               [(node-type-name->index type-name) type-name]))
+        (into {}))))
+
+
+(declare construct-node-handle)
+
+
+(deftype NodeHandle [^Pointer handle fields]
+  bindings-proto/PJVMTypeToTVMValue
+  (->tvm-value [this] [(Pointer/nativeValue handle) :node-handle])
+  bindings-proto/PToTVM
+  (->tvm [this] this)
+  bindings-proto/PConvertToNode
+  (->node [this] this)
+  bindings-proto/PTVMNode
+  (is-node-handle? [this] true)
+  (node-type-index [this] (get-node-type-index handle))
+  (node-type-name [this] (get @node-type-index->name*
+                              (bindings-proto/node-type-index this)
+                              "UnknownTypeName"))
+  jna/PToPtr
+  (is-jna-ptr-convertible? [item] true)
+  (->ptr-backing-store [item] handle)
+  Object
+  (equals [a b]
+    (= (.hashCode a) (.hashCode b)))
+  (hashCode [this]
+    (-> (global-function "_raw_ptr" this)
+        long
+        .hashCode))
+  (toString [this]
+    (jna-base/global-function "_format_str" this))
+
+
+
+  Map
+  (containsKey [item k] (boolean (contains? fields k)))
+  (entrySet [this]
+    (->> (.iterator this)
+         iterator-seq
+         set))
+  (get [this obj-key]
+    (if (contains? fields obj-key)
+      (get-node-field handle (if (string? obj-key)
+                               obj-key
+                               (name obj-key)))
+      (throw (Exception. (format "Failed to get node value: %s" obj-key)))))
+  (getOrDefault [item obj-key obj-default-value]
+    (if (contains? fields obj-key)
+      (.get item obj-key)
+      obj-default-value))
+  (isEmpty [this] (= 0 (.size this)))
+  (keySet [this] fields)
+  (size [this] (count fields))
+  (values [this] (map #(.get this %) fields))
+  Iterable
+  (iterator [this]
+    (.iterator ^Iterable (map #(MapEntry. % (.get this %)) fields)))
+  IFn
+  (invoke [this arg] (if (contains? fields arg)
+                       (.get this arg)
+                       (get-extended-node-value this arg)))
+  (applyTo [this arglist]
+    (if (= 1 (count arglist))
+      (.invoke this (first arglist))
+      (throw (Exception. "Too many arguments to () operator")))))
+
+
+(defmethod print-method NodeHandle
+  [hdl w]
+  (.write ^Writer w (.toString hdl)))
+
+
+(defn is-node-handle?
+  [item]
+  (bindings-proto/is-node-handle? item))
+
+
+(make-tvm-jna-fn TVMNodeFree
+                 "Free a tvm node."
+                 Integer
+                 [handle checknil])
+
+
+
+(deftype ArrayHandle [handle num-items]
+  bindings-proto/PJVMTypeToTVMValue
+  (->tvm-value [this] [(Pointer/nativeValue handle) :node-handle])
+  bindings-proto/PToTVM
+  (->tvm [this] this)
+  bindings-proto/PConvertToNode
+  (->node [this] this)
+  bindings-proto/PTVMNode
+  (is-node-handle? [this] true)
+  (node-type-index [this] (get-node-type-index handle))
+  (node-type-name [this] (get @node-type-index->name*
+                              (bindings-proto/node-type-index this)
+                              "UnknownTypeName"))
+  jna/PToPtr
+  (is-jna-ptr-convertible? [item] true)
+  (->ptr-backing-store [item] handle)
+  Object
+  (equals [a b]
+    (= (.hashCode a) (.hashCode b)))
+  (hashCode [this]
+    (-> (global-function "_raw_ptr" this)
+        long
+        .hashCode))
+  (toString [this]
+    (jna-base/global-function "_format_str" this))
+
+  ObjectReader
+  (lsize [this] num-items)
+  (read [this idx]
+    (global-fns/_ArrayGetItem this idx)))
+
+
+(defn get-map-items
+  [handle]
+  (->> (global-fns/_MapItems handle)
+       (partition 2)
+       (map (fn [[k v]]
+              (MapEntry. k v)))))
+
+
+(deftype MapHandle [handle]
+  bindings-proto/PJVMTypeToTVMValue
+  (->tvm-value [this] [(Pointer/nativeValue handle) :node-handle])
+  bindings-proto/PToTVM
+  (->tvm [this] this)
+  bindings-proto/PConvertToNode
+  (->node [this] this)
+  bindings-proto/PTVMNode
+  (is-node-handle? [this] true)
+  (node-type-index [this] (get-node-type-index handle))
+  (node-type-name [this] (get @node-type-index->name*
+                              (bindings-proto/node-type-index this)
+                              "UnknownTypeName"))
+  jna/PToPtr
+  (is-jna-ptr-convertible? [item] true)
+  (->ptr-backing-store [item] handle)
+  Map
+  (containsKey [item k] (contains? (.keySet item) (bindings-proto/->node k)))
+  (entrySet [this]
+    (->> (.iterator this)
+         iterator-seq
+         set))
+  (get [this obj-key]
+    (global-fns/_MapGetItem this (bindings-proto/->node obj-key)))
+  (getOrDefault [item obj-key obj-default-value]
+    (if (contains? item obj-key)
+      (.get item obj-key)
+      obj-default-value))
+  (isEmpty [this] (= 0 (.size this)))
+  (keySet [this] (->> (map first (get-map-items this))
+                      set))
+  (size [this] (int (global-fns/_MapSize this)))
+  (values [this] (map second this))
+  Iterable
+  (iterator [this]
+    (.iterator ^Iterable (get-map-items this)))
+  IFn
+  (invoke [this arg] (.get this arg))
+  (applyTo [this arglist]
+    (if (= 1 (count arglist))
+      (.invoke this (first arglist))
+      (throw (Exception. "Too many arguments to () operator")))))
+
+
+(defmulti construct-node
+  (fn [ptr]
+    (-> (NodeHandle. ptr #{})
+        (bindings-proto/node-type-name))))
+
+
+(defmethod construct-node :default
+  [ptr]
+  (NodeHandle. ptr (->> (get-node-fields ptr)
+                        (map keyword)
+                        (apply sorted-set))))
+
+
+(defmethod construct-node "Array"
+  [ptr]
+  (let [init-handle (NodeHandle. ptr #{})
+        node-size (long (global-fns/_ArraySize init-handle))]
+    (ArrayHandle. ptr node-size)))
+
+
+(defmethod construct-node "Map"
+  [ptr]
+  (MapHandle. ptr))
 
 
 (defn tvm-array
@@ -224,17 +336,6 @@ explicitly; it is done for you."
     (throw (ex-info "Map fn call must have even arg count"
                     {:args args})))
   (apply global-function "_Map" args))
-
-
-(defn construct-node
-  ^NodeHandle [^Pointer node-handle]
-  (let [fields (->> (get-node-fields node-handle)
-                    (map keyword)
-                    set)
-        type-index (get-node-type-index node-handle)
-        type-kwd (node-type-index->keyword type-index)]
-    (NodeHandle. node-handle fields {:tvm-type-index type-index
-                                     :tvm-type-kwd type-kwd})))
 
 
 (defmethod tvm-value->jvm :node-handle

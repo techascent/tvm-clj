@@ -18,6 +18,10 @@
    12 :bytes})
 
 
+(def keyword->tvm-datatype-map
+  (c-set/map-invert tvm-datatype->keyword-map))
+
+
 (def datatype->dl-type-code-map
   {:uint8 :uint
    :uint16 :uint
@@ -33,8 +37,8 @@
 
 (defn keyword->tvm-datatype
   [kwd]
-  (if-let [retval (get (c-set/map-invert tvm-datatype->keyword-map) kwd)]
-    retval
+  (if-let [retval (get keyword->tvm-datatype-map kwd)]
+    (long retval)
     (throw (ex-info "Failed to get tvm-datatype from kwd"
                     {:kwd kwd}))))
 

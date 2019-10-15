@@ -21,6 +21,17 @@
   (->node [item]))
 
 
+(defprotocol PTVMNode
+  (is-node-handle? [item])
+  (node-type-index [item])
+  (node-type-name [item]))
+
+
+(extend-type Object
+  PTVMNode
+  (is-node-handle? [item] false))
+
+
 (defprotocol PTVMDeviceId
   (device-id [item]))
 

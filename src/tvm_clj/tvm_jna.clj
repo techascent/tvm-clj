@@ -1,9 +1,5 @@
 (ns tvm-clj.tvm-jna
-  (:require [clojure.set :as c-set]
-            [tech.v2.datatype :as dtype]
-            [tech.jna :refer [checknil] :as jna]
-            ;;Standard paths for the tvm library
-            [tvm-clj.jna.library-paths :as jna-lib-paths]
+  (:require [tvm-clj.jna.library-paths]
             ;;PRotocols independent of specific bindings
             [tvm-clj.bindings.protocols :as bindings-proto]
             ;;Definitions indepdnent of specific bindings
@@ -35,6 +31,16 @@
 (defn ->node
   [item]
   (bindings-proto/->node item))
+
+
+(defn node-type-index
+  [item]
+  (bindings-proto/node-type-index item))
+
+
+(defn node-type-name
+  [item]
+  (bindings-proto/node-type-index item))
 
 
 (defn device-id
