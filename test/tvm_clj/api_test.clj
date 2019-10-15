@@ -28,10 +28,11 @@
   (let [n (api/variable "n")
         A (api/placeholder [n] "A")
         B (api/placeholder [n] "B")
-        compute-op (api/compute [n] (api/tvm-fn
-                                     [i]
-                                     (api/add (api/tget A [i])
-                                              (api/tget B [i])))
+        compute-op (api/compute [n]
+                                (api/tvm-fn
+                                 [i]
+                                 (api/add (api/tget A [i])
+                                          (api/tget B [i])))
                                 "C")
         C (first (api/output-tensors compute-op))
         schedule (api/create-schedule compute-op)]
