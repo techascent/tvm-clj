@@ -40,6 +40,13 @@
   (device-type [item]))
 
 
+(extend-type Object
+  PTVMDeviceId
+  (device-id [item] 0)
+  PTVMDeviceType
+  (device-type [item] :cpu))
+
+
 (defprotocol PByteOffset
   "Some buffers you cant offset (opengl, for instance).
 So buffers have a logical byte-offset that is passed to functions.

@@ -67,7 +67,12 @@
   (->tvm-value [item]
     (-> (bindings/->tvm item)
         bindings/->tvm-value))
-
+  tvm-proto/PTVMDeviceType
+  (device-type [tensor]
+    (tvm-proto/device-type (dtt/tensor->buffer tensor)))
+  tvm-proto/PTVMDeviceId
+  (device-id [tensor]
+    (tvm-proto/device-id (dtt/tensor->buffer tensor)))
   tvm-proto/PByteOffset
   (byte-offset [tensor]
     (bindings/byte-offset (dtt/tensor->buffer tensor)))

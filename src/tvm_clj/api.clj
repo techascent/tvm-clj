@@ -865,9 +865,9 @@ a different buffer type than this then you need to bind it yourself."
   [schedule args name
    & {:keys [build-config bind-map simple-mode? cache-line-size]
       :or {bind-map {}
-           build-config (get-build-config)
            cache-line-size 64}}]
-  (let [[arg-list bind-map] (bind-arguments args bind-map build-config)
+  (let [build-config (or build-config (get-build-config))
+        [arg-list bind-map] (bind-arguments args bind-map build-config)
         stmt (form-body schedule)
         compact (ir-pass-fns/VerifyCompactBuffer stmt)
         ;;unpack the build config
@@ -969,13 +969,13 @@ a different buffer type than this then you need to bind it yourself."
 (defn lowered-functions->module
   [lowered-function-seq & {:keys [build-config target-name target-host]
                            :or {target-name :llvm
-                                target-host :llvm
-                                build-config (get-build-config)}}]
+                                target-host :llvm}}]
   (let [arg-type-list (map bindings/get-node-type lowered-function-seq)]
     (when-not-error (= #{:lowered-function} (set arg-type-list))
       (ex-info "Argumentis not a sequence of lowered functions"
                {:arg-types arg-type-list})))
-  (let [arg-name-set (->> (map :name lowered-function-seq)
+  (let [build-config (or build-config (get-build-config))
+        arg-name-set (->> (map :name lowered-function-seq)
                           set)
         _ (when-not-error (= (count lowered-function-seq)
                              (count arg-name-set))
@@ -1037,10 +1037,11 @@ a different buffer type than this then you need to bind it yourself."
   [sched-data-seq & {:keys [build-config
                             target-name
                             target-host]
-                     :or {build-config (get-build-config)
+                     :or {
                           target-name :llvm
                           target-host :llvm}}]
-  (let [sched-data-seq (map (fn [{:keys [name] :as entry}]
+  (let [build-config (or build-config (get-build-config))
+        sched-data-seq (map (fn [{:keys [name] :as entry}]
                               (assoc entry :c-name
                                      (safe-str name)))
                             sched-data-seq)

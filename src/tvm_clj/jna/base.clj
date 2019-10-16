@@ -94,9 +94,12 @@ Argpair is of type [symbol type-coersion]."
 
 (defn device-type->int
   [item]
-  (let [item (if (satisfies? bindings-proto/PTVMDeviceType item)
-               (device-type item)
-               item)]
+  (let [item (cond (number? item)
+                   (int item)
+                   (keyword? item)
+                   item
+                   :else
+                   (device-type item))]
     (if (keyword? item)
       (definitions/device-type->device-type-int item)
       (int item))))

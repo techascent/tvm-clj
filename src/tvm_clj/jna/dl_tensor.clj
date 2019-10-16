@@ -107,6 +107,7 @@
     [(-> (.getPointer item)
          Pointer/nativeValue)
      :array-handle])
+
   jna/PToPtr
   (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item]
@@ -254,6 +255,7 @@
 
 (defn allocate-device-array
   ^DLPack$DLTensor [shape datatype device-type ^long device-id]
+  (println device-type device-id)
   (let [n-dims (dtype/ecount shape)
         ^DLPack$DLDataType dl-dtype (datatype->dl-datatype datatype)
         retval-ptr (PointerByReference.)]
@@ -395,20 +397,25 @@
 
 
 (defn buffer-desc->dl-tensor
-  [{:keys [ptr datatype shape strides] :as descriptor}]
-  (let [canonical-strides (->> (tens-dims/extend-strides shape)
-                               (mapv (partial * (casting/numeric-byte-width
-                                                 datatype))))
-        strides (if-not (= canonical-strides strides)
-                  (mapv #(/ % (casting/numeric-byte-width datatype))
-                        strides)
-                  nil)]
-    (pointer->tvm-ary ptr :cpu 0 datatype shape strides 0 descriptor)))
+  ([{:keys [ptr datatype shape strides] :as descriptor}
+    device-type device-id]
+   (let [canonical-strides (->> (tens-dims/extend-strides shape)
+                                (mapv (partial * (casting/numeric-byte-width
+                                                  datatype))))
+         strides (if-not (= canonical-strides strides)
+                   (mapv #(/ % (casting/numeric-byte-width datatype))
+                         strides)
+                   nil)]
+     (pointer->tvm-ary ptr device-type device-id datatype shape strides 0 descriptor)))
+  ([descriptor]
+   (buffer-desc->dl-tensor descriptor :cpu 0)))
 
 
 (extend-type Object
   bindings-proto/PToTVM
   (->tvm [item]
     (if-let [buf-desc (dtype-proto/->buffer-descriptor item)]
-      (buffer-desc->dl-tensor buf-desc)
+      (buffer-desc->dl-tensor buf-desc
+                              (bindings-proto/device-type item)
+                              (bindings-proto/device-id item))
       (throw (Exception. "Tensor is not native-buffer-backed")))))
