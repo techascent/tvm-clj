@@ -1,21 +1,16 @@
-(ns tech.compute.tvm.compile-test
+(ns tech.libs.tvm.compile-test
   (:require [clojure.test :refer :all]
             [tech.resource :as resource]
-            [tech.datatype :as dtype]
-            [tech.compute.tensor :as ct]
-            [tech.compute.tensor.dimensions :as ct-dims]
-            [clojure.core.matrix.macros :refer [c-for]]
-            [tech.compute.tvm :as tvm]
+            [tech.v2.datatype :as dtype]
+            [tech.v2.datatype.typecast :as typecast]
+            [tech.v2.datatype.functional :as dfn]
+            [tech.v2.tensor :as dtt]
+            [tech.parallel.for :as parallel-for]
+            [tech.libs.tvm :as tvm]
             [tvm-clj.api :as api]
-            [tech.parallel :as parallel]
-            [clojure.core.matrix :as m]
-            [clojure.core.matrix.protocols :as mp]
-            [tech.compute.tvm.tensor-math :as tvm-tm]
             [tech.opencv :as opencv]
-            [tech.datatype.java-primitive :as primitive]
-            [tech.compute :as compute]
-            [tech.compute.tensor.defaults :as ct-defaults])
-  (:import [java.nio ByteBuffer FloatBuffer]))
+            [tech.compute :as compute])
+  (:import [tech.v2.datatype FloatReader]))
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -23,32 +18,22 @@
 
 (defn convert-bgr-bytes-to-floats-by-hand
   [input-tensor result-tensor]
-  (let [^ByteBuffer ary-data (-> (ct/tensor->buffer input-tensor)
-                                 primitive/->buffer-backing-store)
-        [height width n-channels] (ct/shape input-tensor)
-        height (long height)
-        width (long width)
+  (let [ary-data (typecast/datatype->reader :float32 input-tensor)
+        [_height _width n-channels] (dtype/shape input-tensor)
         n-channels (long n-channels)
-        n-elems (long (* height width 3))
-        ^FloatBuffer retval (-> (ct/tensor->buffer result-tensor)
-                                primitive/->buffer-backing-store)]
-    (parallel/parallel-for idx n-elems
-                           (let [pixel (quot idx n-channels)
-                                 channel (long (rem idx n-channels))
-                                 x-pos (rem pixel width)
-                                 y-pos (quot pixel width)
-                                 dest-channel-stride (* x-pos y-pos)]
-                             (when (< channel 3)
-                               (.put retval (+ pixel
-                                               (* (- 2 channel) dest-channel-stride))
-                                     ;;Make up for lack of unsigned byte support with
-                                     ;;bit-and, casting
-                                     (float (- (/ (-> (.get ary-data idx)
-                                                      int
-                                                      (bit-and 0xFF))
-                                                  255.0)
-                                               0.5))))))
-    result-tensor))
+        n-elems (dtype/ecount result-tensor)
+        result-reader
+        (reify FloatReader
+          (lsize [rdr] n-elems)
+          (read [rdr idx]
+            (let [chan (rem idx 3)
+                  pix (quot idx 3)]
+              (-> (.read ary-data (+ (* pix n-channels)
+                                     (- n-channels chan)))
+                  (/ 255.0)
+                  (- 0.5)
+                  float))))]
+    (dtype/copy! result-reader result-tensor)))
 
 
 (defn bgr-bytes-custom-tvm
@@ -88,31 +73,27 @@
                               :name :bgr-convert})))
 
 
-
 (defn tensor-take
   [n tensor]
-  (-> (ct/as-vector tensor)
-      (ct/select (range n))
-      (ct/to-double-array)
-      vec))
+  (->> (dtype/->reader tensor)
+       (take n)
+       (dtype/->double-array)
+       vec))
 
 
 (defn java-by-hand-image-test
   []
-  (ct/enable-cpu-tensors!)
   (resource/stack-resource-context
     (let [mat (opencv/load "test/data/jen.jpg")
-          img-tensor (ct/->tensor mat :datatype :uint8)
-          result-tensor (ct/new-tensor (concat [3]
-                                               (take 2 (mp/get-shape mat)))
+          result-tensor (dtt/new-tensor (vec (concat [3]
+                                                     (take 2 (dtype/shape mat))))
                                        :datatype :float32
                                        :init-value nil)
           time-str (with-out-str
-                     (time (convert-bgr-bytes-to-floats-by-hand img-tensor
-                                                                result-tensor)))]
+                     (time (convert-bgr-bytes-to-floats-by-hand mat result-tensor)))]
 
       {:result (tensor-take 10 result-tensor)
-       :correct (->> (tensor-take 30 img-tensor)
+       :correct (->> (tensor-take 30 mat)
                      (partition 3)
                      (map last)
                      (map #(/ (double (bit-and (int %) 0xFF)) 255.0))

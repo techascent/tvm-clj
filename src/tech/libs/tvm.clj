@@ -111,7 +111,7 @@
   buffers for the cpu device."
   [datatype elem-count]
   (when-not (resolve 'tech.compute.tvm.cpu/driver)
-    (require 'tech.compute.tvm.cpu))
+    (require 'tech.libs.tvm.cpu))
   (let [device (-> (driver :cpu)
                    (device-id->device 0))]
     (compute/allocate-device-buffer device elem-count datatype)))
