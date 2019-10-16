@@ -1,4 +1,4 @@
-(ns tech.compute.tvm.device-buffer
+(ns tech.libs.tvm.device-buffer
   (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.bindings.protocols :as tvm-proto]
             [tech.compute.driver :as drv]

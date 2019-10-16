@@ -1,16 +1,14 @@
-(ns tech.compute.tvm.gpu
+(ns tech.libs.tvm.gpu
   (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.bindings.protocols :as tvm-proto]
             [tvm-clj.api :as api]
             [tvm-clj.jna.stream :as tvm-jna-stream]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.registry :as tvm-reg]
-            [tech.compute.tvm.driver :as tvm-driver]
-            [tech.datatype.base :as dtype]
-            [tech.compute.tvm.device-buffer :as dbuf]
-            [tech.compute.tvm :as tvm]
+            [tech.libs.tvm.registry :as tvm-reg]
+            [tech.libs.tvm.driver :as tvm-driver]
+            [tech.libs.tvm.device-buffer :as dbuf]
+            [tech.libs.tvm :as tvm]
             [tech.resource.stack :as stack]
-            [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])
   (:import [com.sun.jna Pointer]))
 
@@ -81,10 +79,6 @@
   (device-id [this] device-id)
 
   drv/PDevice
-  (memory-info [device]
-    ;;This would be useful information
-    {:free 0xFFFFFFFF
-     :total 0xFFFFFFF})
   (create-stream [device]
     (->GPUStream device (bindings/create-stream (bindings/device-type driver)
                                                 device-id)))

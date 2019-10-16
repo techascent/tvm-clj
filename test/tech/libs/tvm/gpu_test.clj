@@ -1,7 +1,7 @@
-(ns tech.compute.tvm.gpu-test
+(ns tech.libs.tvm.gpu-test
   (:require [clojure.test :refer :all]
-            [tech.compute.tvm.cpu-test :as cpu-test]
-            [tech.compute.tvm.gpu]))
+            [tech.libs.tvm.cpu-test :as cpu-test]
+            [tech.libs.tvm.gpu]))
 
 
 (deftest ^:cuda cuda-basic-add

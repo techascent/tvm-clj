@@ -3,21 +3,18 @@
             [tvm-clj.bindings.protocols :as tvm-proto]
             [tvm-clj.api :as api]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.registry :as tvm-reg]
-            [tech.compute.tvm.driver :as tvm-driver]
-            [tech.compute.tvm.device-buffer :as dbuf]
+            [tech.libs.tvm.registry :as tvm-reg]
+            [tech.libs.tvm.driver :as tvm-driver]
+            [tech.libs.tvm.device-buffer :as dbuf]
             [tech.compute.cpu.driver :as cpu-driver]
             [tech.compute.registry :as registry]
             [tech.resource.stack :as stack]
-            [tech.datatype :as dtype]
+            [tech.v2.datatype :as dtype]
             [tech.compute :as compute]
-            [tech.datatype.jna :as dtype-jna]
             [tech.jna :as jna])
   ;;Setup so these objects (and anything derived from them)
   ;;auto-link to the tvm cpu compute device.
-  (:import [org.bytedeco.javacpp.Pointer]
-           [com.sun.jna Pointer]
-           [tech.datatype.jna TypedPointer]))
+  (:import [com.sun.jna Pointer]))
 
 
 (declare driver)
@@ -74,9 +71,6 @@
   (device-type [_] :cpu)
 
   drv/PDevice
-  (memory-info [device]
-    {:free 0xFFFFFFFF
-     :total 0xFFFFFFF})
   (create-stream [device]
     (->CPUStream device (cpu-driver/cpu-stream device error-atom)))
   (allocate-device-buffer [device elem-count elem-type options]
@@ -146,8 +140,7 @@
 (defn ptr->device-buffer
   [ptr & {:keys [dtype]}]
   (let [dtype (or dtype (dtype/get-datatype ptr))
-        shape [(dtype/ecount ptr)]
-        device (first (cpu-devices))]
+        shape [(dtype/ecount ptr)]]
     (bindings/pointer->tvm-ary ptr :cpu 0 dtype shape nil 0)))
 
 
@@ -156,39 +149,6 @@
   (dbuf/make-device-buffer-of-type
    (compute/default-device (driver))
    elem-type elem-count))
-
-
-(defmacro extend-tvm-bindings
-  [item-cls]
-  `(clojure.core/extend
-       ~item-cls
-     tvm-proto/PToTVM
-     {:->tvm (fn [item#]
-               (bindings/pointer->tvm-ary
-                item#
-                :cpu
-                0
-                (dtype/get-datatype item#)
-                (dtype/shape item#)
-                nil
-                0))}
-     tvm-proto/PJVMTypeToTVMValue
-     {:->tvm-value (fn [item#]
-                     (-> item#
-                         bindings/->tvm
-                         bindings/->tvm-value))}
-     tvm-proto/PTVMDeviceType
-     {:device-type (fn [item#] :cpu)}
-     tvm-proto/PTVMDeviceId
-     {:device-id (fn [item#] 0)}
-     tvm-proto/PByteOffset
-     {:byte-offset (fn [item#] 0)
-      :base-ptr (fn [item#] (jna/->ptr-backing-store item#))}))
-
-
-(extend-tvm-bindings com.sun.jna.Pointer)
-(extend-tvm-bindings org.bytedeco.javacpp.Pointer)
-(extend-tvm-bindings TypedPointer)
 
 
 (tvm-reg/register-driver (driver))

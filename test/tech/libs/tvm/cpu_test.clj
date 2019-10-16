@@ -1,10 +1,10 @@
-(ns tech.compute.tvm.cpu-test
+(ns tech.libs.tvm.cpu-test
   (:require [clojure.test :refer :all]
-            [clojure.core.matrix :as m]
-            [tech.datatype :as dtype]
+            [tech.v2.datatype :as dtype]
+            [tech.v2.datatype.functional :as dfn]
             [tech.resource :as resource]
             [tech.compute :as compute]
-            [tech.compute.tvm :as tvm]
+            [tech.libs.tvm :as tvm]
             [tvm-clj.api-test :as api-test]
             [tech.libs.tvm.cpu]))
 
@@ -29,8 +29,8 @@
       (compute/copy-device->host dev-buf-c 0 host-buf 0 10)
       (compute/sync-with-host stream)
       (dtype/copy! host-buf 0 result 0 10)
-      (is (m/equals (m/add test-data test-data)
-                    (vec result))))))
+      (is (dfn/equals (dfn/+ test-data test-data)
+                      (vec result))))))
 
 
 (deftest cpu-basic-add
