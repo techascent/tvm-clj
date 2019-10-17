@@ -189,6 +189,7 @@
        :datatype item-dtype
        :shape (dtype/shape item)
        :strides (->> (dl-tensor-strides item)
+                     (dtype/->reader)
                      (mapv (partial * (casting/numeric-byte-width item-dtype))))}))
 
   dtype-proto/PToWriter
@@ -255,7 +256,6 @@
 
 (defn allocate-device-array
   ^DLPack$DLTensor [shape datatype device-type ^long device-id]
-  (println device-type device-id)
   (let [n-dims (dtype/ecount shape)
         ^DLPack$DLDataType dl-dtype (datatype->dl-datatype datatype)
         retval-ptr (PointerByReference.)]
