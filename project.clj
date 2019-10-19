@@ -4,12 +4,12 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.1"]
-                 [techascent/tech.compute "4.24-1"]
+                 [techascent/tech.compute "4.25"]
                  [potemkin "0.4.4"]]
 
   :profiles {:dev
              ;;Unit tests need this.
-             {:dependencies [[techascent/tech.opencv "4.24"]]}}
+             {:dependencies [[techascent/tech.opencv "4.25"]]}}
 
   :java-source-paths ["java"]
   :native-path "java/native"
