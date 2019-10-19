@@ -3,7 +3,7 @@
 tvm bindings.  This file is purely syntax sugar."
   (:require [tvm-clj.api :as api]
             [tvm-clj.tvm-jna :as bindings]
-            [tech.datatype :as dtype])
+            [tech.v2.datatype :as dtype])
   (:refer-clojure :exclude [+ - * / rem = min max cast]))
 
 (set! *warn-on-reflection* true)

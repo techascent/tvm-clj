@@ -1,10 +1,8 @@
-(ns tech.compute.tvm.image.resize
+(ns tech.libs.tvm.image.resize
   (:require [tech.compute.tensor :as ct]
             [tech.compute.driver :as drv]
-            [tech.compute.tvm.cpu]
-            [tech.compute.tvm.tensor-math]
-            [clojure.core.matrix :as m]
-            [tech.datatype.base :as dtype]
+            [tech.libs.tvm.cpu]
+            [tech.v2.datatype :as dtype]
             [tvm-clj.api :as api]
             [tech.compute.verify.tensor :as verify-tensor]
             ;;Add in syntactic sugar
@@ -235,8 +233,8 @@
 
 (defn area-reduction!
   [input output area-fn]
-  (let [[in-height in-width in-chan] (ct/shape input)
-        [out-height out-width out-chan] (ct/shape output)
+  (let [[in-height in-width in-chan] (dtype/shape input)
+        [out-height out-width out-chan] (dtype/shape output)
         filter-height (/ (double in-height)
                          (double out-height))
         filter-width (/ (double in-width)
@@ -401,8 +399,8 @@
 
 (defn bilinear-filter!
   [input output filter-fn]
-  (let [[in-height in-width in-chan] (ct/shape input)
-        [out-height out-width out-chan] (ct/shape output)
+  (let [[in-height in-width in-chan] (dtype/shape input)
+        [out-height out-width out-chan] (dtype/shape output)
         filter-height (/ (double in-height)
                          (double out-height))
         filter-width (/ (double in-width)
