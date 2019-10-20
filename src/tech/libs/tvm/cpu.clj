@@ -21,16 +21,6 @@
 
 (defrecord CPUStream [device-fn stream]
   drv/PStream
-  (copy-host->device [_ host-buffer host-offset
-                      device-buffer device-offset elem-count]
-    (cpu-driver/with-stream-dispatch stream
-      (dbuf/copy-device->device host-buffer host-offset
-                                device-buffer device-offset elem-count nil)))
-  (copy-device->host [_ device-buffer device-offset
-                      host-buffer host-offset elem-count]
-    (cpu-driver/with-stream-dispatch stream
-      (dbuf/copy-device->device device-buffer device-offset
-                                host-buffer host-offset elem-count nil)))
   (copy-device->device [_ dev-a dev-a-off dev-b dev-b-off elem-count]
     (cpu-driver/with-stream-dispatch stream
       (dbuf/copy-device->device dev-a dev-a-off

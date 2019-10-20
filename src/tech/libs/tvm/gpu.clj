@@ -30,16 +30,6 @@
   (device-id [_] (bindings/device-id device))
 
   drv/PStream
-  (copy-host->device [_ host-buffer host-offset
-                      device-buffer device-offset elem-count]
-    (dbuf/copy-device->device host-buffer host-offset
-                              device-buffer device-offset
-                              elem-count stream))
-  (copy-device->host [_ device-buffer device-offset
-                      host-buffer host-offset elem-count]
-    (dbuf/copy-device->device device-buffer device-offset
-                              host-buffer host-offset
-                              elem-count stream))
   (copy-device->device [_ dev-a dev-a-off dev-b dev-b-off elem-count]
     (dbuf/copy-device->device dev-a dev-a-off
                               dev-b dev-b-off

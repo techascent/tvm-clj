@@ -19,7 +19,6 @@
   (let [[height width n-chan] (dtype/shape result-tens)
         out-img (opencv/new-mat height width 3 :dtype :uint8)]
     (ct/assign! out-img result-tens {:sync? true})
-    (compute/sync-with-host)
     out-img))
 
 (defn median
