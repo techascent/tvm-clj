@@ -1,4 +1,4 @@
-(ns tech.compute.tvm.image.resize-test
+(ns tech.libs.tvm.image.resize-test
   (:require [clojure.test :refer :all]
             [tech.libs.tvm.image.resize :as resize]
             [tech.compute.verify.tensor :as vf]
@@ -84,10 +84,10 @@
        (opencv/save class-res "tvm_bilinear.jpg")
        (opencv/save reference "opencv_bilinear.jpg")
        (opencv/save opencv-area "opencv_area.jpg")
-       {:tvm-area ds-time
-        :opencv-bilinear ref-time
-        :tvm-bilinear classic-time
-        :opencv-area area-time})
+       [(assoc ds-time :device-type device-type :resize-op :tvm-area)
+        (assoc ref-time :device-type device-type :resize-op :opencv-bilinear)
+        (assoc classic-time :device-type device-type :resize-op :tvm-bilinear)
+        (assoc area-time :device-type device-type :resize-op :opencv-area)])
      (catch Throwable e
        (log/errorf e "Failure attempting to run device %s" device-type)))))
 
@@ -95,10 +95,8 @@
 (deftest resize-test
   (->> (for [dev-type [:cpu :opencl :cuda]]
          (try
-           (-> (downsample-img :device-type dev-type)
-               (assoc :device-type dev-type))
+           (downsample-img :device-type dev-type)
            (catch Throwable e nil)))
        (remove nil?)
-       (pp/print-table [:device-type
-                        :opencv-area :tvm-area
-                        :opencv-bilinear :tvm-bilinear])))
+       (apply concat)
+       (pp/print-table)))

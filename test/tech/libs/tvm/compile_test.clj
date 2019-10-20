@@ -119,8 +119,8 @@
              input-tensor (compute-tens/ensure-device mat)
              result-shape (vec (concat [3]
                                        (take 2 (dtype/shape mat))))
-             result-tensor (compute-tens/new-device-tensor result-shape
-                                                           {:datatype :float32})
+             result-tensor (compute-tens/new-tensor result-shape
+                                                    {:datatype :float32})
              tvm-convert-fn (bgr-bytes-custom-tvm)
              _ (tvm-convert-fn input-tensor result-tensor)
              _ (compute/sync-with-host)
