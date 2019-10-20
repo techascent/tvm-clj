@@ -87,8 +87,9 @@
    (lambda
     [out-col-idx k-idx]
     (tlet
-     [start (* ratio out-col-idx)
-      start-pix (floor (+ start k-idx))]
+     [start (* ratio (cast out-col-idx :float32))
+      offset (+ start (cast k-idx :float32))
+      start-pix (floor offset)]
      (/ (pixel-mul start-pix start ratio k-idx)
         ratio)))
    k-name))
@@ -109,7 +110,7 @@
 
 (defn input-coord
   [dest-coord ratio kernel-idx]
-  (-> (* dest-coord ratio)
+  (-> (* (cast dest-coord :float32) ratio)
       (cast :int32)
       (+ kernel-idx)))
 
@@ -271,7 +272,7 @@
     [out-col-idx k-idx]
     (api/tvm-let
      [start (api/mul ratio (api/add (api/const (float 0.5))
-                                    out-col-idx))
+                                    (cast out-col-idx :float32)))
       start-factor (api/sub (api/ceil start)
                             start)]
      (api/select (api/eq k-idx 0)
@@ -307,13 +308,17 @@
                            (api/tvm-fn
                             [lhs rhs]
                             (api/add lhs rhs))
-                           (api/const 0 :dtype :float32)
+                           (api/const 0 :float32)
                            :float32
                            [(api/mul
                              (read-clamped-f32
                               input in-height in-width
-                              (input-coord (api/add y (float 0.5)) y-ratio kern_y_axis)
-                              (input-coord (api/add x (float 0.5)) x-ratio kern_x_axis)
+                              (input-coord (api/add (cast y :float32)
+                                                    (float 0.5))
+                                           y-ratio kern_y_axis)
+                              (input-coord (api/add (cast x :float32)
+                                                    (float 0.5))
+                                           x-ratio kern_x_axis)
                               c)
                              (api/mul
                               (api/tget kern-x-vec [x kern_x_axis])

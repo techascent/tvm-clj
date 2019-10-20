@@ -1,4 +1,4 @@
-(ns tech.compute.tvm.cpu
+(ns tech.libs.tvm.cpu
   (:require [tvm-clj.tvm-jna :as bindings]
             [tvm-clj.bindings.protocols :as tvm-proto]
             [tvm-clj.api :as api]

@@ -18,7 +18,8 @@
             [tech.jna :refer [checknil] :as jna]
             [tech.resource :as resource]
             [tvm-clj.jna.fns.global :as global-fns]
-            [tech.v2.datatype :as dtype])
+            [tech.v2.datatype :as dtype]
+            [tech.v2.datatype.protocols :as dtype-proto])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [java.util Map List RandomAccess]
@@ -27,11 +28,16 @@
            [clojure.lang MapEntry IFn]))
 
 
+(defn get-node-type
+  [node-handle]
+  (get bindings-defs/node-type-name->keyword-map
+       (bindings-proto/node-type-name node-handle)))
+
 
 (defmulti get-extended-node-value
   "Override this to enable type-specific lookups into nodes."
   (fn [node-handle item-key]
-    (:tvm-type-kwd (:data node-handle))))
+    (get-node-type node-handle)))
 
 
 (defmethod get-extended-node-value :default
@@ -141,6 +147,9 @@
   (node-type-name [this] (get @node-type-index->name*
                               (bindings-proto/node-type-index this)
                               "UnknownTypeName"))
+  dtype-proto/PDatatype
+  (get-datatype [item] (-> (.getOrDefault item :dtype "object")
+                           (keyword)))
   jna/PToPtr
   (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item] handle)
@@ -180,9 +189,11 @@
   (iterator [this]
     (.iterator ^Iterable (map #(MapEntry. % (.get this %)) fields)))
   IFn
-  (invoke [this arg] (if (contains? fields arg)
-                       (.get this arg)
-                       (get-extended-node-value this arg)))
+  (invoke [this arg]
+    (if (and (keyword? arg)
+             (contains? fields arg))
+      (.get this arg)
+      (get-extended-node-value this arg)))
   (applyTo [this arglist]
     (if (= 1 (count arglist))
       (.invoke this (first arglist))
@@ -395,6 +406,13 @@ explicitly; it is done for you."
   Double
   (->node [item] (const item "float64"))
   RandomAccess
-  (->node [item] (apply tvm-array item))
+  (->node [item] (apply tvm-array (map bindings-proto/->node item)))
   Map
-  (->node [item] (apply tvm-map (apply concat item))))
+  (->node [item] (apply tvm-map (apply concat item)))
+  Object
+  (->node [item]
+    (cond
+      (instance? Iterable item)
+      (apply tvm-array (map bindings-proto/->node item))
+      :else
+      (throw (Exception. "Failed to go to node.")))))

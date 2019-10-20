@@ -157,8 +157,7 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
 
 (defn get-node-type
   [node-handle]
-  (get definitions/node-type-name->keyword-map
-       (bindings-proto/node-type-name node-handle)))
+  (node/get-node-type node-handle))
 
 (defn is-expression-node?
   [node]
