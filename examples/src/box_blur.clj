@@ -1,17 +1,14 @@
 (ns box-blur
   (:require [tvm-clj.api :as api]
             [tech.opencv :as opencv]
-            [tech.datatype :as dtype]
-            [tech.compute.tvm :as tvm]
-            [tech.compute.verify.tensor :as vf]
+            [tech.v2.datatype :as dtype]
+            [tech.libs.tvm :as tvm]
             [tech.compute :as compute]
-            [clojure.core.matrix :as m]
+            [tech.compute.verify.tensor :as vf]
             [tech.compute.tensor :as ct]
-            [tech.compute.tensor.defaults :as ct-defaults]
             [tvm-clj.api-sugar :refer :all]
-            [tech.compute.tvm.cpu]
-            [tech.compute.tvm.gpu]
-            [tech.compute.tvm.tensor-math])
+            [tech.libs.tvm.cpu]
+            [tech.libs.tvm.gpu])
   (:refer-clojure :exclude [+ - / * cast min max = rem])
   (:import [org.bytedeco.javacpp opencv_imgproc]))
 
@@ -179,27 +176,17 @@
   (let [driver (tvm/driver device-type)]
     ;;Bind the default compute stream for the default device for this driver
     ;;Bind the default datatype to use if non are provided.
-    (vf/tensor-default-context
-     driver
-     :uint8
-
+    (vf/verify-context
+     driver :uint8
      (let [src-img (opencv/load "test/data/test.jpg")
-           src-tensor (if (= :cpu device-type)
-                        ;;If we are a cpu device then we can use the opencv image
-                        ;;directly as a tensor.
-                        src-img
-                        ;;Else we upload the image to the device returning a new
-                        ;;tensor that has a buffer on the device.
-                        ct/clone-to-device)
+           src-tensor (ct/ensure-device src-img)
            ;;opencv images implement tech.datatype.base/PPrototype.
            ;;We can create on like this one or we can clone exactly this one.
            dst-img (dtype/from-prototype src-img)
 
            ;;A terse way of stating the if condition above.  cond-> threads the first
            ;;argument through the clauses that are true and then returns the result.
-           dst-tensor (cond-> dst-img
-                        (not= :cpu device-type)
-                        ct/clone-to-device)
+           dst-tensor (ct/ensure-device dst-img)
 
            ;;Call the algorithm-fn.  This generates an AST that describes our algorithm
            ;;Then schedule it on the given device type.
@@ -207,8 +194,8 @@
                                                    (schedule-fn device-type))
            ;;Always helpful
            _ (println (api/schedule->str schedule arglist "box_blur"))
-           ;;Schedule the function and return a normal clojure function that will do the
-           ;;thing.
+           ;;Schedule the function and return a normal clojure function that will do
+           ;;the thing.
            box-blur (tvm/schedule->fn driver {:schedule schedule
                                               :arglist arglist
                                               :name :blox-blur
@@ -230,7 +217,7 @@
                ;;We need to sync with the host in order to fairly time the algorithm.
                ;;Without this the algorithm continues to run in the background but the
                ;;save immediately below would write indeterminate results to the disk.
-               (compute/sync-with-host (ct-defaults/infer-stream {})))]
+               (compute/sync-with-host))]
 
           ;;Write the result and off we go!
           (opencv/save dst-img (format "result-%s.jpg" (name device-type)))
@@ -249,7 +236,7 @@
 (defn parallel
   [{:keys [box-blur y-blur x-blur] :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [y-axis x-axis chan-axis] (:axis box-blur)]
+        [y-axis x-axis chan-axis] (box-blur :axis)]
     (api/stage-parallel (schedule box-blur) y-axis)
     (assoc item :schedule schedule)))
 
@@ -257,8 +244,8 @@
 (defn reorder
   [{:keys [box-blur y-blur x-blur] :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [x-x-axis x-chan-axis x-y-axis] (:axis x-blur)
-        [y-axis x-axis chan-axis] (:axis box-blur)]
+        [x-x-axis x-chan-axis x-y-axis] (x-blur :axis)
+        [y-axis x-axis chan-axis] (box-blur :axis)]
     (api/stage-reorder (schedule x-blur) [x-y-axis x-x-axis x-chan-axis])
     (assoc item :schedule schedule)))
 
@@ -266,8 +253,8 @@
 (defn split-axis
   [{:keys [box-blur y-blur x-blur] :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [x-x-axis x-chan-axis x-y-axis] (:axis x-blur)
-        [y-axis x-axis chan-axis] (:axis box-blur)]
+        [x-x-axis x-chan-axis x-y-axis] (x-blur :axis)
+        [y-axis x-axis chan-axis] (box-blur :axis)]
     (api/stage-split-axis (schedule box-blur) y-axis 16)
     (assoc item :schedule schedule)))
 
@@ -276,7 +263,7 @@
 (defn tiled-schedule
   [{:keys [box-blur y-blur] :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [y-axis x-axis chan-axis] (:axis y-blur)
+        [y-axis x-axis chan-axis] (y-blur :axis)
         tile-axis
         (api/stage-tile (schedule y-blur)
                         y-axis x-axis 16 3)]
@@ -294,14 +281,14 @@
     (api/stage-inline (schedule y-blur))
     (api/stage-parallel (schedule box-blur)
                         (api/stage-fuse (schedule box-blur)
-                                        (:axis box-blur)))
+                                        (box-blur :axis)))
     (assoc item :schedule schedule)))
 
 
 (defn compute-at
   [{:keys [padded x-blur y-blur box-blur] :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [y-axis x-axis chan-axis] (:axis box-blur)]
+        [y-axis x-axis chan-axis] (box-blur :axis)]
     (api/stage-inline (schedule x-blur))
     (api/stage-inline (schedule padded))
     (api/stage-compute-at (schedule y-blur)
@@ -313,9 +300,9 @@
   [{:keys [padded box-blur x-blur y-blur in-height in-width in-channels]
     :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [x-blur-y-axis x-blur-x-axis x-blur-chan-axis] (:axis x-blur)
-        [y-axis x-axis chan-axis] (:axis box-blur)
-        [y-blur-y-axis y-blur-x-axis y-blur-chan-axis] (:axis y-blur)
+        [x-blur-y-axis x-blur-x-axis x-blur-chan-axis] (x-blur :axis)
+        [y-axis x-axis chan-axis] (box-blur :axis)
+        [y-blur-y-axis y-blur-x-axis y-blur-chan-axis] (y-blur :axis)
         [y-outer x-outer y-inner x-inner] (api/stage-tile
                                            (schedule box-blur)
                                            y-axis x-axis
@@ -333,7 +320,7 @@
                                                 x-blur-y-axis])
         {x-blur-cache :tensor
          schedule :schedule} (api/schedule-cache-write schedule x-blur "local")
-        [cache-x-axis cache-chan-axis cache-y-axis] (:axis x-blur-cache)]
+        [cache-x-axis cache-chan-axis cache-y-axis] (x-blur-cache :axis)]
     (api/stage-inline (schedule padded))
     (api/stage-inline (schedule x-blur))
     (api/stage-inline (schedule y-blur))
@@ -372,15 +359,15 @@
   [{:keys [padded box-blur x-blur y-blur in-height in-width in-channels]
     :as item} device-type]
   (let [schedule (api/create-schedule [box-blur])
-        [x-blur-y-axis x-blur-x-axis x-blur-chan-axis] (:axis x-blur)
-        [y-axis x-axis chan-axis] (:axis box-blur)
-        [y-blur-y-axis y-blur-x-axis y-blur-chan-axis] (:axis y-blur)
+        [x-blur-y-axis x-blur-x-axis x-blur-chan-axis] (x-blur :axis)
+        [y-axis x-axis chan-axis] (box-blur :axis)
+        [y-blur-y-axis y-blur-x-axis y-blur-chan-axis] (y-blur :axis)
         ;;We want computations to run vertically down the image
         [x-outer x-inner] (api/stage-split-axis (schedule box-blur) x-axis 16)
         _ (api/stage-reorder (schedule x-blur) [x-blur-x-axis x-blur-chan-axis x-blur-y-axis])
         {x-blur-cache :tensor
          schedule :schedule} (api/schedule-cache-write schedule x-blur "local")
-        [cache-x-axis cache-chan-axis cache-y-axis] (:axis x-blur-cache)]
+        [cache-x-axis cache-chan-axis cache-y-axis] (x-blur-cache :axis)]
     (api/stage-inline (schedule padded)) ;;inline into x-blur
     (api/stage-inline (schedule x-blur)) ;;inline into x-blur-cache
     (api/stage-inline (schedule y-blur)) ;;inline into box-blur
@@ -407,7 +394,7 @@
 (defn time-opencv
   []
   (let [src-img (opencv/load "test/data/test.jpg")
-        [src-height src-width src-chan] (m/shape src-img)
+        [src-height src-width src-chan] (dtype/shape src-img)
         dst-img (opencv/new-mat src-height src-width src-chan
                                 :dtype :uint8)]
     ;;warmup, load the images into cache
