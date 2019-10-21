@@ -157,21 +157,12 @@ sudo apt install beignet beignet-opencl-icd
 
 makedir -p tvm/build
 # Config setup for intel and such.
-cp config.cmake tvm/build
+cp config.cmake tvm/build/
 
-pushd tvm
+pushd tvm/build
 
-
-mkdir build
-cp cmake/make.config build
-pushd build
-
-## now edit tvm/build/config.cmake to appropriate for your system. I have
-## tested openblas cuda, opencl.
 cmake ..
-
 make -j8
-popd
 popd
 ```
 

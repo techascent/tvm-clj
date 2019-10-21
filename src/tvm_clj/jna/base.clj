@@ -191,11 +191,14 @@ Argpair is of type [symbol type-coersion]."
         arg-vals (dtype/make-container :native-buffer :int64 num-args)
         arg-types (dtype/make-container :native-buffer :int32 num-args)]
     (->> args
-         (map-indexed (fn [idx arg]
-                        (let [[long-val dtype] (->tvm-value arg)]
-                          (dtype/set-value! arg-vals idx long-val)
-                          (dtype/set-value! arg-types idx
-                                            (keyword->tvm-datatype dtype)))))
+         (map-indexed
+          (fn [idx arg]
+            (let [[long-val dtype :as data] (->tvm-value arg)]
+              (when-not data
+                (throw (Exception. (format "Invalid tvm function argument: %s" arg))))
+              (dtype/set-value! arg-vals idx long-val)
+              (dtype/set-value! arg-types idx
+                                (keyword->tvm-datatype dtype)))))
          dorun)
     [arg-vals arg-types num-args]))
 

@@ -137,7 +137,7 @@
                         (mapv #(- (double %) 0.5)))
           :time time-str})
        (catch Throwable e
-         (log/error e))))))
+         (log/errorf "Failure to run test: %s" e))))))
 
 
 (defn- is-correct

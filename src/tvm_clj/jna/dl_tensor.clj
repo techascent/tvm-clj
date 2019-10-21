@@ -418,4 +418,9 @@
       (buffer-desc->dl-tensor buf-desc
                               (bindings-proto/device-type item)
                               (bindings-proto/device-id item))
-      (throw (Exception. "Tensor is not native-buffer-backed")))))
+      (throw (Exception. "Tensor is not native-buffer-backed"))))
+  bindings-proto/PJVMTypeToTVMValue
+  (->tvm-value [item]
+    (if-let [tvm-data (bindings-proto/->tvm item)]
+      (bindings-proto/->tvm-value tvm-data)
+      (throw (Exception. (format "Invalid tvm function argument: %s" item))))))

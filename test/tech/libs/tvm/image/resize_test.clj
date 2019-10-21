@@ -88,7 +88,7 @@
         (assoc classic-time :device-type device-type :resize-op :tvm-bilinear)
         (assoc area-time :device-type device-type :resize-op :opencv-area)])
      (catch Throwable e
-       (log/errorf e "Failure attempting to run device %s" device-type)))))
+       (log/errorf "Failure attempting to run device %s: %s" device-type e)))))
 
 
 (deftest resize-test
