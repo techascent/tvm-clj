@@ -61,7 +61,8 @@ Argpair is of type [symbol type-coersion]."
 
 (defn datatype->dl-datatype
   [datatype & [dtype-retval]]
-  (if-let [retval (get (c-set/map-invert definitions/dl-dtype-map->datatype-map) datatype)]
+  (if-let [retval (get (c-set/map-invert definitions/dl-dtype-map->datatype-map)
+                       datatype)]
     (let [^DLPack$DLDataType dtype-retval (or dtype-retval (DLPack$DLDataType.))]
       (set! (.code dtype-retval) (long (keyword->tvm-datatype (:tvm-datatype retval))))
       (set! (.lanes dtype-retval) (long (:lanes retval)))
