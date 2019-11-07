@@ -43,8 +43,7 @@
 
 
 (defn downsample-img
-  [& {:keys [device-type]
-      :or {device-type :cpu}}]
+  [device-type]
   (vf/verify-context
    (tvm/driver device-type)
    :uint8
@@ -88,13 +87,14 @@
         (assoc classic-time :device-type device-type :resize-op :tvm-bilinear)
         (assoc area-time :device-type device-type :resize-op :opencv-area)])
      (catch Throwable e
+       (throw e)
        (log/errorf "Failure attempting to run device %s: %s" device-type e)))))
 
 
 (deftest resize-test
   (->> (for [dev-type [:cpu :opencl :cuda]]
          (try
-           (downsample-img :device-type dev-type)
+           (downsample-img dev-type)
            (catch Throwable e nil)))
        (remove nil?)
        (apply concat)
