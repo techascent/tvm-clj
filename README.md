@@ -40,7 +40,7 @@ apt-cache search mkl-64bit
 sudo apt-get install intel-mkl-64bit-2019.5-075
 
 
-makedir -p tvm/build
+mkdir -p tvm/build
 # Config setup for intel and such.
 # Base config.cmake file only has support for opencl.  If you want
 # CUDA, CUDNN, or MKL I suggest you edit the config file after you copy
