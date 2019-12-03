@@ -113,11 +113,11 @@ tvm-clj.image.resize-test> (downsample-img :device-type :opencl)
 ```
 
 
-tvm-area: ![tvm-results](docs/images/test.jpg)
+tvm-area: ![tvm-results](images/test.jpg)
 
 
-opencv-bilinear: ![opencv-results](docs/images/ref.jpg)
+opencv-bilinear: ![opencv-results](images/ref.jpg)
 
 
-* [tvm-clj source](src/tech/libs/tvm/image/resize.clj)
+* [tvm-clj source](../src/tech/libs/tvm/image/resize.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)
