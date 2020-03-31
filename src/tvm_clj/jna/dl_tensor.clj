@@ -21,6 +21,7 @@
             [tech.v2.datatype.jna :as dtype-jna]
             [tech.v2.datatype.casting :as casting]
             [tech.v2.tensor.dimensions :as tens-dims]
+            [tech.v2.tensor.dimensions.analytics :as dims-analytics]
             [tech.v2.tensor.pprint :as dtt-pprint]
             [tech.v2.tensor :as dtt]
             [tech.v2.tensor.protocols :as dtt-proto])
@@ -95,7 +96,7 @@
          (* (.ndim item) Long/BYTES)
          :int64))
     (-> (dtype/shape item)
-        (tens-dims/extend-strides))))
+        (dims-analytics/shape-ary->strides))))
 
 
 (extend-type DLPack$DLTensor
@@ -129,6 +130,12 @@
         (dtype/->vector)))
   dtype-proto/PCountable
   (ecount [item] (apply * (dtype/shape item)))
+  dtype-proto/PClone
+  (clone [item]
+    (allocate-device-array (dtype/shape item)
+                           (dtype/get-datatype item)
+                           (bindings-proto/device-type item)
+                           (bindings-proto/device-id item)))
   dtype-proto/PPrototype
   (from-prototype [item datatype shape]
     (allocate-device-array shape datatype
@@ -399,7 +406,7 @@
 (defn buffer-desc->dl-tensor
   ([{:keys [ptr datatype shape strides] :as descriptor}
     device-type device-id]
-   (let [canonical-strides (->> (tens-dims/extend-strides shape)
+   (let [canonical-strides (->> (dims-analytics/shape-ary->strides shape)
                                 (mapv (partial * (casting/numeric-byte-width
                                                   datatype))))
          strides (if-not (= canonical-strides strides)

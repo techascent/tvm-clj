@@ -49,15 +49,15 @@
 (deftest add-cpu
   (resource/stack-resource-context
     (let [myadd-fn (create-myadd-fn :cpu)]
-      (is (dfn/equals (dfn/+ (vec (range 10)) (vec (range 10)))
+      (is (dfn/equals (dfn/+ (range 10) (range 10))
                       (vec (call-myadd-fn myadd-fn :cpu 0)))))))
 
 
-;; (deftest add-opencl
-;;   (resource/stack-resource-context
-;;     (let [myadd-fn (create-myadd-fn :opencl)]
-;;       (is (dfn/equals (m/add (m/array (range 10)) (m/array (range 10)))
-;;                       (vec (call-myadd-fn myadd-fn :opencl 0)))))))
+(deftest add-opencl
+  (resource/stack-resource-context
+    (let [myadd-fn (create-myadd-fn :opencl)]
+      (is (dfn/equals (dfn/+ (range 10) (range 10))
+                      (vec (call-myadd-fn myadd-fn :opencl 0)))))))
 
 
 ;; (deftest ^:cuda add-cuda
