@@ -12,3 +12,4 @@ pom.xml.asc
 java/tvm_clj/tvm/runtime.java
 java/native
 resources/
+*.jpg
