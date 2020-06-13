@@ -2,9 +2,13 @@
   "Higher level API to build and compile tvm functions."
   (:require [tvm-clj.tvm-jna :refer [->node] :as bindings]
             [tvm-clj.jna.node :as jna-node]
-            [tvm-clj.jna.fns.global :as global-fns]
+            [tvm-clj.jna.fns.te :as te-fns]
+            [tvm-clj.jna.fns.tir :as tir-fns]
+            [tvm-clj.jna.fns.node :as node-fns]
             [tvm-clj.jna.fns.schedule :as schedule-fns]
             [tvm-clj.jna.fns.ir-pass :as ir-pass-fns]
+            [tvm-clj.jna.fns.tir.transform :as tir-transform-fns]
+            [tvm-clj.jna.fns.transform :as transform-fns]
             [tvm-clj.jna.fns.codegen :as codegen-fns]
             [tvm-clj.jna.fns.make :as make-fns]
             [tech.v2.datatype :as dtype]
@@ -502,7 +506,7 @@ expressions,
 
 (defn input-tensors
   [compute-op]
-  (global-fns/_OpInputTensors compute-op))
+  (te-fns/OpInputTensors compute-op))
 
 (defn throw-nil
   [item key-val]
@@ -529,7 +533,7 @@ expressions,
                       [op-seq]
                       op-seq)
                     (mapv ->operation))]
-    (global-fns/_CreateSchedule op-seq)))
+    (te-fns/CreateSchedule op-seq)))
 
 
 (defn ->stage
@@ -547,19 +551,19 @@ expressions,
 
 (defn stage-split-axis
   [stage iter-var factor]
-  (global-fns/_StageSplitByFactor stage iter-var factor))
+  (te-fns/StageSplitByFactor stage iter-var factor))
 
 
 (defn stage-bind
   "Bind an iter-var to a stage variable"
   [stage iter-var thread-ivar]
-  (global-fns/_StageBind stage iter-var thread-ivar))
+  (te-fns/StageBind stage iter-var thread-ivar))
 
 
 (defn stage-compute-at
   "Compute src stage at dst stage dst axis"
   [src-stage dst-stage dst-axis]
-  (global-fns/_StageComputeAt src-stage dst-stage dst-axis))
+  (te-fns/StageComputeAt src-stage dst-stage dst-axis))
 
 
 (defn stage-fuse
@@ -568,44 +572,44 @@ expressions,
   ;;If there is only one axis, then fusing is pointless
   (if (= 1 (count axis-args))
     (first axis-args)
-    (global-fns/_StageFuse stage axis-args)))
+    (te-fns/StageFuse stage axis-args)))
 
 
 (defn stage-parallel
   "Indicate that this axis has complete parallelism"
   [stage axis]
-  (global-fns/_StageParallel stage axis))
+  (te-fns/StageParallel stage axis))
 
 
 (defn stage-inline
   [stage]
-  (global-fns/_StageComputeInline stage))
+  (te-fns/StageComputeInline stage))
 
 
 (defn stage-tile
   [stage outer-axis inner-axis outer-dim inner-dim]
-  (global-fns/_StageTile stage outer-axis inner-axis outer-dim inner-dim))
+  (te-fns/StageTile stage outer-axis inner-axis outer-dim inner-dim))
 
 
 (defn stage-reorder
   [stage axis-seq]
-  (global-fns/_StageReorder stage axis-seq))
+  (te-fns/StageReorder stage axis-seq))
 
 
 (defn stage-vectorize
   [stage axis]
-  (global-fns/_StageVectorize stage axis))
+  (te-fns/StageVectorize stage axis))
 
 
 (defn stage-unroll
   [stage axis]
-  (global-fns/_StageUnroll stage axis))
+  (te-fns/StageUnroll stage axis))
 
 
 (defn schedule-cache-write
   "Returns a new tensor"
   [schedule tensor cache-type]
-  (let [retval (global-fns/_ScheduleCacheWrite schedule tensor cache-type)]
+  (let [retval (te-fns/ScheduleCacheWrite schedule tensor cache-type)]
     {:tensor retval
      :schedule schedule}))
 
@@ -745,7 +749,7 @@ expressions,
         elem-offset (if elem-offset elem-offset 0)
         data (if data data (variable name :dtype "handle"))
         offset-factor 0]
-    (global-fns/_Buffer
+    (te-fns/Buffer
      data (->dtype dtype) shape strides elem-offset
      (safe-str name) scope
      data-alignment offset-factor
@@ -817,19 +821,19 @@ a different buffer type than this then you need to bind it yourself."
 
 (defn make-build-config
   []
-  (apply make-fns/_Node "BuildConfig"
+  (apply node-fns/MakeNode "BuildConfig"
          (flatten (seq build-config-node-defaults))))
 
 (defn- form-body
   [schedule]
-  (let [sch (global-fns/_ScheduleNormalize schedule)]
+  (let [sch (te-fns/ScheduleNormalize schedule)]
     (-> sch
         (schedule-fns/ScheduleOps(schedule-fns/InferBound sch))
-        (ir-pass-fns/InjectPrefetch))))
+        (tir-transform-fns/InjectPrefetch))))
 
 (defn get-build-config
   [& [build-config]]
-  (or build-config (global-fns/_GetCurrentBuildConfig)))
+  (or build-config (te-fns/GetCurrentBuildConfig)))
 
 
 (defn schedule->lowered-function

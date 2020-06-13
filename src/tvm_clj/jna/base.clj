@@ -266,3 +266,9 @@ This is in order to ensure that, for instance, deserialization of a node's field
   (let [fn-data (name->global-function fn-name)]
     (with-bindings {#'fn-name fn-name}
       (apply call-function fn-data args))))
+
+
+(comment
+  (com.sun.jna.NativeLibrary/getInstance
+   "/home/chrisn/dev/tech.all/tvm-clj/tvm/build/libtvm.so")
+  )

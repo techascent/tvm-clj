@@ -18,6 +18,7 @@
             [tech.jna :refer [checknil] :as jna]
             [tech.resource :as resource]
             [tvm-clj.jna.fns.global :as global-fns]
+            [tvm-clj.jna.fns.node :as node-fns]
             [tech.v2.datatype :as dtype]
             [tech.v2.datatype.protocols :as dtype-proto])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
@@ -45,30 +46,12 @@
   nil)
 
 
-(make-tvm-jna-fn TVMNodeListAttrNames
-                 "List the node attributes"
-                 Integer
-                 [node-handle checknil]
-                 [out_size int-ptr]
-                 [out_array ptr-ptr])
-
-
 (defn get-node-fields
   [^Pointer handle]
   (let [fields (PointerByReference.)
         num-fields (IntByReference.)]
-    (check-call (TVMNodeListAttrNames handle num-fields fields))
+    (check-call (node-fns/NodeListAttrNames handle num-fields fields))
     (jna/char-ptr-ptr->string-vec (.getValue num-fields) (.getValue fields))))
-
-
-(make-tvm-jna-fn TVMNodeGetAttr
-                 "Get a node attribute by name"
-                 Integer
-                 [node-handle checknil]
-                 [key jna/string->ptr]
-                 [out_value long-ptr]
-                 [out_type_code int-ptr]
-                 [out_success int-ptr])
 
 
 (defn get-node-field
@@ -84,16 +67,16 @@
                      :else
                      (throw (ex-info "Unrecognized field name type"
                                      {:field-name field-name})))]
-    (check-call (TVMNodeGetAttr handle field-name
-                                out-tvm-val
-                                out-type-code
-                                out-success))
+    (check-call (node-fns/NodeGetAttr handle field-name
+                                      out-tvm-val
+                                      out-type-code
+                                      out-success))
     (if (= 1 (.getValue out-success))
       (tvm-value->jvm (.getValue out-tvm-val)
                       (tvm-datatype->keyword-nothrow (.getValue out-type-code)))
       nil)))
 
-(make-tvm-jna-fn TVMNodeGetTypeIndex
+(make-tvm-jna-fn TVMObjectGetTypeIndex
                  "Get the type index of a node."
                  Integer
                  [node-hdl checknil]
@@ -104,11 +87,11 @@
   [^Pointer handle]
   (let [node-type-data (IntByReference.)]
     (check-call
-     (TVMNodeGetTypeIndex handle node-type-data))
+     (TVMObjectGetTypeIndex handle node-type-data))
     (.getValue node-type-data)))
 
 
-(make-tvm-jna-fn TVMNodeTypeKey2Index
+(make-tvm-jna-fn TVMObjectTypeKey2Index
                  "Convert a type name to a type index."
                  Integer
                  [type_key jna/string->ptr]
@@ -119,15 +102,20 @@
   "Convert a node type name to an index."
   [^String type-name]
   (let [int-data (IntByReference.)]
-    (check-call (TVMNodeTypeKey2Index type-name int-data))
+    (check-call (TVMObjectTypeKey2Index type-name int-data))
     (.getValue int-data)))
 
 
-(defonce node-type-index->name*
+(def node-type-index->name*
   (delay
    (->> (keys node-type-name->keyword-map)
         (map (fn [type-name]
-               [(node-type-name->index type-name) type-name]))
+               (try
+                 [(node-type-name->index type-name) type-name]
+                 (catch Throwable e
+                   (throw (ex-info (format "Failed to find node type name %s"
+                                           type-name)
+                                   {:error e}))))))
         (into {}))))
 
 
@@ -205,7 +193,7 @@
   (bindings-proto/is-node-handle? item))
 
 
-(make-tvm-jna-fn TVMNodeFree
+(make-tvm-jna-fn TVMObjectFree
                  "Free a tvm node."
                  Integer
                  [handle checknil])
@@ -241,12 +229,12 @@
   ObjectReader
   (lsize [this] num-items)
   (read [this idx]
-    (global-fns/_ArrayGetItem this idx)))
+    (node-fns/ArrayGetItem this idx)))
 
 
 (defn get-map-items
   [handle]
-  (->> (global-fns/_MapItems handle)
+  (->> (node-fns/MapItems handle)
        (partition 2)
        (map (fn [[k v]]
               (MapEntry. k v)))))
@@ -275,7 +263,7 @@
          iterator-seq
          set))
   (get [this obj-key]
-    (global-fns/_MapGetItem this (bindings-proto/->node obj-key)))
+    (node-fns/MapGetItem this (bindings-proto/->node obj-key)))
   (getOrDefault [item obj-key obj-default-value]
     (if (contains? item obj-key)
       (.get item obj-key)
@@ -283,7 +271,7 @@
   (isEmpty [this] (= 0 (.size this)))
   (keySet [this] (->> (map first (get-map-items this))
                       set))
-  (size [this] (int (global-fns/_MapSize this)))
+  (size [this] (int (node-fns/MapSize this)))
   (values [this] (map second this))
   Iterable
   (iterator [this]
@@ -324,7 +312,7 @@
 (defmethod construct-node "Array"
   [ptr]
   (let [init-handle (NodeHandle. ptr #{})
-        node-size (long (global-fns/_ArraySize init-handle))]
+        node-size (long (node-fns/ArraySize init-handle))]
     (ArrayHandle. ptr node-size)))
 
 
@@ -338,7 +326,7 @@
 explicitly; it is done for you."
   [& args]
   (->> (map bindings-proto/->node args)
-       (apply global-fns/_Array)))
+       (apply node-fns/Array)))
 
 
 (defn tvm-map
@@ -349,7 +337,7 @@ explicitly; it is done for you."
     (throw (ex-info "Map fn call must have even arg count"
                     {:args args})))
   (->> (map bindings-proto/->node args)
-       (apply global-fns/_Map)))
+       (apply node-fns/Map)))
 
 
 (defmethod tvm-value->jvm :node-handle
@@ -387,7 +375,7 @@ explicitly; it is done for you."
   [numeric-value & [dtype]]
   (let [dtype (->dtype (or dtype
                            (dtype/get-datatype numeric-value)))]
-    (global-fns/_const numeric-value dtype)))
+    (node-fns/_const numeric-value dtype)))
 
 
 (extend-protocol bindings-proto/PConvertToNode
