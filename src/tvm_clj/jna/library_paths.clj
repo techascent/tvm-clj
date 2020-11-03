@@ -1,5 +1,5 @@
 (ns tvm-clj.jna.library-paths
-  (:require [tech.jna :as jna])
+  (:require [tech.v3.jna :as jna])
   (:import [java.io File]))
 
 
@@ -11,7 +11,7 @@
 (jna/add-library-path tvm-library-name :system
                       (str (System/getProperty "user.dir")
                            File/separator
-                           "tvm/build"
+                           "incubator-tvm/build"
                            File/separator
                            (jna/map-shared-library-name tvm-library-name)))
 

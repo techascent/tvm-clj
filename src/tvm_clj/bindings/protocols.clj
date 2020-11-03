@@ -1,5 +1,5 @@
 (ns tvm-clj.bindings.protocols
-  (:require [tech.jna :as jna])
+  (:require [tech.v3.jna :as jna])
   (:import [com.sun.jna Pointer]))
 
 

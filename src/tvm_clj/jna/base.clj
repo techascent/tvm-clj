@@ -1,14 +1,15 @@
 (ns tvm-clj.jna.base
-  (:require [tech.jna :refer [checknil] :as jna]
-            [tech.v2.datatype :as dtype]
-            [tech.v2.datatype.typed-buffer :as typed-buffer]
+  (:require [tech.v3.jna :refer [checknil] :as jna]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.errors :as errors]
             [tvm-clj.jna.library-paths :as jna-lib-paths]
             [tvm-clj.bindings.definitions :as definitions]
             [tvm-clj.bindings.protocols :refer [->tvm-value ->tvm ->node
                                                 device-type device-id byte-offset
                                                 base-ptr] :as bindings-proto]
             [clojure.set :as c-set]
-            [tech.resource :as resource])
+            [tech.v3.resource :as resource]
+            [clojure.tools.logging :as log])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
@@ -169,9 +170,9 @@ Argpair is of type [symbol type-coersion]."
   (let [retval (PointerByReference.)
         _ (check-call (TVMFuncGetGlobal fn-name retval))
         addr (.getValue retval)]
-    (when (= 0 (Pointer/nativeValue addr))
-      (throw (ex-info "Failed to find global function"
-                      {:fn-name fn-name})))
+    (errors/when-not-errorf
+     (not= 0 (Pointer/nativeValue addr))
+     "Failed to find global function: %s" fn-name)
     addr))
 
 
@@ -216,7 +217,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
 
 (defmethod tvm-value->jvm :default
   [long-val val-type-kwd]
-  (println (format "Failed to map value type %s" val-type-kwd))
+  (log/warnf "Failed to map value type %s" val-type-kwd)
   [long-val val-type-kwd])
 
 (defmethod tvm-value->jvm :int

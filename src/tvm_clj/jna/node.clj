@@ -11,21 +11,21 @@
                                       global-function
                                       tvm-value->jvm]
              :as jna-base]
-            [tvm-clj.bindings.definitions :refer [tvm-datatype->keyword-nothrow
-                                                  node-type-name->keyword-map]
+            [tvm-clj.bindings.definitions :refer [tvm-datatype->keyword-nothrow]
              :as bindings-defs]
             [tvm-clj.bindings.protocols :as bindings-proto]
-            [tech.jna :refer [checknil] :as jna]
-            [tech.resource :as resource]
+            [tech.v3.jna :refer [checknil] :as jna]
+            [tech.v3.resource :as resource]
             [tvm-clj.jna.fns.global :as global-fns]
             [tvm-clj.jna.fns.node :as node-fns]
-            [tech.v2.datatype :as dtype]
-            [tech.v2.datatype.protocols :as dtype-proto])
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.protocols :as dtype-proto]
+            [clojure.tools.logging :as log])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [java.util Map List RandomAccess]
            [java.io Writer]
-           [tech.v2.datatype ObjectReader ObjectWriter]
+           [tech.v3.datatype ObjectReader ObjectWriter]
            [clojure.lang MapEntry IFn]))
 
 
@@ -113,9 +113,9 @@
                (try
                  [(node-type-name->index type-name) type-name]
                  (catch Throwable e
-                   (throw (ex-info (format "Failed to find node type name %s"
-                                           type-name)
-                                   {:error e}))))))
+                   (log/warnf e "Failed to find node type name %s" type-name)
+                   nil))))
+        (remove nil?)
         (into {}))))
 
 
@@ -135,9 +135,9 @@
   (node-type-name [this] (get @node-type-index->name*
                               (bindings-proto/node-type-index this)
                               "UnknownTypeName"))
-  dtype-proto/PDatatype
-  (get-datatype [item] (-> (.getOrDefault item :dtype "object")
-                           (keyword)))
+  dtype-proto/PElemwiseDatatype
+  (elemwise-datatype [item] (-> (.getOrDefault item :dtype "object")
+                                (keyword)))
   jna/PToPtr
   (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item] handle)
@@ -228,7 +228,7 @@
 
   ObjectReader
   (lsize [this] num-items)
-  (read [this idx]
+  (readObject [this idx]
     (node-fns/ArrayGetItem this idx)))
 
 
@@ -304,9 +304,7 @@
 
 (defmethod construct-node :default
   [ptr]
-  (NodeHandle. ptr (->> (get-node-fields ptr)
-                        (map keyword)
-                        (apply sorted-set))))
+  (NodeHandle. ptr {}))
 
 
 (defmethod construct-node "Array"
@@ -343,8 +341,8 @@ explicitly; it is done for you."
 (defmethod tvm-value->jvm :node-handle
   [long-val val-type-kwd]
   (-> (construct-node (Pointer. long-val))
-      (resource/track #(TVMNodeFree (Pointer. long-val))
-                      [:gc :stack])))
+      (resource/track {:track-type [:gc :stack]
+                       :dispose-fn #(TVMObjectFree (Pointer. long-val))})))
 
 
 (extend-protocol bindings-proto/PJVMTypeToTVMValue
@@ -374,7 +372,7 @@ explicitly; it is done for you."
   "Convert an item to a const (immediate) value"
   [numeric-value & [dtype]]
   (let [dtype (->dtype (or dtype
-                           (dtype/get-datatype numeric-value)))]
+                           (dtype/datatype numeric-value)))]
     (node-fns/_const numeric-value dtype)))
 
 
