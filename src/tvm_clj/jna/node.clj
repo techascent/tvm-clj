@@ -11,13 +11,16 @@
                                       global-function
                                       tvm-value->jvm]
              :as jna-base]
+            [tvm-clj.bindings.typenames :as typenames]
             [tvm-clj.bindings.definitions :refer [tvm-datatype->keyword-nothrow]
              :as bindings-defs]
             [tvm-clj.bindings.protocols :as bindings-proto]
             [tech.v3.jna :refer [checknil] :as jna]
             [tech.v3.resource :as resource]
-            [tvm-clj.jna.fns.global :as global-fns]
+            ;;Force generation of global functions
             [tvm-clj.jna.fns.node :as node-fns]
+            [tvm-clj.jna.fns.ir :as ir]
+            [tvm-clj.jna.fns.runtime :as runtime]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.protocols :as dtype-proto]
             [clojure.tools.logging :as log])
@@ -47,34 +50,18 @@
 
 
 (defn get-node-fields
-  [^Pointer handle]
-  (let [fields (PointerByReference.)
-        num-fields (IntByReference.)]
-    (check-call (node-fns/NodeListAttrNames handle num-fields fields))
-    (jna/char-ptr-ptr->string-vec (.getValue num-fields) (.getValue fields))))
+  [node]
+  (resource/stack-resource-context
+   (let [field-fn (node-fns/NodeListAttrNames node)]
+     (vec (for [idx (range (field-fn -1))]
+            (field-fn idx))))))
 
 
 (defn get-node-field
-  [^Pointer handle field-name]
-  (let [out-tvm-val (LongByReference.)
-        out-type-code (IntByReference.)
-        out-success (IntByReference.)
-        field-name (cond
-                     (string? field-name)
-                     field-name
-                     (keyword? field-name)
-                     (name field-name)
-                     :else
-                     (throw (ex-info "Unrecognized field name type"
-                                     {:field-name field-name})))]
-    (check-call (node-fns/NodeGetAttr handle field-name
-                                      out-tvm-val
-                                      out-type-code
-                                      out-success))
-    (if (= 1 (.getValue out-success))
-      (tvm-value->jvm (.getValue out-tvm-val)
-                      (tvm-datatype->keyword-nothrow (.getValue out-type-code)))
-      nil)))
+  [node field-name]
+  (node-fns/NodeGetAttr node field-name))
+
+
 
 (make-tvm-jna-fn TVMObjectGetTypeIndex
                  "Get the type index of a node."
@@ -106,17 +93,19 @@
     (.getValue int-data)))
 
 
-(def node-type-index->name*
+(defonce node-type-index->name*
   (delay
-   (->> (keys node-type-name->keyword-map)
-        (map (fn [type-name]
-               (try
-                 [(node-type-name->index type-name) type-name]
-                 (catch Throwable e
-                   (log/warnf e "Failed to find node type name %s" type-name)
-                   nil))))
-        (remove nil?)
-        (into {}))))
+    (->> typenames/typenames
+         (map (fn [tname]
+                (try
+                  [
+                   (long (node-type-name->index tname))
+                   tname
+                   ]
+                  (catch Exception e
+                    (log/warnf "Failed to find type index for name %s" tname)))))
+         (remove nil?)
+         (into {}))))
 
 
 (declare construct-node-handle)
@@ -143,13 +132,14 @@
   (->ptr-backing-store [item] handle)
   Object
   (equals [a b]
-    (= (.hashCode a) (.hashCode b)))
+    (if (nil? b)
+      false
+      (= (.hashCode a) (.hashCode b))))
   (hashCode [this]
-    (-> (global-function "_raw_ptr" this)
+    (-> (runtime/ObjectPtrHash this)
         long
         .hashCode))
-  (toString [this]
-    (jna-base/global-function "_format_str" this))
+  (toString [this] (node-fns/AsRepr this))
 
 
 
@@ -161,7 +151,7 @@
          set))
   (get [this obj-key]
     (if (contains? fields obj-key)
-      (get-node-field handle (if (string? obj-key)
+      (get-node-field this (if (string? obj-key)
                                obj-key
                                (name obj-key)))
       (throw (Exception. (format "Failed to get node value: %s" obj-key)))))
@@ -304,7 +294,14 @@
 
 (defmethod construct-node :default
   [ptr]
-  (NodeHandle. ptr {}))
+  (NodeHandle. ptr (try (->> (NodeHandle. ptr #{})
+                             (get-node-fields)
+                             (map keyword)
+                             set)
+                        (catch Exception e
+                          (log/warnf e "Failed to get node fields")
+                          #{}
+                          ))))
 
 
 (defmethod construct-node "Array"
@@ -340,9 +337,17 @@ explicitly; it is done for you."
 
 (defmethod tvm-value->jvm :node-handle
   [long-val val-type-kwd]
-  (-> (construct-node (Pointer. long-val))
-      (resource/track {:track-type [:gc :stack]
-                       :dispose-fn #(TVMObjectFree (Pointer. long-val))})))
+  (let [tptr (Pointer. long-val)
+        tidx (get-node-type-index tptr)
+        tname (get @node-type-index->name* tidx)]
+    (condp = tname
+      "runtime.String"
+      (try
+        (node-fns/AsRepr (NodeHandle. tptr #{}))
+        (finally (TVMObjectFree tptr)))
+      (-> (construct-node (Pointer. long-val))
+          (resource/track {:track-type [:gc :stack]
+                           :dispose-fn #(TVMObjectFree (Pointer. long-val))})))))
 
 
 (extend-protocol bindings-proto/PJVMTypeToTVMValue

@@ -15,7 +15,10 @@
    9 :module-handle
    10 :func-handle
    11 :string
-   12 :bytes})
+   12 :bytes
+   13 :ndarray-handle
+   14 :object-rvalue-ref-arg
+   15 :ext-begin})
 
 
 (def keyword->tvm-datatype-map

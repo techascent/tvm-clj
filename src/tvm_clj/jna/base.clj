@@ -2,6 +2,8 @@
   (:require [tech.v3.jna :refer [checknil] :as jna]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.errors :as errors]
+            ;;JNA bindings for dtype datastructures
+            [tech.v3.datatype.jna]
             [tvm-clj.jna.library-paths :as jna-lib-paths]
             [tvm-clj.bindings.definitions :as definitions]
             [tvm-clj.bindings.protocols :refer [->tvm-value ->tvm ->node
@@ -14,6 +16,52 @@
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
             DLPack$DLManagedTensor]))
+
+
+;;C interface functions.
+;; 00000000012906d0 T TVMAPISetLastError
+;; 00000000012b78b0 T TVMArrayAlloc
+;; 00000000012b72e0 T TVMArrayCopyFromBytes
+;; 00000000012b80b0 T TVMArrayCopyFromTo
+;; 00000000012b75d0 T TVMArrayCopyToBytes
+;; 00000000012b6e60 T TVMArrayFree
+;; 00000000012b6fb0 T TVMArrayFromDLPack
+;; 00000000012b6e40 T TVMArrayGetTypeIndex
+;; 00000000012b7a10 T TVMArrayToDLPack
+;; 00000000012938e0 T TVMBackendAllocWorkspace
+;; 00000000012934c0 T TVMBackendFreeWorkspace
+;; 0000000001292560 T TVMBackendGetFuncFromEnv
+;; 00000000012c18f0 T TVMBackendParallelBarrier
+;; 00000000012c1970 T TVMBackendParallelLaunch
+;; 00000000012c0e10 T TVMBackendRegisterSystemLibSymbol
+;; 00000000012907a0 T TVMBackendRunOnce
+;; 0000000001295a20 T TVMCbArgToReturn
+;; 00000000012958e0 T TVMCFuncSetReturn
+;; 0000000001292dc0 T TVMDeviceAllocDataSpace
+;; 0000000001292fc0 T TVMDeviceCopyDataFromTo
+;; 0000000001292ed0 T TVMDeviceFreeDataSpace
+;; 00000000012b6eb0 T TVMDLManagedTensorCallDeleter
+;; 00000000012945d0 T TVMFuncCall
+;; 0000000001292620 T TVMFuncCreateFromCFunc
+;; 00000000012907c0 T TVMFuncFree
+;; 00000000012bfe30 T TVMFuncGetGlobal
+;; 00000000012bfa80 T TVMFuncListGlobalNames
+;; 00000000012c0480 T TVMFuncRegisterGlobal
+;; 0000000001290640 T TVMGetLastError
+;; 0000000001290790 T TVMModFree
+;; 0000000001292410 T TVMModGetFunction
+;; 0000000001292310 T TVMModImport
+;; 0000000001292000 T TVMModLoadFromFile
+;; 00000000012bb220 T TVMObjectDerivedFrom
+;; 00000000012ba4b0 T TVMObjectFree
+;; 00000000012ba4f0 T TVMObjectGetTypeIndex
+;; 00000000012ba490 T TVMObjectRetain
+;; 00000000012bc590 T TVMObjectTypeKey2Index
+;; 0000000001292a90 T TVMSetStream
+;; 0000000001292890 T TVMStreamCreate
+;; 0000000001292990 T TVMStreamFree
+;; 0000000001292cb0 T TVMStreamStreamSynchronize
+;; 0000000001292bb0 T TVMSynchronize
 
 
 (defmacro make-tvm-jna-fn
@@ -146,7 +194,7 @@ Argpair is of type [symbol type-coersion]."
                  [fn-names ptr-ptr])
 
 
-(def global-function-names
+(defonce global-function-names
   (memoize
    (fn []
      (let [int-data (IntByReference.)
@@ -156,6 +204,13 @@ Argpair is of type [symbol type-coersion]."
                                           (.getValue fn-names))
             sort
             vec)))))
+
+
+(defn find-global-fns
+  [substr]
+  (filter (fn [^String fn-name]
+            (.contains fn-name ^String substr))
+          (global-function-names)))
 
 
 (make-tvm-jna-fn TVMFuncGetGlobal
@@ -260,6 +315,21 @@ This is in order to ensure that, for instance, deserialization of a node's field
       (throw (ex-info "Error during function call!"
                       {:error e
                        :fn-args args})))))
+
+(make-tvm-jna-fn TVMObjectFree
+                 "Free a tvm node."
+                 Integer
+                 [handle checknil])
+
+
+(defmethod tvm-value->jvm :func-handle
+  [long-val _val-type-kwd]
+  (let [long-val (long long-val)
+        ptr-data (Pointer. long-val)
+        retval (fn [& args]
+                 (apply call-function ptr-data args))]
+    (resource/track retval {:track-type [:gc :stack]
+                            :dispose-fn #(TVMObjectFree ptr-data)})))
 
 
 (defn global-function
