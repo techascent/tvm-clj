@@ -1,168 +1,234 @@
 (ns tvm-clj.jna.fns.relay.analysis
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AnnotatedRegionSet
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.AnnotatedRegionSet"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AnnotatedRegionSet
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.AnnotatedRegionSet"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CallGraph
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.CallGraph"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CallGraph
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.CallGraph"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CollectDeviceAnnotationOps
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.CollectDeviceAnnotationOps"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CollectDeviceAnnotationOps
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.CollectDeviceAnnotationOps"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CollectDeviceInfo
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.CollectDeviceInfo"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CollectDeviceInfo
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.CollectDeviceInfo"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ContextAnalysis
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.ContextAnalysis"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ContextAnalysis
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.ContextAnalysis"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ExtractFusedFunctions
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.ExtractFusedFunctions"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ExtractFusedFunctions
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.ExtractFusedFunctions"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetGlobalVarCallCount
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.GetGlobalVarCallCount"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetGlobalVarCallCount
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.GetGlobalVarCallCount"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetModule
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.GetModule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetModule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.GetModule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetRefCountGlobalVar
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.GetRefCountGlobalVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetRefCountGlobalVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.GetRefCountGlobalVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetRegion
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.GetRegion"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetRegion
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.GetRegion"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetTotalMacNumber
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.GetTotalMacNumber"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetTotalMacNumber
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.GetTotalMacNumber"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IsRecursive
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.IsRecursive"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IsRecursive
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.IsRecursive"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PrintCallGraph
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.PrintCallGraph"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PrintCallGraph
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.PrintCallGraph"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PrintCallGraphGlobalVar
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.PrintCallGraphGlobalVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PrintCallGraphGlobalVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.PrintCallGraphGlobalVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _test_type_solver
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis._test_type_solver"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _test_type_solver
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis._test_type_solver"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} all_dtypes
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.all_dtypes"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn all_dtypes
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.all_dtypes"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} all_type_vars
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.all_type_vars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn all_type_vars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.all_type_vars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} all_vars
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.all_vars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn all_vars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.all_vars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bound_type_vars
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.bound_type_vars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bound_type_vars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.bound_type_vars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bound_vars
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.bound_vars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bound_vars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.bound_vars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} check_basic_block_normal_form
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.check_basic_block_normal_form"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn check_basic_block_normal_form
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.check_basic_block_normal_form"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} check_constant
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.check_constant"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn check_constant
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.check_constant"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} check_kind
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.check_kind"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn check_kind
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.check_kind"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} detect_feature
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.detect_feature"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn detect_feature
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.detect_feature"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} free_type_vars
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.free_type_vars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn free_type_vars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.free_type_vars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} free_vars
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.free_vars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn free_vars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.free_vars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} get_calibrate_module
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.get_calibrate_module"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn get_calibrate_module
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.get_calibrate_module"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} get_calibrate_output_map
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.get_calibrate_output_map"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn get_calibrate_output_map
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.get_calibrate_output_map"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} post_order_visit
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.post_order_visit"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn post_order_visit
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.post_order_visit"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} search_dense_op_weight
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.search_dense_op_weight"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn search_dense_op_weight
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.search_dense_op_weight"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} search_fc_transpose
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.search_fc_transpose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn search_fc_transpose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.search_fc_transpose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} unmatched_cases
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.unmatched_cases"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn unmatched_cases
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.unmatched_cases"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} well_formed
 (let [gfn* (delay (jna-base/name->global-function "relay.analysis.well_formed"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn well_formed
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.analysis.well_formed"}
+     (apply jna-base/call-function @gfn* args))))
 

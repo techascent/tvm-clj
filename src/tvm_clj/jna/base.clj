@@ -179,12 +179,13 @@ Argpair is of type [symbol type-coersion]."
   [& body]
   `(let [ret# (int (do ~@body))]
      (when-not (= 0 ret#)
-       (let [byte-string# (get-last-error)]
-         (throw (ex-info (format "Error during TVM call: %s" byte-string#)
+       (let [byte-string# (get-last-error)
+             fn-name# (if (= "" fn-name)
+                        "__unknown_function__"
+                        fn-name)]
+         (throw (ex-info (format "Error calling TVM fn %s:\n%s" fn-name# byte-string#)
                          {:error-string byte-string#
                           :fn-name fn-name}))))))
-
-
 
 
 (make-tvm-jna-fn TVMFuncListGlobalNames
@@ -207,9 +208,10 @@ Argpair is of type [symbol type-coersion]."
 
 
 (defn find-global-fns
-  [substr]
+  [^String substr]
   (filter (fn [^String fn-name]
-            (.contains fn-name ^String substr))
+            (.contains (.toLowerCase fn-name)
+                       (.toLowerCase substr)))
           (global-function-names)))
 
 
@@ -298,23 +300,18 @@ This is in order to ensure that, for instance, deserialization of a node's field
 
 (defn call-function
   [tvm-fn & args]
-  (try
-    (let [fn-ret-val
-          (resource/stack-resource-context
-            (let [retval (LongByReference.)
-                  rettype (IntByReference.)
-                  [tvm-args arg-types n-args] (arg-list->tvm-args args)]
-              (check-call
-               (TVMFuncCall tvm-fn
-                            tvm-args arg-types n-args
-                            retval rettype))
-              [(.getValue retval)
-               (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
-      (apply tvm-value->jvm fn-ret-val))
-    (catch Throwable e
-      (throw (ex-info "Error during function call!"
-                      {:error e
-                       :fn-args args})))))
+  (let [fn-ret-val
+        (resource/stack-resource-context
+         (let [retval (LongByReference.)
+               rettype (IntByReference.)
+               [tvm-args arg-types n-args] (arg-list->tvm-args args)]
+           (check-call
+            (TVMFuncCall tvm-fn
+                         tvm-args arg-types n-args
+                         retval rettype))
+           [(.getValue retval)
+            (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
+    (apply tvm-value->jvm fn-ret-val)))
 
 (make-tvm-jna-fn TVMObjectFree
                  "Free a tvm node."
@@ -328,7 +325,7 @@ This is in order to ensure that, for instance, deserialization of a node's field
         ptr-data (Pointer. long-val)
         retval (fn [& args]
                  (apply call-function ptr-data args))]
-    (resource/track retval {:track-type [:gc :stack]
+    (resource/track retval {:track-type :auto
                             :dispose-fn #(TVMObjectFree ptr-data)})))
 
 

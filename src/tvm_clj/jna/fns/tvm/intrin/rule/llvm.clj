@@ -1,118 +1,164 @@
 (ns tvm-clj.jna.fns.tvm.intrin.rule.llvm
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ceil
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.ceil"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ceil
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.ceil"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cos
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.cos"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cos
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.cos"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cosh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.cosh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cosh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.cosh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.exp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.exp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp10
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.exp10"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp10
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.exp10"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp2
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.exp2"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp2
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.exp2"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fabs
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.fabs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fabs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.fabs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} floor
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.floor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn floor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.floor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fma
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.fma"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fma
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.fma"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.log"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.log"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log10
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.log10"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log10
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.log10"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log2
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.log2"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log2
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.log2"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} nearbyint
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.nearbyint"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn nearbyint
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.nearbyint"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} popcount
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.popcount"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn popcount
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.popcount"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pow
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.pow"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pow
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.pow"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} prefetch
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.prefetch"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn prefetch
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.prefetch"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} round
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.round"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn round
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.round"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sin
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.sin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.sin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sinh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.sinh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sinh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.sinh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sqrt
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.sqrt"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sqrt
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.sqrt"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tan
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.tan"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tan
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.tan"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tanh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.tanh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tanh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.tanh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} trunc
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.llvm.trunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn trunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.llvm.trunc"}
+     (apply jna-base/call-function @gfn* args))))
 

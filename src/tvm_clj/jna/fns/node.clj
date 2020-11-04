@@ -1,93 +1,129 @@
 (ns tvm-clj.jna.fns.node
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Array
 (let [gfn* (delay (jna-base/name->global-function "node.Array"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Array
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.Array"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ArrayGetItem
 (let [gfn* (delay (jna-base/name->global-function "node.ArrayGetItem"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ArrayGetItem
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.ArrayGetItem"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ArraySize
 (let [gfn* (delay (jna-base/name->global-function "node.ArraySize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ArraySize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.ArraySize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AsRepr
 (let [gfn* (delay (jna-base/name->global-function "node.AsRepr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AsRepr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.AsRepr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LargeUIntImm
 (let [gfn* (delay (jna-base/name->global-function "node.LargeUIntImm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LargeUIntImm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.LargeUIntImm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LoadJSON
 (let [gfn* (delay (jna-base/name->global-function "node.LoadJSON"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LoadJSON
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.LoadJSON"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MakeNode
 (let [gfn* (delay (jna-base/name->global-function "node.MakeNode"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MakeNode
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.MakeNode"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Map
 (let [gfn* (delay (jna-base/name->global-function "node.Map"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Map
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.Map"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MapCount
 (let [gfn* (delay (jna-base/name->global-function "node.MapCount"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MapCount
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.MapCount"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MapGetItem
 (let [gfn* (delay (jna-base/name->global-function "node.MapGetItem"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MapGetItem
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.MapGetItem"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MapItems
 (let [gfn* (delay (jna-base/name->global-function "node.MapItems"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MapItems
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.MapItems"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MapSize
 (let [gfn* (delay (jna-base/name->global-function "node.MapSize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MapSize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.MapSize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} NodeGetAttr
 (let [gfn* (delay (jna-base/name->global-function "node.NodeGetAttr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn NodeGetAttr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.NodeGetAttr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} NodeListAttrNames
 (let [gfn* (delay (jna-base/name->global-function "node.NodeListAttrNames"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn NodeListAttrNames
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.NodeListAttrNames"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SaveJSON
 (let [gfn* (delay (jna-base/name->global-function "node.SaveJSON"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SaveJSON
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.SaveJSON"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StructuralEqual
 (let [gfn* (delay (jna-base/name->global-function "node.StructuralEqual"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StructuralEqual
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.StructuralEqual"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StructuralHash
 (let [gfn* (delay (jna-base/name->global-function "node.StructuralHash"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StructuralHash
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node.StructuralHash"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _const
 (let [gfn* (delay (jna-base/name->global-function "node._const"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _const
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "node._const"}
+     (apply jna-base/call-function @gfn* args))))
 

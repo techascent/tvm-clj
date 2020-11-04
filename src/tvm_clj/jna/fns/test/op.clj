@@ -1,13 +1,17 @@
 (ns tvm-clj.jna.fns.test.op
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InferTensorizeRegion
 (let [gfn* (delay (jna-base/name->global-function "test.op.InferTensorizeRegion"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InferTensorizeRegion
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "test.op.InferTensorizeRegion"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MatchTensorizeBody
 (let [gfn* (delay (jna-base/name->global-function "test.op.MatchTensorizeBody"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MatchTensorizeBody
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "test.op.MatchTensorizeBody"}
+     (apply jna-base/call-function @gfn* args))))
 

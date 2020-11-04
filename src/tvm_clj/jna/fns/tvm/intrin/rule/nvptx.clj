@@ -1,113 +1,157 @@
 (ns tvm-clj.jna.fns.tvm.intrin.rule.nvptx
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} atan
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.atan"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn atan
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.atan"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ceil
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.ceil"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ceil
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.ceil"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cos
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.cos"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cos
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.cos"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cosh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.cosh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cosh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.cosh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} erf
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.erf"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn erf
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.erf"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.exp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.exp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp10
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.exp10"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp10
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.exp10"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp2
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.exp2"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp2
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.exp2"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fabs
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.fabs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fabs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.fabs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} floor
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.floor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn floor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.floor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fma
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.fma"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fma
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.fma"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.log"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.log"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log10
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.log10"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log10
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.log10"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log2
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.log2"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log2
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.log2"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pow
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.pow"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pow
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.pow"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} round
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.round"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn round
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.round"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sin
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.sin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.sin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sinh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.sinh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sinh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.sinh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sqrt
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.sqrt"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sqrt
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.sqrt"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tan
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.tan"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tan
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.tan"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tanh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.tanh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tanh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.tanh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} trunc
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.nvptx.trunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn trunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.nvptx.trunc"}
+     (apply jna-base/call-function @gfn* args))))
 

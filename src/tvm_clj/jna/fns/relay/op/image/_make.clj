@@ -1,33 +1,45 @@
 (ns tvm-clj.jna.fns.relay.op.image._make
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} affine_grid
 (let [gfn* (delay (jna-base/name->global-function "relay.op.image._make.affine_grid"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn affine_grid
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.image._make.affine_grid"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} crop_and_resize
 (let [gfn* (delay (jna-base/name->global-function "relay.op.image._make.crop_and_resize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn crop_and_resize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.image._make.crop_and_resize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dilation2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.image._make.dilation2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dilation2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.image._make.dilation2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} grid_sample
 (let [gfn* (delay (jna-base/name->global-function "relay.op.image._make.grid_sample"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn grid_sample
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.image._make.grid_sample"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} resize
 (let [gfn* (delay (jna-base/name->global-function "relay.op.image._make.resize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn resize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.image._make.resize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} resize3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.image._make.resize3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn resize3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.image._make.resize3d"}
+     (apply jna-base/call-function @gfn* args))))
 

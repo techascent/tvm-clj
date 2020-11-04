@@ -1,13 +1,17 @@
 (ns tvm-clj.jna.fns.topi.util
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bilinear_sample_nchw
 (let [gfn* (delay (jna-base/name->global-function "topi.util.bilinear_sample_nchw"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bilinear_sample_nchw
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.util.bilinear_sample_nchw"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} is_empty_shape
 (let [gfn* (delay (jna-base/name->global-function "topi.util.is_empty_shape"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn is_empty_shape
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.util.is_empty_shape"}
+     (apply jna-base/call-function @gfn* args))))
 

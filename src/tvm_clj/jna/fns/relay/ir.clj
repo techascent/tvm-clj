@@ -1,118 +1,164 @@
 (ns tvm-clj.jna.fns.relay.ir
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Any
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Any"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Any
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Any"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Bind
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Bind"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Bind
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Bind"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Call
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Call"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Call
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Call"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Clause
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Clause"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Clause
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Clause"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Constant
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Constant"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Constant
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Constant"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Function
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Function"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Function
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Function"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} If
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.If"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn If
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.If"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IsDynamic
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.IsDynamic"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IsDynamic
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.IsDynamic"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Let
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Let"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Let
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Let"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Match
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Match"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Match
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Match"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PatternConstructor
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.PatternConstructor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PatternConstructor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.PatternConstructor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PatternTuple
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.PatternTuple"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PatternTuple
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.PatternTuple"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PatternVar
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.PatternVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PatternVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.PatternVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PatternWildcard
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.PatternWildcard"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PatternWildcard
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.PatternWildcard"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RefCreate
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.RefCreate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RefCreate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.RefCreate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RefRead
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.RefRead"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RefRead
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.RefRead"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RefWrite
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.RefWrite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RefWrite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.RefWrite"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TempExprRealize
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.TempExprRealize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TempExprRealize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.TempExprRealize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Tuple
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Tuple"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Tuple
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Tuple"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TupleGetItem
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.TupleGetItem"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TupleGetItem
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.TupleGetItem"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Var
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.Var"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Var
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.Var"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cast
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.cast"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cast
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.cast"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cast_like
 (let [gfn* (delay (jna-base/name->global-function "relay.ir.cast_like"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cast_like
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.ir.cast_like"}
+     (apply jna-base/call-function @gfn* args))))
 

@@ -10,6 +10,12 @@
             [clojure.java.io :as io]))
 
 
+(defn safe-local-name
+  [^String lname]
+  (cond
+    (= "String" lname) "RuntimeString"
+    :else lname))
+
 
 (defn define-tvm-fns!
   []
@@ -43,14 +49,17 @@
 
         (log/debugf "Generating TVM namespace %s" ns-path)
         (doseq [{:keys [local-name fullname]} ns-data]
-          (.append builder (format "(def ^{:doc \"TVM PackedFn\"
-:arglists '([& args])} %s
-(let [gfn* (delay (jna-base/name->global-function \"%s\"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+          (.append builder (format "(let [gfn* (delay (jna-base/name->global-function \"%s\"))]
+  (defn %s
+   \"TVM PackedFn\"
+   [& args]
+   (with-bindings {#'jna-base/fn-name \"%s\"}
+     (apply jna-base/call-function @gfn* args))))
 
 "
-                                  local-name
-                                  fullname)))
+                                   fullname
+                                   (safe-local-name local-name)
+                                   fullname)))
         (io/make-parents ns-path)
         (spit ns-path (.toString builder))))))
 

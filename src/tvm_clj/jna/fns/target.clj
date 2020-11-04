@@ -1,78 +1,108 @@
 (ns tvm-clj.jna.fns.target
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Build
 (let [gfn* (delay (jna-base/name->global-function "target.Build"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Build
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.Build"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GenericFuncCallFunc
 (let [gfn* (delay (jna-base/name->global-function "target.GenericFuncCallFunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GenericFuncCallFunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.GenericFuncCallFunc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GenericFuncCreate
 (let [gfn* (delay (jna-base/name->global-function "target.GenericFuncCreate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GenericFuncCreate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.GenericFuncCreate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GenericFuncGetGlobal
 (let [gfn* (delay (jna-base/name->global-function "target.GenericFuncGetGlobal"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GenericFuncGetGlobal
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.GenericFuncGetGlobal"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GenericFuncRegisterFunc
 (let [gfn* (delay (jna-base/name->global-function "target.GenericFuncRegisterFunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GenericFuncRegisterFunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.GenericFuncRegisterFunc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GenericFuncSetDefault
 (let [gfn* (delay (jna-base/name->global-function "target.GenericFuncSetDefault"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GenericFuncSetDefault
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.GenericFuncSetDefault"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Target
 (let [gfn* (delay (jna-base/name->global-function "target.Target"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Target
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.Target"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TargetCurrent
 (let [gfn* (delay (jna-base/name->global-function "target.TargetCurrent"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TargetCurrent
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.TargetCurrent"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TargetEnterScope
 (let [gfn* (delay (jna-base/name->global-function "target.TargetEnterScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TargetEnterScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.TargetEnterScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TargetExitScope
 (let [gfn* (delay (jna-base/name->global-function "target.TargetExitScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TargetExitScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.TargetExitScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TargetExport
 (let [gfn* (delay (jna-base/name->global-function "target.TargetExport"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TargetExport
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.TargetExport"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TargetTagAddTag
 (let [gfn* (delay (jna-base/name->global-function "target.TargetTagAddTag"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TargetTagAddTag
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.TargetTagAddTag"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TargetTagListTags
 (let [gfn* (delay (jna-base/name->global-function "target.TargetTagListTags"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TargetTagListTags
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.TargetTagListTags"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} llvm_lookup_intrinsic_id
 (let [gfn* (delay (jna-base/name->global-function "target.llvm_lookup_intrinsic_id"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn llvm_lookup_intrinsic_id
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.llvm_lookup_intrinsic_id"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} llvm_version_major
 (let [gfn* (delay (jna-base/name->global-function "target.llvm_version_major"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn llvm_version_major
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "target.llvm_version_major"}
+     (apply jna-base/call-function @gfn* args))))
 

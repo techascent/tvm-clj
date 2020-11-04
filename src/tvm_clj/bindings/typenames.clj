@@ -1,27 +1,33 @@
-(ns tvm-clj.bindings.typenames
-  (:require [clojure.java.shell :as sh]
-            [clojure.string :as s]))
+(ns tvm-clj.bindings.typenames)
 
 
-
-(def grep-results* (delay (:out (sh/sh "grep" "-hirA" "1" "_ffi.register_object" "incubator-tvm/python/"))))
-
-
-(defn results->groups
-  []
-  (let [lines (->> (-> @grep-results*
-                       (s/split #"--"))
-                   (map (fn [^String group]
-                          (s/split group #"\n")))
-                   (filter #(== 3 (count %))))]
-    lines))
+(comment
 
 
-(defn group->typename
-  [[_ reg-line cls-def]]
-  (if-let [[_ data] (re-find #"\"(.*)\"" reg-line)]
-    data
-    (second (re-find #"class ([^\(]+)" cls-def))))
+  (require '[clojure.java.shell :as sh])
+  (require '[clojure.string :as s])
+
+
+  (def grep-results* (delay (:out (sh/sh "grep" "-hirA" "1" "_ffi.register_object" "incubator-tvm/python/"))))
+
+
+  (defn results->groups
+    []
+    (let [lines (->> (-> @grep-results*
+                         (s/split #"--"))
+                     (map (fn [^String group]
+                            (s/split group #"\n")))
+                     (filter #(== 3 (count %))))]
+      lines))
+
+
+  (defn group->typename
+    [[_ reg-line cls-def]]
+    (if-let [[_ data] (re-find #"\"(.*)\"" reg-line)]
+      data
+      (second (re-find #"class ([^\(]+)" cls-def))))
+
+  )
 
 
 

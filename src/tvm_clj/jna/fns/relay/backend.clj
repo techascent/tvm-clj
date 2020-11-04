@@ -1,58 +1,80 @@
 (ns tvm-clj.jna.fns.relay.backend
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreateInterpreter
 (let [gfn* (delay (jna-base/name->global-function "relay.backend.CreateInterpreter"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreateInterpreter
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend.CreateInterpreter"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GraphPlanMemory
 (let [gfn* (delay (jna-base/name->global-function "relay.backend.GraphPlanMemory"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GraphPlanMemory
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend.GraphPlanMemory"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileEngineClear
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileEngineClear"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileEngineClear
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileEngineClear"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileEngineGlobal
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileEngineGlobal"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileEngineGlobal
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileEngineGlobal"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileEngineJIT
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileEngineJIT"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileEngineJIT
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileEngineJIT"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileEngineListItems
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileEngineListItems"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileEngineListItems
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileEngineListItems"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileEngineLower
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileEngineLower"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileEngineLower
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileEngineLower"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileEngineLowerShapeFunc
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileEngineLowerShapeFunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileEngineLowerShapeFunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileEngineLowerShapeFunc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _CompileLowerExternalFunctions
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._CompileLowerExternalFunctions"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _CompileLowerExternalFunctions
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._CompileLowerExternalFunctions"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _make_CCacheKey
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._make_CCacheKey"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _make_CCacheKey
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._make_CCacheKey"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _make_LoweredOutput
 (let [gfn* (delay (jna-base/name->global-function "relay.backend._make_LoweredOutput"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _make_LoweredOutput
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.backend._make_LoweredOutput"}
+     (apply jna-base/call-function @gfn* args))))
 

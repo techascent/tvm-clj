@@ -1,88 +1,122 @@
 (ns tvm-clj.jna.fns.relay.dataflow_pattern
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AltPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.AltPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AltPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.AltPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AttrPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.AttrPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AttrPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.AttrPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CallPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.CallPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CallPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.CallPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ConstantPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.ConstantPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ConstantPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.ConstantPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DFPatternCallback
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.DFPatternCallback"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DFPatternCallback
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.DFPatternCallback"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DataTypePattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.DataTypePattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DataTypePattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.DataTypePattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DominatorPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.DominatorPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DominatorPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.DominatorPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ExprPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.ExprPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ExprPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.ExprPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ShapePattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.ShapePattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ShapePattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.ShapePattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TupleGetItemPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.TupleGetItemPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TupleGetItemPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.TupleGetItemPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TuplePattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.TuplePattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TuplePattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.TuplePattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TypePattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.TypePattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TypePattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.TypePattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} VarPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.VarPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn VarPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.VarPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} WildcardPattern
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.WildcardPattern"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn WildcardPattern
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.WildcardPattern"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} match
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.match"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn match
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.match"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} partition
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.partition"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn partition
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.partition"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} rewrite
 (let [gfn* (delay (jna-base/name->global-function "relay.dataflow_pattern.rewrite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn rewrite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.dataflow_pattern.rewrite"}
+     (apply jna-base/call-function @gfn* args))))
 

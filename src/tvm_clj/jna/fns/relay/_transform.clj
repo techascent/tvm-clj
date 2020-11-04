@@ -1,243 +1,339 @@
 (ns tvm-clj.jna.fns.relay._transform
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AlterOpLayout
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.AlterOpLayout"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AlterOpLayout
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.AlterOpLayout"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AnnotateTarget
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.AnnotateTarget"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AnnotateTarget
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.AnnotateTarget"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BackwardFoldScaleAxis
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.BackwardFoldScaleAxis"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BackwardFoldScaleAxis
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.BackwardFoldScaleAxis"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CanonicalizeCast
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.CanonicalizeCast"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CanonicalizeCast
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.CanonicalizeCast"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CanonicalizeOps
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.CanonicalizeOps"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CanonicalizeOps
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.CanonicalizeOps"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CombineParallelBatchMatmul
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.CombineParallelBatchMatmul"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CombineParallelBatchMatmul
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.CombineParallelBatchMatmul"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CombineParallelConv2D
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.CombineParallelConv2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CombineParallelConv2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.CombineParallelConv2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CombineParallelDense
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.CombineParallelDense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CombineParallelDense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.CombineParallelDense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CombineParallelOpBatch
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.CombineParallelOpBatch"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CombineParallelOpBatch
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.CombineParallelOpBatch"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ConvertLayout
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ConvertLayout"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ConvertLayout
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ConvertLayout"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DeadCodeElimination
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.DeadCodeElimination"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DeadCodeElimination
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.DeadCodeElimination"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Defunctionalization
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.Defunctionalization"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Defunctionalization
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.Defunctionalization"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DenseToSparse
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.DenseToSparse"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DenseToSparse
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.DenseToSparse"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicToStatic
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.DynamicToStatic"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicToStatic
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.DynamicToStatic"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EliminateCommonSubexpr
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.EliminateCommonSubexpr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EliminateCommonSubexpr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.EliminateCommonSubexpr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EtaExpand
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.EtaExpand"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EtaExpand
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.EtaExpand"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FastMath
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.FastMath"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FastMath
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.FastMath"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FoldConstant
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.FoldConstant"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FoldConstant
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.FoldConstant"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FoldScaleAxis
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.FoldScaleAxis"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FoldScaleAxis
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.FoldScaleAxis"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ForwardFoldScaleAxis
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ForwardFoldScaleAxis"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ForwardFoldScaleAxis
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ForwardFoldScaleAxis"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FuseOps
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.FuseOps"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FuseOps
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.FuseOps"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InferType
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.InferType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InferType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.InferType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Inline
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.Inline"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Inline
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.Inline"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InlinePrimitives
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.InlinePrimitives"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InlinePrimitives
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.InlinePrimitives"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LambdaLift
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.LambdaLift"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LambdaLift
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.LambdaLift"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LazyGradientInit
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.LazyGradientInit"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LazyGradientInit
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.LazyGradientInit"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Legalize
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.Legalize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Legalize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.Legalize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MakeFunctionPass
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.MakeFunctionPass"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MakeFunctionPass
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.MakeFunctionPass"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MergeCompilerRegions
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.MergeCompilerRegions"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MergeCompilerRegions
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.MergeCompilerRegions"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MergeComposite
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.MergeComposite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MergeComposite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.MergeComposite"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PartialEvaluate
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.PartialEvaluate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PartialEvaluate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.PartialEvaluate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PartitionGraph
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.PartitionGraph"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PartitionGraph
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.PartitionGraph"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RemoveUnusedFunctions
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.RemoveUnusedFunctions"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RemoveUnusedFunctions
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.RemoveUnusedFunctions"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RewriteDeviceAnnotation
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.RewriteDeviceAnnotation"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RewriteDeviceAnnotation
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.RewriteDeviceAnnotation"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SimplifyExpr
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.SimplifyExpr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SimplifyExpr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.SimplifyExpr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SimplifyFCTranspose
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.SimplifyFCTranspose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SimplifyFCTranspose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.SimplifyFCTranspose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SimplifyInference
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.SimplifyInference"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SimplifyInference
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.SimplifyInference"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ToANormalForm
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ToANormalForm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ToANormalForm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ToANormalForm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ToANormalFormExpr
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ToANormalFormExpr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ToANormalFormExpr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ToANormalFormExpr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ToBasicBlockNormalForm
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ToBasicBlockNormalForm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ToBasicBlockNormalForm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ToBasicBlockNormalForm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ToCPS
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ToCPS"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ToCPS
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ToCPS"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ToGraphNormalForm
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.ToGraphNormalForm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ToGraphNormalForm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.ToGraphNormalForm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} UnCPS
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.UnCPS"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn UnCPS
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.UnCPS"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dedup
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.dedup"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dedup
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.dedup"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} first_order_gradient
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.first_order_gradient"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn first_order_gradient
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.first_order_gradient"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} gradient
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.gradient"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn gradient
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.gradient"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} to_cps
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.to_cps"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn to_cps
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.to_cps"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} un_cps
 (let [gfn* (delay (jna-base/name->global-function "relay._transform.un_cps"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn un_cps
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._transform.un_cps"}
+     (apply jna-base/call-function @gfn* args))))
 

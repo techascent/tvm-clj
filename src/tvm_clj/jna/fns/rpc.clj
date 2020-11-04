@@ -1,43 +1,59 @@
 (ns tvm-clj.jna.fns.rpc
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Connect
 (let [gfn* (delay (jna-base/name->global-function "rpc.Connect"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Connect
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.Connect"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreateEventDrivenServer
 (let [gfn* (delay (jna-base/name->global-function "rpc.CreateEventDrivenServer"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreateEventDrivenServer
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.CreateEventDrivenServer"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreatePipeClient
 (let [gfn* (delay (jna-base/name->global-function "rpc.CreatePipeClient"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreatePipeClient
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.CreatePipeClient"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ImportRemoteModule
 (let [gfn* (delay (jna-base/name->global-function "rpc.ImportRemoteModule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ImportRemoteModule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.ImportRemoteModule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LoadRemoteModule
 (let [gfn* (delay (jna-base/name->global-function "rpc.LoadRemoteModule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LoadRemoteModule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.LoadRemoteModule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LocalSession
 (let [gfn* (delay (jna-base/name->global-function "rpc.LocalSession"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LocalSession
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.LocalSession"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ServerLoop
 (let [gfn* (delay (jna-base/name->global-function "rpc.ServerLoop"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ServerLoop
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.ServerLoop"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SessTableIndex
 (let [gfn* (delay (jna-base/name->global-function "rpc.SessTableIndex"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SessTableIndex
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "rpc.SessTableIndex"}
+     (apply jna-base/call-function @gfn* args))))
 

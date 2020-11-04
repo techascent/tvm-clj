@@ -1,58 +1,80 @@
 (ns tvm-clj.jna.fns.relay._quantize
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreateStatsCollector
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.CreateStatsCollector"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreateStatsCollector
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.CreateStatsCollector"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FindScaleByKLMinimization
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.FindScaleByKLMinimization"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FindScaleByKLMinimization
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.FindScaleByKLMinimization"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QuantizeAnnotate
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.QuantizeAnnotate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QuantizeAnnotate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.QuantizeAnnotate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QuantizePartition
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.QuantizePartition"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QuantizePartition
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.QuantizePartition"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QuantizeRealize
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.QuantizeRealize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QuantizeRealize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.QuantizeRealize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _EnterQConfigScope
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize._EnterQConfigScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _EnterQConfigScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize._EnterQConfigScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _ExitQConfigScope
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize._ExitQConfigScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _ExitQConfigScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize._ExitQConfigScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} _GetCurrentQConfig
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize._GetCurrentQConfig"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn _GetCurrentQConfig
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize._GetCurrentQConfig"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} make_annotate_expr
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.make_annotate_expr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn make_annotate_expr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.make_annotate_expr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} make_partition_expr
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.make_partition_expr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn make_partition_expr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.make_partition_expr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} simulated_quantize
 (let [gfn* (delay (jna-base/name->global-function "relay._quantize.simulated_quantize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn simulated_quantize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay._quantize.simulated_quantize"}
+     (apply jna-base/call-function @gfn* args))))
 

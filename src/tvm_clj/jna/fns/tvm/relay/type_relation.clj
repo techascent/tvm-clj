@@ -1,743 +1,1039 @@
 (ns tvm-clj.jna.fns.tvm.relay.type_relation
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AdaptiveAvgPool2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AdaptiveAvgPool2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AdaptiveAvgPool2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AdaptiveAvgPool2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AdaptiveAvgPool3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AdaptiveAvgPool3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AdaptiveAvgPool3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AdaptiveAvgPool3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AdaptiveMaxPool2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AdaptiveMaxPool2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AdaptiveMaxPool2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AdaptiveMaxPool2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AdaptiveMaxPool3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AdaptiveMaxPool3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AdaptiveMaxPool3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AdaptiveMaxPool3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AdvIndex
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AdvIndex"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AdvIndex
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AdvIndex"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AffineGrid
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AffineGrid"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AffineGrid
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AffineGrid"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AllocStorage
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AllocStorage"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AllocStorage
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AllocStorage"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AllocTensor
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AllocTensor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AllocTensor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AllocTensor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Arange
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Arange"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Arange
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Arange"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ArgReduce
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ArgReduce"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ArgReduce
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ArgReduce"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ArgWhere
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ArgWhere"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ArgWhere
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ArgWhere"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Argsort
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Argsort"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Argsort
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Argsort"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AvgPool1D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AvgPool1D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AvgPool1D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AvgPool1D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AvgPool2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AvgPool2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AvgPool2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AvgPool2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AvgPool3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.AvgPool3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AvgPool3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.AvgPool3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BatchFlatten
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BatchFlatten"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BatchFlatten
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BatchFlatten"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BatchMatmul
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BatchMatmul"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BatchMatmul
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BatchMatmul"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BatchNorm
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BatchNorm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BatchNorm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BatchNorm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BiasAdd
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BiasAdd"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BiasAdd
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BiasAdd"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BinaryConv2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BinaryConv2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BinaryConv2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BinaryConv2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BinaryDense
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BinaryDense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BinaryDense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BinaryDense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BitPack
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BitPack"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BitPack
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BitPack"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BroadCastTo
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BroadCastTo"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BroadCastTo
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BroadCastTo"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BroadCastToLike
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BroadCastToLike"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BroadCastToLike
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BroadCastToLike"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Broadcast
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Broadcast"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Broadcast
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Broadcast"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BroadcastComp
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.BroadcastComp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BroadcastComp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.BroadcastComp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Cast
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Cast"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Cast
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Cast"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CastLike
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.CastLike"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CastLike
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.CastLike"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CollapseSumLike
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.CollapseSumLike"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CollapseSumLike
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.CollapseSumLike"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CollapseSumTo
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.CollapseSumTo"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CollapseSumTo
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.CollapseSumTo"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Concatenate
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Concatenate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Concatenate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Concatenate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv1D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv1D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv1D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv1D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv1DTranspose
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv1DTranspose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv1DTranspose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv1DTranspose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DGemm
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DGemm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DGemm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DGemm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DGemmWeightTransform
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DGemmWeightTransform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DGemmWeightTransform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DGemmWeightTransform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DNCHWc
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DNCHWc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DNCHWc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DNCHWc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DTranspose
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DTranspose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DTranspose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DTranspose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DWinograd
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DWinograd"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DWinograd
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DWinograd"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DWinogradNNPACKWeightTransform
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DWinogradNNPACKWeightTransform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DWinogradNNPACKWeightTransform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DWinogradNNPACKWeightTransform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv2DWinogradWeightTransform
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv2DWinogradWeightTransform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv2DWinogradWeightTransform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv2DWinogradWeightTransform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv3DTranspose
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv3DTranspose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv3DTranspose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv3DTranspose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv3DWinograd
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv3DWinograd"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv3DWinograd
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv3DWinograd"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Conv3DWinogradWeightTransform
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Conv3DWinogradWeightTransform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Conv3DWinogradWeightTransform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Conv3DWinogradWeightTransform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Correlation
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Correlation"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Correlation
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Correlation"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CropAndResize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.CropAndResize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CropAndResize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.CropAndResize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CrossEntropy
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.CrossEntropy"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CrossEntropy
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.CrossEntropy"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Debug
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Debug"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Debug
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Debug"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DeformableConv2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DeformableConv2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DeformableConv2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DeformableConv2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Dense
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DepthToSpace
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DepthToSpace"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DepthToSpace
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DepthToSpace"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Dequantize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Dequantize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Dequantize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Dequantize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Dilate
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Dilate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Dilate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Dilate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Dilation2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Dilation2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Dilation2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Dilation2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Dropout
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Dropout"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Dropout
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Dropout"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynOneHot
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynOneHot"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynOneHot
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynOneHot"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynResize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynResize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynResize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynResize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynStridedSlice
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynStridedSlice"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynStridedSlice
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynStridedSlice"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynTopK
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynTopK"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynTopK
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynTopK"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicBroadCastTo
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicBroadCastTo"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicBroadCastTo
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicBroadCastTo"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicFull
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicFull"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicFull
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicFull"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicInitOp
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicInitOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicInitOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicInitOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicPad
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicPad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicPad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicPad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicReshape
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicReshape"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicReshape
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicReshape"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicTile
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicTile"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicTile
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicTile"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicUpSampling
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicUpSampling"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicUpSampling
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicUpSampling"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DynamicUpSampling3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.DynamicUpSampling3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DynamicUpSampling3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.DynamicUpSampling3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ExpandDims
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ExpandDims"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ExpandDims
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ExpandDims"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FIFOBuffer
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.FIFOBuffer"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FIFOBuffer
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.FIFOBuffer"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Full
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Full"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Full
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Full"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FullLike
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.FullLike"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FullLike
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.FullLike"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Gather
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Gather"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Gather
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Gather"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GatherND
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.GatherND"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GatherND
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.GatherND"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetValidCount
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.GetValidCount"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetValidCount
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.GetValidCount"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GlobalAvgPool2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.GlobalAvgPool2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GlobalAvgPool2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.GlobalAvgPool2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GlobalMaxPool2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.GlobalMaxPool2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GlobalMaxPool2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.GlobalMaxPool2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GridSample
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.GridSample"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GridSample
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.GridSample"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GroupNorm
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.GroupNorm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GroupNorm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.GroupNorm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Identity
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Identity"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Identity
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Identity"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IdentityCompRel
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.IdentityCompRel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IdentityCompRel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.IdentityCompRel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InitOp
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.InitOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InitOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.InitOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InstanceNorm
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.InstanceNorm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InstanceNorm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.InstanceNorm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InvokeTVMOp
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.InvokeTVMOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InvokeTVMOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.InvokeTVMOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Kill
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Kill"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Kill
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Kill"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LayerNorm
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.LayerNorm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LayerNorm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.LayerNorm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MatrixSetDiag
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MatrixSetDiag"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MatrixSetDiag
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MatrixSetDiag"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MaxPool1D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MaxPool1D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MaxPool1D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MaxPool1D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MaxPool2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MaxPool2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MaxPool2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MaxPool2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MaxPool2DGrad
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MaxPool2DGrad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MaxPool2DGrad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MaxPool2DGrad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MaxPool3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MaxPool3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MaxPool3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MaxPool3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Meshgrid
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Meshgrid"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Meshgrid
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Meshgrid"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MetaRef
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MetaRef"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MetaRef
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MetaRef"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MirrorPad
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MirrorPad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MirrorPad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MirrorPad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MultiBoxPrior
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MultiBoxPrior"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MultiBoxPrior
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MultiBoxPrior"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MultiBoxTransformLoc
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.MultiBoxTransformLoc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MultiBoxTransformLoc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.MultiBoxTransformLoc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} NMS
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.NMS"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn NMS
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.NMS"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} NdarraySize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.NdarraySize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn NdarraySize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.NdarraySize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OneHot
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.OneHot"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OneHot
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.OneHot"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PRelu
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.PRelu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PRelu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.PRelu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Pad
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Pad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Pad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Pad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Proposal
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Proposal"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Proposal
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Proposal"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QDense
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.QDense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QDense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.QDense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QnnBroadcast
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.QnnBroadcast"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QnnBroadcast
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.QnnBroadcast"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QnnConcatenate
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.QnnConcatenate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QnnConcatenate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.QnnConcatenate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} QnnConv2D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.QnnConv2D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn QnnConv2D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.QnnConv2D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Quantize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Quantize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Quantize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Quantize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ROIAlign
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ROIAlign"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ROIAlign
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ROIAlign"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ROIPool
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ROIPool"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ROIPool
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ROIPool"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Reduce
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Reduce"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Reduce
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Reduce"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Reinterpret
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Reinterpret"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Reinterpret
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Reinterpret"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Repeat
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Repeat"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Repeat
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Repeat"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Requantize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Requantize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Requantize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Requantize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Reshape
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Reshape"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Reshape
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Reshape"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ReshapeLike
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ReshapeLike"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ReshapeLike
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ReshapeLike"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ReshapeTensor
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ReshapeTensor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ReshapeTensor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ReshapeTensor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Resize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Resize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Resize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Resize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Resize3d
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Resize3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Resize3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Resize3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Reverse
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Reverse"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Reverse
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Reverse"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ReverseSequence
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ReverseSequence"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ReverseSequence
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ReverseSequence"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Scatter
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Scatter"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Scatter
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Scatter"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScatterAdd
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ScatterAdd"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScatterAdd
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ScatterAdd"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SequenceMask
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SequenceMask"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SequenceMask
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SequenceMask"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ShapeFuncRel
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ShapeFuncRel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ShapeFuncRel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ShapeFuncRel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ShapeOf
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.ShapeOf"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ShapeOf
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.ShapeOf"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SimulatedQuantize
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SimulatedQuantize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SimulatedQuantize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SimulatedQuantize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SliceLike
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SliceLike"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SliceLike
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SliceLike"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SpaceToDepth
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SpaceToDepth"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SpaceToDepth
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SpaceToDepth"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SparseDense
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SparseDense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SparseDense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SparseDense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SparseToDense
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SparseToDense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SparseToDense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SparseToDense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SparseTranspose
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.SparseTranspose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SparseTranspose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.SparseTranspose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Split
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Split"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Split
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Split"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Squeeze
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Squeeze"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Squeeze
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Squeeze"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Stack
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Stack"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Stack
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Stack"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StridedSet
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.StridedSet"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StridedSet
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.StridedSet"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StridedSlice
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.StridedSlice"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StridedSlice
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.StridedSlice"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Take
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Take"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Take
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Take"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Tile
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Tile"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Tile
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Tile"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TopK
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.TopK"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TopK
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.TopK"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Transpose
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Transpose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Transpose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Transpose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TupleGetItem
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.TupleGetItem"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TupleGetItem
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.TupleGetItem"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} UnRavelIndexRel
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.UnRavelIndexRel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn UnRavelIndexRel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.UnRavelIndexRel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} UpSampling
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.UpSampling"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn UpSampling
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.UpSampling"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} UpSampling3D
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.UpSampling3D"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn UpSampling3D
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.UpSampling3D"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Variance
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Variance"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Variance
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Variance"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Where
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.Where"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Where
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.Where"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} YoloReorg
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.YoloReorg"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn YoloReorg
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.YoloReorg"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} layout_transform
 (let [gfn* (delay (jna-base/name->global-function "tvm.relay.type_relation.layout_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn layout_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.relay.type_relation.layout_transform"}
+     (apply jna-base/call-function @gfn* args))))
 

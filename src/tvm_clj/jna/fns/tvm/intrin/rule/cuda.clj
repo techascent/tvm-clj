@@ -1,138 +1,192 @@
 (ns tvm-clj.jna.fns.tvm.intrin.rule.cuda
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} atan
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.atan"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn atan
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.atan"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ceil
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.ceil"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ceil
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.ceil"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cos
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.cos"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cos
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.cos"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cosh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.cosh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cosh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.cosh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} erf
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.erf"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn erf
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.erf"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.exp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.exp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp10
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.exp10"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp10
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.exp10"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp2
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.exp2"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp2
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.exp2"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fabs
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.fabs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fabs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.fabs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} floor
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.floor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn floor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.floor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fmod
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.fmod"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fmod
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.fmod"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.log"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.log"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log10
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.log10"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log10
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.log10"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log2
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.log2"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log2
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.log2"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} popcount
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.popcount"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn popcount
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.popcount"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pow
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.pow"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pow
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.pow"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} round
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.round"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn round
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.round"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sin
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.sin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.sin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sinh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.sinh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sinh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.sinh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sqrt
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.sqrt"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sqrt
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.sqrt"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tan
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.tan"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tan
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.tan"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tanh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.tanh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tanh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.tanh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} trunc
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.trunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn trunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.trunc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tvm_warp_activemask
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.tvm_warp_activemask"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tvm_warp_activemask
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.tvm_warp_activemask"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tvm_warp_shuffle
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.tvm_warp_shuffle"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tvm_warp_shuffle
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.tvm_warp_shuffle"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tvm_warp_shuffle_down
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.tvm_warp_shuffle_down"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tvm_warp_shuffle_down
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.tvm_warp_shuffle_down"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tvm_warp_shuffle_up
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.cuda.tvm_warp_shuffle_up"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tvm_warp_shuffle_up
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.cuda.tvm_warp_shuffle_up"}
+     (apply jna-base/call-function @gfn* args))))
 

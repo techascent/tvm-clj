@@ -1,58 +1,80 @@
 (ns tvm-clj.jna.fns.tvm.intrin.rule.aocl
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ceil
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.ceil"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ceil
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.ceil"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} exp
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.exp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn exp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.exp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fabs
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.fabs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fabs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.fabs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} floor
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.floor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn floor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.floor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.log"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.log"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} popcount
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.popcount"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn popcount
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.popcount"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pow
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.pow"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pow
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.pow"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} round
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.round"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn round
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.round"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sqrt
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.sqrt"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sqrt
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.sqrt"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} tanh
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.tanh"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn tanh
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.tanh"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} trunc
 (let [gfn* (delay (jna-base/name->global-function "tvm.intrin.rule.aocl.trunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn trunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tvm.intrin.rule.aocl.trunc"}
+     (apply jna-base/call-function @gfn* args))))
 

@@ -1,18 +1,24 @@
 (ns tvm-clj.jna.fns.autotvm.feature
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetCurveSampleFeatureFlatten
 (let [gfn* (delay (jna-base/name->global-function "autotvm.feature.GetCurveSampleFeatureFlatten"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetCurveSampleFeatureFlatten
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "autotvm.feature.GetCurveSampleFeatureFlatten"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetItervarFeature
 (let [gfn* (delay (jna-base/name->global-function "autotvm.feature.GetItervarFeature"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetItervarFeature
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "autotvm.feature.GetItervarFeature"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetItervarFeatureFlatten
 (let [gfn* (delay (jna-base/name->global-function "autotvm.feature.GetItervarFeatureFlatten"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetItervarFeatureFlatten
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "autotvm.feature.GetItervarFeatureFlatten"}
+     (apply jna-base/call-function @gfn* args))))
 

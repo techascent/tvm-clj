@@ -1,123 +1,171 @@
 (ns tvm-clj.jna.fns.arith
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ConstIntBound
 (let [gfn* (delay (jna-base/name->global-function "arith.ConstIntBound"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ConstIntBound
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.ConstIntBound"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreateAnalyzer
 (let [gfn* (delay (jna-base/name->global-function "arith.CreateAnalyzer"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreateAnalyzer
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.CreateAnalyzer"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DeduceBound
 (let [gfn* (delay (jna-base/name->global-function "arith.DeduceBound"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DeduceBound
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.DeduceBound"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DetectClipBound
 (let [gfn* (delay (jna-base/name->global-function "arith.DetectClipBound"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DetectClipBound
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.DetectClipBound"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DetectLinearEquation
 (let [gfn* (delay (jna-base/name->global-function "arith.DetectLinearEquation"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DetectLinearEquation
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.DetectLinearEquation"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DomainTouched
 (let [gfn* (delay (jna-base/name->global-function "arith.DomainTouched"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DomainTouched
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.DomainTouched"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntConstraints
 (let [gfn* (delay (jna-base/name->global-function "arith.IntConstraints"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntConstraints
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntConstraints"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntConstraintsTransform
 (let [gfn* (delay (jna-base/name->global-function "arith.IntConstraintsTransform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntConstraintsTransform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntConstraintsTransform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntGroupBounds
 (let [gfn* (delay (jna-base/name->global-function "arith.IntGroupBounds"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntGroupBounds
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntGroupBounds"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntGroupBounds_FindBestRange
 (let [gfn* (delay (jna-base/name->global-function "arith.IntGroupBounds_FindBestRange"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntGroupBounds_FindBestRange
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntGroupBounds_FindBestRange"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntGroupBounds_from_range
 (let [gfn* (delay (jna-base/name->global-function "arith.IntGroupBounds_from_range"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntGroupBounds_from_range
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntGroupBounds_from_range"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntSetIsEverything
 (let [gfn* (delay (jna-base/name->global-function "arith.IntSetIsEverything"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntSetIsEverything
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntSetIsEverything"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntSetIsNothing
 (let [gfn* (delay (jna-base/name->global-function "arith.IntSetIsNothing"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntSetIsNothing
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntSetIsNothing"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntervalSet
 (let [gfn* (delay (jna-base/name->global-function "arith.IntervalSet"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntervalSet
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntervalSet"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntervalSetGetMax
 (let [gfn* (delay (jna-base/name->global-function "arith.IntervalSetGetMax"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntervalSetGetMax
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntervalSetGetMax"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntervalSetGetMin
 (let [gfn* (delay (jna-base/name->global-function "arith.IntervalSetGetMin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntervalSetGetMin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.IntervalSetGetMin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ModularSet
 (let [gfn* (delay (jna-base/name->global-function "arith.ModularSet"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ModularSet
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.ModularSet"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SolveInequalitiesAsCondition
 (let [gfn* (delay (jna-base/name->global-function "arith.SolveInequalitiesAsCondition"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SolveInequalitiesAsCondition
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.SolveInequalitiesAsCondition"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SolveInequalitiesDeskewRange
 (let [gfn* (delay (jna-base/name->global-function "arith.SolveInequalitiesDeskewRange"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SolveInequalitiesDeskewRange
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.SolveInequalitiesDeskewRange"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SolveInequalitiesToRange
 (let [gfn* (delay (jna-base/name->global-function "arith.SolveInequalitiesToRange"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SolveInequalitiesToRange
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.SolveInequalitiesToRange"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SolveLinearEquations
 (let [gfn* (delay (jna-base/name->global-function "arith.SolveLinearEquations"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SolveLinearEquations
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.SolveLinearEquations"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} intset_interval
 (let [gfn* (delay (jna-base/name->global-function "arith.intset_interval"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn intset_interval
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.intset_interval"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} intset_single_point
 (let [gfn* (delay (jna-base/name->global-function "arith.intset_single_point"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn intset_single_point
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.intset_single_point"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} intset_vector
 (let [gfn* (delay (jna-base/name->global-function "arith.intset_vector"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn intset_vector
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "arith.intset_vector"}
+     (apply jna-base/call-function @gfn* args))))
 

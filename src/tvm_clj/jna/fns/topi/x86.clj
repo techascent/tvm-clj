@@ -1,28 +1,38 @@
 (ns tvm-clj.jna.fns.topi.x86
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} default_schedule
 (let [gfn* (delay (jna-base/name->global-function "topi.x86.default_schedule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn default_schedule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.x86.default_schedule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} schedule_binarize_pack
 (let [gfn* (delay (jna-base/name->global-function "topi.x86.schedule_binarize_pack"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn schedule_binarize_pack
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.x86.schedule_binarize_pack"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} schedule_binary_dense
 (let [gfn* (delay (jna-base/name->global-function "topi.x86.schedule_binary_dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn schedule_binary_dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.x86.schedule_binary_dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} schedule_injective
 (let [gfn* (delay (jna-base/name->global-function "topi.x86.schedule_injective"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn schedule_injective
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.x86.schedule_injective"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} schedule_injective_from_existing
 (let [gfn* (delay (jna-base/name->global-function "topi.x86.schedule_injective_from_existing"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn schedule_injective_from_existing
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.x86.schedule_injective_from_existing"}
+     (apply jna-base/call-function @gfn* args))))
 

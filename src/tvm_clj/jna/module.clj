@@ -39,8 +39,8 @@
 (defmethod tvm-value->jvm :module-handle
   [long-val val-type-kwd]
   (-> (->ModuleHandle (Pointer. long-val))
-      (resource/track #(TVMModFree (Pointer. long-val))
-                      [:stack :gc])))
+      (resource/track {:dispose-fn #(TVMModFree (Pointer. long-val))
+                       :track-type :auto})))
 
 
 (make-tvm-jna-fn TVMFuncFree
@@ -73,8 +73,8 @@
       (throw (ex-info "Could not find module function"
                       {:fn-name fn-name})))
     (resource/track (->ModuleFunctionHandle (.getValue retval))
-                    #(TVMFuncFree (.getValue retval))
-                    [:gc :stack])))
+                    {:dispose-fn #(TVMFuncFree (.getValue retval))
+                     :track-type [:gc :stack]})))
 
 
 (defn get-module-source

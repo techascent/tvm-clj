@@ -1,28 +1,38 @@
 (ns tvm-clj.jna.fns.runtime.module
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} loadbinary_GraphRuntimeFactory
 (let [gfn* (delay (jna-base/name->global-function "runtime.module.loadbinary_GraphRuntimeFactory"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn loadbinary_GraphRuntimeFactory
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "runtime.module.loadbinary_GraphRuntimeFactory"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} loadbinary_metadata
 (let [gfn* (delay (jna-base/name->global-function "runtime.module.loadbinary_metadata"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn loadbinary_metadata
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "runtime.module.loadbinary_metadata"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} loadfile_ll
 (let [gfn* (delay (jna-base/name->global-function "runtime.module.loadfile_ll"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn loadfile_ll
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "runtime.module.loadfile_ll"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} loadfile_so
 (let [gfn* (delay (jna-base/name->global-function "runtime.module.loadfile_so"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn loadfile_so
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "runtime.module.loadfile_so"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} loadfile_stackvm
 (let [gfn* (delay (jna-base/name->global-function "runtime.module.loadfile_stackvm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn loadfile_stackvm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "runtime.module.loadfile_stackvm"}
+     (apply jna-base/call-function @gfn* args))))
 

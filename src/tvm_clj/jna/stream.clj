@@ -77,8 +77,8 @@
   (let [retval (PointerByReference.)]
     (check-call (TVMStreamCreate device-type device-id retval))
     (resource/track (->StreamHandle device-type device-id (.getValue retval))
-                    #(TVMStreamFree (.getValue retval))
-                    [:gc :stack])))
+                    {:track-type :auto
+                     :dispose-fn #(TVMStreamFree (.getValue retval))})))
 
 
 (defn sync-stream-with-host
@@ -88,9 +88,10 @@
 
 
 (defn sync-stream-with-stream
-  [stream]
-  (let [stream (->tvm stream)]
-    (check-call (TVMStreamStreamSynchronize stream stream stream))))
+  [stream other-stream]
+  (let [stream (->tvm stream)
+        other-stream (->tvm other-stream)]
+    (check-call (TVMStreamStreamSynchronize stream other-stream))))
 
 
 (defn set-current-thread-stream

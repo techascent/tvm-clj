@@ -1,228 +1,318 @@
 (ns tvm-clj.jna.fns.te
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ComputeOp
 (let [gfn* (delay (jna-base/name->global-function "te.ComputeOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ComputeOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ComputeOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreateSchedule
 (let [gfn* (delay (jna-base/name->global-function "te.CreateSchedule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreateSchedule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.CreateSchedule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreateSpecializedCondition
 (let [gfn* (delay (jna-base/name->global-function "te.CreateSpecializedCondition"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreateSpecializedCondition
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.CreateSpecializedCondition"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EnterSpecializationScope
 (let [gfn* (delay (jna-base/name->global-function "te.EnterSpecializationScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EnterSpecializationScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.EnterSpecializationScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ExitSpecializationScope
 (let [gfn* (delay (jna-base/name->global-function "te.ExitSpecializationScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ExitSpecializationScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ExitSpecializationScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ExternOp
 (let [gfn* (delay (jna-base/name->global-function "te.ExternOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ExternOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ExternOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetCurrentSpecialization
 (let [gfn* (delay (jna-base/name->global-function "te.GetCurrentSpecialization"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetCurrentSpecialization
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.GetCurrentSpecialization"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Gradient
 (let [gfn* (delay (jna-base/name->global-function "te.Gradient"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Gradient
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.Gradient"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} HybridOp
 (let [gfn* (delay (jna-base/name->global-function "te.HybridOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn HybridOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.HybridOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OpGetOutput
 (let [gfn* (delay (jna-base/name->global-function "te.OpGetOutput"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OpGetOutput
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.OpGetOutput"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OpInputTensors
 (let [gfn* (delay (jna-base/name->global-function "te.OpInputTensors"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OpInputTensors
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.OpInputTensors"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OpNumOutputs
 (let [gfn* (delay (jna-base/name->global-function "te.OpNumOutputs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OpNumOutputs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.OpNumOutputs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Placeholder
 (let [gfn* (delay (jna-base/name->global-function "te.Placeholder"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Placeholder
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.Placeholder"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScanOp
 (let [gfn* (delay (jna-base/name->global-function "te.ScanOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScanOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ScanOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScheduleCacheRead
 (let [gfn* (delay (jna-base/name->global-function "te.ScheduleCacheRead"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScheduleCacheRead
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ScheduleCacheRead"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScheduleCacheWrite
 (let [gfn* (delay (jna-base/name->global-function "te.ScheduleCacheWrite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScheduleCacheWrite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ScheduleCacheWrite"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScheduleCreateGroup
 (let [gfn* (delay (jna-base/name->global-function "te.ScheduleCreateGroup"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScheduleCreateGroup
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ScheduleCreateGroup"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScheduleNormalize
 (let [gfn* (delay (jna-base/name->global-function "te.ScheduleNormalize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScheduleNormalize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ScheduleNormalize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ScheduleRFactor
 (let [gfn* (delay (jna-base/name->global-function "te.ScheduleRFactor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ScheduleRFactor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.ScheduleRFactor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageBind
 (let [gfn* (delay (jna-base/name->global-function "te.StageBind"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageBind
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageBind"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageComputeAt
 (let [gfn* (delay (jna-base/name->global-function "te.StageComputeAt"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageComputeAt
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageComputeAt"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageComputeInline
 (let [gfn* (delay (jna-base/name->global-function "te.StageComputeInline"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageComputeInline
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageComputeInline"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageComputeRoot
 (let [gfn* (delay (jna-base/name->global-function "te.StageComputeRoot"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageComputeRoot
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageComputeRoot"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageDoubleBuffer
 (let [gfn* (delay (jna-base/name->global-function "te.StageDoubleBuffer"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageDoubleBuffer
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageDoubleBuffer"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageEnvThreads
 (let [gfn* (delay (jna-base/name->global-function "te.StageEnvThreads"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageEnvThreads
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageEnvThreads"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageFuse
 (let [gfn* (delay (jna-base/name->global-function "te.StageFuse"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageFuse
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageFuse"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageParallel
 (let [gfn* (delay (jna-base/name->global-function "te.StageParallel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageParallel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageParallel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StagePragma
 (let [gfn* (delay (jna-base/name->global-function "te.StagePragma"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StagePragma
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StagePragma"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StagePrefetch
 (let [gfn* (delay (jna-base/name->global-function "te.StagePrefetch"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StagePrefetch
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StagePrefetch"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageReorder
 (let [gfn* (delay (jna-base/name->global-function "te.StageReorder"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageReorder
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageReorder"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageSetScope
 (let [gfn* (delay (jna-base/name->global-function "te.StageSetScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageSetScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageSetScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageSetStorePredicate
 (let [gfn* (delay (jna-base/name->global-function "te.StageSetStorePredicate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageSetStorePredicate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageSetStorePredicate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageSplitByFactor
 (let [gfn* (delay (jna-base/name->global-function "te.StageSplitByFactor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageSplitByFactor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageSplitByFactor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageSplitByNParts
 (let [gfn* (delay (jna-base/name->global-function "te.StageSplitByNParts"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageSplitByNParts
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageSplitByNParts"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageStorageAlign
 (let [gfn* (delay (jna-base/name->global-function "te.StageStorageAlign"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageStorageAlign
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageStorageAlign"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageTensorize
 (let [gfn* (delay (jna-base/name->global-function "te.StageTensorize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageTensorize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageTensorize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageTile
 (let [gfn* (delay (jna-base/name->global-function "te.StageTile"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageTile
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageTile"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageUnroll
 (let [gfn* (delay (jna-base/name->global-function "te.StageUnroll"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageUnroll
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageUnroll"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StageVectorize
 (let [gfn* (delay (jna-base/name->global-function "te.StageVectorize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StageVectorize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.StageVectorize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Tensor
 (let [gfn* (delay (jna-base/name->global-function "te.Tensor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Tensor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.Tensor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TensorComputeOp
 (let [gfn* (delay (jna-base/name->global-function "te.TensorComputeOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TensorComputeOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.TensorComputeOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TensorEqual
 (let [gfn* (delay (jna-base/name->global-function "te.TensorEqual"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TensorEqual
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.TensorEqual"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TensorHash
 (let [gfn* (delay (jna-base/name->global-function "te.TensorHash"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TensorHash
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.TensorHash"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TensorIntrin
 (let [gfn* (delay (jna-base/name->global-function "te.TensorIntrin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TensorIntrin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.TensorIntrin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TensorIntrinCall
 (let [gfn* (delay (jna-base/name->global-function "te.TensorIntrinCall"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TensorIntrinCall
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "te.TensorIntrinCall"}
+     (apply jna-base/call-function @gfn* args))))
 

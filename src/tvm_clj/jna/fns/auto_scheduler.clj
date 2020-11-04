@@ -1,308 +1,430 @@
 (ns tvm-clj.jna.fns.auto_scheduler
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AutoSchedule
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.AutoSchedule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AutoSchedule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.AutoSchedule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BuildResult
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.BuildResult"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BuildResult
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.BuildResult"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ComputeDAG
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.ComputeDAG"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ComputeDAG
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.ComputeDAG"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ComputeDAGApplyStepsFromState
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.ComputeDAGApplyStepsFromState"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ComputeDAGApplyStepsFromState
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.ComputeDAGApplyStepsFromState"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ComputeDAGInferBoundFromState
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.ComputeDAGInferBoundFromState"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ComputeDAGInferBoundFromState
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.ComputeDAGInferBoundFromState"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ComputeDAGPrintPythonCodeFromState
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.ComputeDAGPrintPythonCodeFromState"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ComputeDAGPrintPythonCodeFromState
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.ComputeDAGPrintPythonCodeFromState"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CostModelPredict
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.CostModelPredict"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CostModelPredict
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.CostModelPredict"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CostModelUpdate
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.CostModelUpdate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CostModelUpdate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.CostModelUpdate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EmptyPolicy
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.EmptyPolicy"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EmptyPolicy
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.EmptyPolicy"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetPerStoreFeatureNames
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.GetPerStoreFeatureNames"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetPerStoreFeatureNames
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.GetPerStoreFeatureNames"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetPerStoreFeaturesFromFile
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.GetPerStoreFeaturesFromFile"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetPerStoreFeaturesFromFile
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.GetPerStoreFeaturesFromFile"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetPerStoreFeaturesFromMeasurePairs
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.GetPerStoreFeaturesFromMeasurePairs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetPerStoreFeaturesFromMeasurePairs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.GetPerStoreFeaturesFromMeasurePairs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetPerStoreFeaturesFromStates
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.GetPerStoreFeaturesFromStates"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetPerStoreFeaturesFromStates
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.GetPerStoreFeaturesFromStates"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} HardwareParams
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.HardwareParams"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn HardwareParams
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.HardwareParams"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LocalBuilder
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.LocalBuilder"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LocalBuilder
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.LocalBuilder"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LocalRunner
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.LocalRunner"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LocalRunner
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.LocalRunner"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MeasureInput
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.MeasureInput"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MeasureInput
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.MeasureInput"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MeasureResult
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.MeasureResult"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MeasureResult
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.MeasureResult"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PreloadMeasuredStates
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.PreloadMeasuredStates"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PreloadMeasuredStates
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.PreloadMeasuredStates"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ProgramBuilderBuild
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.ProgramBuilderBuild"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ProgramBuilderBuild
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.ProgramBuilderBuild"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ProgramRunnerRun
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.ProgramRunnerRun"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ProgramRunnerRun
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.ProgramRunnerRun"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PythonBasedModel
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.PythonBasedModel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PythonBasedModel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.PythonBasedModel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RPCRunner
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.RPCRunner"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RPCRunner
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.RPCRunner"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RandomModel
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.RandomModel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RandomModel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.RandomModel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RecordReader
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.RecordReader"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RecordReader
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.RecordReader"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RecordReaderReadLines
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.RecordReaderReadLines"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RecordReaderReadLines
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.RecordReaderReadLines"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RecordReaderReadNext
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.RecordReaderReadNext"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RecordReaderReadNext
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.RecordReaderReadNext"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RecordToFile
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.RecordToFile"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RecordToFile
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.RecordToFile"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SaveRecords
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SaveRecords"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SaveRecords
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SaveRecords"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicyRunCallbacks
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicyRunCallbacks"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicyRunCallbacks
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicyRunCallbacks"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicySetTask
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicySetTask"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicySetTask
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicySetTask"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicySetVerbose
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicySetVerbose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicySetVerbose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicySetVerbose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicyUtilsHasCacheReadStage
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicyUtilsHasCacheReadStage"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicyUtilsHasCacheReadStage
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicyUtilsHasCacheReadStage"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicyUtilsHasCacheWriteStage
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicyUtilsHasCacheWriteStage"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicyUtilsHasCacheWriteStage
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicyUtilsHasCacheWriteStage"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicyUtilsHasCrossThreadReduction
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicyUtilsHasCrossThreadReduction"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicyUtilsHasCrossThreadReduction
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicyUtilsHasCrossThreadReduction"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicyUtilsHasRfactorStage
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicyUtilsHasRfactorStage"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicyUtilsHasRfactorStage
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicyUtilsHasRfactorStage"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchPolicyUtilsIsTiled
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchPolicyUtilsIsTiled"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchPolicyUtilsIsTiled
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchPolicyUtilsIsTiled"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SearchTask
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SearchTask"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SearchTask
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SearchTask"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SketchPolicy
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SketchPolicy"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SketchPolicy
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SketchPolicy"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SketchPolicyEvolutionarySearch
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SketchPolicyEvolutionarySearch"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SketchPolicyEvolutionarySearch
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SketchPolicyEvolutionarySearch"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SketchPolicyGenerateSketches
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SketchPolicyGenerateSketches"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SketchPolicyGenerateSketches
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SketchPolicyGenerateSketches"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SketchPolicySampleInitialPopulation
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.SketchPolicySampleInitialPopulation"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SketchPolicySampleInitialPopulation
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.SketchPolicySampleInitialPopulation"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateBind
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateBind"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateBind
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateBind"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateCacheRead
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateCacheRead"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateCacheRead
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateCacheRead"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateCacheWrite
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateCacheWrite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateCacheWrite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateCacheWrite"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateComputeAt
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateComputeAt"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateComputeAt
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateComputeAt"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateComputeInline
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateComputeInline"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateComputeInline
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateComputeInline"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateComputeRoot
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateComputeRoot"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateComputeRoot
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateComputeRoot"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateEqual
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateEqual"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateEqual
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateEqual"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateFollowFusedSplit
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateFollowFusedSplit"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateFollowFusedSplit
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateFollowFusedSplit"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateFollowSplit
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateFollowSplit"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateFollowSplit
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateFollowSplit"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateFuse
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateFuse"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateFuse
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateFuse"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateParallel
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateParallel"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateParallel
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateParallel"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StatePragma
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StatePragma"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StatePragma
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StatePragma"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateReorder
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateReorder"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateReorder
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateReorder"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateRfactor
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateRfactor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateRfactor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateRfactor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateSplit
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateSplit"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateSplit
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateSplit"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateStorageAlign
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateStorageAlign"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateStorageAlign
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateStorageAlign"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateUnroll
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateUnroll"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateUnroll
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateUnroll"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StateVectorize
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.StateVectorize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StateVectorize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.StateVectorize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TuningOptions
 (let [gfn* (delay (jna-base/name->global-function "auto_scheduler.TuningOptions"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TuningOptions
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "auto_scheduler.TuningOptions"}
+     (apply jna-base/call-function @gfn* args))))
 

@@ -1,208 +1,290 @@
 (ns tvm-clj.jna.fns.tir.transform
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BF16CastElimination
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.BF16CastElimination"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BF16CastElimination
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.BF16CastElimination"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BF16Legalize
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.BF16Legalize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BF16Legalize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.BF16Legalize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BF16Promote
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.BF16Promote"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BF16Promote
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.BF16Promote"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BF16TypeLowering
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.BF16TypeLowering"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BF16TypeLowering
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.BF16TypeLowering"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CoProcSync
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.CoProcSync"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CoProcSync
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.CoProcSync"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CombineContextCall
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.CombineContextCall"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CombineContextCall
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.CombineContextCall"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} CreatePrimFuncPass
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.CreatePrimFuncPass"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn CreatePrimFuncPass
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.CreatePrimFuncPass"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DecorateDeviceScope
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.DecorateDeviceScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DecorateDeviceScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.DecorateDeviceScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} HoistIfThenElse
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.HoistIfThenElse"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn HoistIfThenElse
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.HoistIfThenElse"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} HoistIfThenElseBasic
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.HoistIfThenElseBasic"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn HoistIfThenElseBasic
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.HoistIfThenElseBasic"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InferFragment
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.InferFragment"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InferFragment
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.InferFragment"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InjectCopyIntrin
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.InjectCopyIntrin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InjectCopyIntrin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.InjectCopyIntrin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InjectDoubleBuffer
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.InjectDoubleBuffer"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InjectDoubleBuffer
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.InjectDoubleBuffer"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InjectPrefetch
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.InjectPrefetch"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InjectPrefetch
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.InjectPrefetch"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InjectVirtualThread
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.InjectVirtualThread"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InjectVirtualThread
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.InjectVirtualThread"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} InstrumentBoundCheckers
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.InstrumentBoundCheckers"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn InstrumentBoundCheckers
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.InstrumentBoundCheckers"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LiftAttrScope
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LiftAttrScope"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LiftAttrScope
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LiftAttrScope"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LoopPartition
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LoopPartition"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LoopPartition
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LoopPartition"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LowerCustomDatatypes
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LowerCustomDatatypes"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LowerCustomDatatypes
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LowerCustomDatatypes"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LowerDeviceStorageAccessInfo
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LowerDeviceStorageAccessInfo"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LowerDeviceStorageAccessInfo
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LowerDeviceStorageAccessInfo"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LowerIntrin
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LowerIntrin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LowerIntrin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LowerIntrin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LowerTVMBuiltin
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LowerTVMBuiltin"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LowerTVMBuiltin
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LowerTVMBuiltin"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LowerThreadAllreduce
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LowerThreadAllreduce"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LowerThreadAllreduce
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LowerThreadAllreduce"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} LowerWarpMemory
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.LowerWarpMemory"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn LowerWarpMemory
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.LowerWarpMemory"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} MakePackedAPI
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.MakePackedAPI"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn MakePackedAPI
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.MakePackedAPI"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} NarrowDataType
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.NarrowDataType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn NarrowDataType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.NarrowDataType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PointerValueTypeRewrite
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.PointerValueTypeRewrite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PointerValueTypeRewrite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.PointerValueTypeRewrite"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RemapThreadAxis
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.RemapThreadAxis"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RemapThreadAxis
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.RemapThreadAxis"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RemoveNoOp
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.RemoveNoOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RemoveNoOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.RemoveNoOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RewriteUnsafeSelect
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.RewriteUnsafeSelect"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RewriteUnsafeSelect
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.RewriteUnsafeSelect"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Simplify
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.Simplify"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Simplify
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.Simplify"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SkipAssert
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.SkipAssert"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SkipAssert
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.SkipAssert"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SplitHostDevice
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.SplitHostDevice"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SplitHostDevice
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.SplitHostDevice"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StorageFlatten
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.StorageFlatten"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StorageFlatten
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.StorageFlatten"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} StorageRewrite
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.StorageRewrite"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn StorageRewrite
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.StorageRewrite"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ThreadSync
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.ThreadSync"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ThreadSync
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.ThreadSync"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} UnrollLoop
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.UnrollLoop"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn UnrollLoop
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.UnrollLoop"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} VectorizeLoop
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.VectorizeLoop"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn VectorizeLoop
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.VectorizeLoop"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} VerifyGPUCode
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.VerifyGPUCode"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn VerifyGPUCode
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.VerifyGPUCode"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} VerifyMemory
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.VerifyMemory"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn VerifyMemory
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.VerifyMemory"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} VerifySSA
 (let [gfn* (delay (jna-base/name->global-function "tir.transform.VerifySSA"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn VerifySSA
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "tir.transform.VerifySSA"}
+     (apply jna-base/call-function @gfn* args))))
 

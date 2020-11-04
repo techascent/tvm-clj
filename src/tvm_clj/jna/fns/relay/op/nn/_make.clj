@@ -1,313 +1,437 @@
 (ns tvm-clj.jna.fns.relay.op.nn._make
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} adaptive_avg_pool2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.adaptive_avg_pool2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn adaptive_avg_pool2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.adaptive_avg_pool2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} adaptive_avg_pool3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.adaptive_avg_pool3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn adaptive_avg_pool3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.adaptive_avg_pool3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} adaptive_max_pool2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.adaptive_max_pool2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn adaptive_max_pool2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.adaptive_max_pool2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} adaptive_max_pool3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.adaptive_max_pool3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn adaptive_max_pool3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.adaptive_max_pool3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} avg_pool1d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.avg_pool1d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn avg_pool1d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.avg_pool1d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} avg_pool2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.avg_pool2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn avg_pool2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.avg_pool2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} avg_pool2d_grad
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.avg_pool2d_grad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn avg_pool2d_grad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.avg_pool2d_grad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} avg_pool3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.avg_pool3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn avg_pool3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.avg_pool3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} batch_flatten
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.batch_flatten"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn batch_flatten
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.batch_flatten"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} batch_matmul
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.batch_matmul"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn batch_matmul
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.batch_matmul"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} batch_norm
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.batch_norm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn batch_norm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.batch_norm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bias_add
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.bias_add"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bias_add
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.bias_add"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bitpack
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.bitpack"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bitpack
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.bitpack"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bitserial_conv2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.bitserial_conv2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bitserial_conv2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.bitserial_conv2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bitserial_dense
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.bitserial_dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bitserial_dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.bitserial_dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv2d_NCHWc
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv2d_NCHWc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv2d_NCHWc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv2d_NCHWc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv2d_gemm_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv2d_gemm_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv2d_gemm_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv2d_gemm_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv2d_gemm_without_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv2d_gemm_without_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv2d_gemm_without_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv2d_gemm_without_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv2d_winograd_nnpack_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv2d_winograd_nnpack_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv2d_winograd_nnpack_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv2d_winograd_nnpack_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv2d_winograd_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv2d_winograd_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv2d_winograd_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv2d_winograd_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv2d_winograd_without_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv2d_winograd_without_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv2d_winograd_without_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv2d_winograd_without_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv3d_winograd_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv3d_winograd_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv3d_winograd_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv3d_winograd_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_conv3d_winograd_without_weight_transform
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_conv3d_winograd_without_weight_transform"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_conv3d_winograd_without_weight_transform
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_conv3d_winograd_without_weight_transform"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} contrib_depthwise_conv2d_NCHWc
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.contrib_depthwise_conv2d_NCHWc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn contrib_depthwise_conv2d_NCHWc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.contrib_depthwise_conv2d_NCHWc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} conv1d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.conv1d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn conv1d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.conv1d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} conv1d_transpose
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.conv1d_transpose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn conv1d_transpose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.conv1d_transpose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} conv2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.conv2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn conv2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.conv2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} conv2d_transpose
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.conv2d_transpose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn conv2d_transpose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.conv2d_transpose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} conv3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.conv3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn conv3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.conv3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} conv3d_transpose
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.conv3d_transpose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn conv3d_transpose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.conv3d_transpose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} correlation
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.correlation"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn correlation
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.correlation"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cross_entropy
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.cross_entropy"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cross_entropy
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.cross_entropy"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} cross_entropy_with_logits
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.cross_entropy_with_logits"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn cross_entropy_with_logits
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.cross_entropy_with_logits"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} deformable_conv2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.deformable_conv2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn deformable_conv2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.deformable_conv2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dense
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} depth_to_space
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.depth_to_space"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn depth_to_space
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.depth_to_space"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dilate
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.dilate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dilate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.dilate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dropout
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.dropout"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dropout
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.dropout"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} fifo_buffer
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.fifo_buffer"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn fifo_buffer
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.fifo_buffer"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} global_avg_pool2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.global_avg_pool2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn global_avg_pool2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.global_avg_pool2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} global_max_pool2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.global_max_pool2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn global_max_pool2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.global_max_pool2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} group_norm
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.group_norm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn group_norm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.group_norm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} instance_norm
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.instance_norm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn instance_norm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.instance_norm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} l2_normalize
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.l2_normalize"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn l2_normalize
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.l2_normalize"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} layer_norm
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.layer_norm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn layer_norm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.layer_norm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} leaky_relu
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.leaky_relu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn leaky_relu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.leaky_relu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log_softmax
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.log_softmax"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log_softmax
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.log_softmax"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} lrn
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.lrn"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn lrn
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.lrn"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} max_pool1d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.max_pool1d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn max_pool1d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.max_pool1d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} max_pool2d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.max_pool2d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn max_pool2d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.max_pool2d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} max_pool2d_grad
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.max_pool2d_grad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn max_pool2d_grad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.max_pool2d_grad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} max_pool3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.max_pool3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn max_pool3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.max_pool3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} mirror_pad
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.mirror_pad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn mirror_pad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.mirror_pad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pad
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.pad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.pad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} prelu
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.prelu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn prelu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.prelu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} relu
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.relu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn relu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.relu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} softmax
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.softmax"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn softmax
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.softmax"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} space_to_depth
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.space_to_depth"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn space_to_depth
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.space_to_depth"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sparse_dense
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.sparse_dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sparse_dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.sparse_dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} sparse_transpose
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.sparse_transpose"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn sparse_transpose
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.sparse_transpose"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} upsampling
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.upsampling"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn upsampling
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.upsampling"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} upsampling3d
 (let [gfn* (delay (jna-base/name->global-function "relay.op.nn._make.upsampling3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn upsampling3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "relay.op.nn._make.upsampling3d"}
+     (apply jna-base/call-function @gfn* args))))
 

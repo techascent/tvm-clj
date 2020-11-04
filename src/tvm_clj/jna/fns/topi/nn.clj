@@ -1,118 +1,164 @@
 (ns tvm-clj.jna.fns.topi.nn
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} adaptive_pool
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.adaptive_pool"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn adaptive_pool
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.adaptive_pool"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} adaptive_pool3d
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.adaptive_pool3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn adaptive_pool3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.adaptive_pool3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} batch_matmul
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.batch_matmul"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn batch_matmul
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.batch_matmul"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} bias_add
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.bias_add"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn bias_add
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.bias_add"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} binarize_pack
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.binarize_pack"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn binarize_pack
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.binarize_pack"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} binary_dense
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.binary_dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn binary_dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.binary_dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dense
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.dense"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dense
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.dense"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} dilate
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.dilate"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn dilate
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.dilate"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} flatten
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.flatten"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn flatten
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.flatten"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} global_pool
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.global_pool"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn global_pool
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.global_pool"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} leaky_relu
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.leaky_relu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn leaky_relu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.leaky_relu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} log_softmax
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.log_softmax"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn log_softmax
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.log_softmax"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} lrn
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.lrn"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn lrn
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.lrn"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pad
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.pad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.pad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pool
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.pool"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pool
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.pool"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pool1d
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.pool1d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pool1d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.pool1d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pool3d
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.pool3d"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pool3d
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.pool3d"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} pool_grad
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.pool_grad"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn pool_grad
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.pool_grad"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} prelu
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.prelu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn prelu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.prelu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} relu
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.relu"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn relu
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.relu"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} scale_shift_nchw
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.scale_shift_nchw"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn scale_shift_nchw
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.scale_shift_nchw"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} scale_shift_nhwc
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.scale_shift_nhwc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn scale_shift_nhwc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.scale_shift_nhwc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} softmax
 (let [gfn* (delay (jna-base/name->global-function "topi.nn.softmax"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn softmax
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "topi.nn.softmax"}
+     (apply jna-base/call-function @gfn* args))))
 

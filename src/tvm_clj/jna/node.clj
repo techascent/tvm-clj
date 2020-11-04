@@ -19,7 +19,6 @@
             [tech.v3.resource :as resource]
             ;;Force generation of global functions
             [tvm-clj.jna.fns.node :as node-fns]
-            [tvm-clj.jna.fns.ir :as ir]
             [tvm-clj.jna.fns.runtime :as runtime]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.protocols :as dtype-proto]
@@ -346,7 +345,7 @@ explicitly; it is done for you."
         (node-fns/AsRepr (NodeHandle. tptr #{}))
         (finally (TVMObjectFree tptr)))
       (-> (construct-node (Pointer. long-val))
-          (resource/track {:track-type [:gc :stack]
+          (resource/track {:track-type :auto
                            :dispose-fn #(TVMObjectFree (Pointer. long-val))})))))
 
 
@@ -358,7 +357,7 @@ explicitly; it is done for you."
       (bindings-proto/->tvm-value (apply tvm-array value))
       (map? value)
       (bindings-proto/->tvm-value (apply tvm-map (->> (seq value)
-                                       (apply concat))))
+                                                      (apply concat))))
       (nil? value)
       [(long 0) :null])))
 

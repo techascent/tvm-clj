@@ -1,288 +1,402 @@
 (ns tvm-clj.jna.fns.ir
   (:require [tvm-clj.jna.base :as jna-base]))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AsText
 (let [gfn* (delay (jna-base/name->global-function "ir.AsText"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AsText
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.AsText"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} AttrsListFieldInfo
 (let [gfn* (delay (jna-base/name->global-function "ir.AttrsListFieldInfo"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn AttrsListFieldInfo
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.AttrsListFieldInfo"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BaseFuncCopy
 (let [gfn* (delay (jna-base/name->global-function "ir.BaseFuncCopy"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BaseFuncCopy
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.BaseFuncCopy"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BaseFuncWithAttr
 (let [gfn* (delay (jna-base/name->global-function "ir.BaseFuncWithAttr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BaseFuncWithAttr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.BaseFuncWithAttr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} BaseFunc_Attrs
 (let [gfn* (delay (jna-base/name->global-function "ir.BaseFunc_Attrs"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn BaseFunc_Attrs
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.BaseFunc_Attrs"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Constructor
 (let [gfn* (delay (jna-base/name->global-function "ir.Constructor"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Constructor
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Constructor"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DebugPrint
 (let [gfn* (delay (jna-base/name->global-function "ir.DebugPrint"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DebugPrint
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.DebugPrint"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} DictAttrsGetDict
 (let [gfn* (delay (jna-base/name->global-function "ir.DictAttrsGetDict"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn DictAttrsGetDict
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.DictAttrsGetDict"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EnvFuncCall
 (let [gfn* (delay (jna-base/name->global-function "ir.EnvFuncCall"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EnvFuncCall
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.EnvFuncCall"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EnvFuncGet
 (let [gfn* (delay (jna-base/name->global-function "ir.EnvFuncGet"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EnvFuncGet
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.EnvFuncGet"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} EnvFuncGetPackedFunc
 (let [gfn* (delay (jna-base/name->global-function "ir.EnvFuncGetPackedFunc"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn EnvFuncGetPackedFunc
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.EnvFuncGetPackedFunc"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FloatImm
 (let [gfn* (delay (jna-base/name->global-function "ir.FloatImm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FloatImm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.FloatImm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} FuncType
 (let [gfn* (delay (jna-base/name->global-function "ir.FuncType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn FuncType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.FuncType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GetOp
 (let [gfn* (delay (jna-base/name->global-function "ir.GetOp"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GetOp
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.GetOp"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GlobalTypeVar
 (let [gfn* (delay (jna-base/name->global-function "ir.GlobalTypeVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GlobalTypeVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.GlobalTypeVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} GlobalVar
 (let [gfn* (delay (jna-base/name->global-function "ir.GlobalVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn GlobalVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.GlobalVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IRModule
 (let [gfn* (delay (jna-base/name->global-function "ir.IRModule"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IRModule
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.IRModule"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IncompleteType
 (let [gfn* (delay (jna-base/name->global-function "ir.IncompleteType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IncompleteType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.IncompleteType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} IntImm
 (let [gfn* (delay (jna-base/name->global-function "ir.IntImm"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn IntImm
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.IntImm"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} ListOpNames
 (let [gfn* (delay (jna-base/name->global-function "ir.ListOpNames"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn ListOpNames
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.ListOpNames"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_Add
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_Add"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_Add
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_Add"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_AddDef
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_AddDef"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_AddDef
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_AddDef"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_ContainGlobalVar
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_ContainGlobalVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_ContainGlobalVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_ContainGlobalVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_FromExpr
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_FromExpr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_FromExpr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_FromExpr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_GetGlobalTypeVar
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_GetGlobalTypeVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_GetGlobalTypeVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_GetGlobalTypeVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_GetGlobalTypeVars
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_GetGlobalTypeVars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_GetGlobalTypeVars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_GetGlobalTypeVars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_GetGlobalVar
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_GetGlobalVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_GetGlobalVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_GetGlobalVar"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_GetGlobalVars
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_GetGlobalVars"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_GetGlobalVars
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_GetGlobalVars"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_Import
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_Import"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_Import
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_Import"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_ImportFromStd
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_ImportFromStd"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_ImportFromStd
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_ImportFromStd"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_Lookup
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_Lookup"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_Lookup
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_Lookup"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_LookupDef
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_LookupDef"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_LookupDef
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_LookupDef"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_LookupDef_str
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_LookupDef_str"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_LookupDef_str
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_LookupDef_str"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_LookupTag
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_LookupTag"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_LookupTag
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_LookupTag"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_Lookup_str
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_Lookup_str"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_Lookup_str
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_Lookup_str"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_Update
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_Update"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_Update
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_Update"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Module_UpdateFunction
 (let [gfn* (delay (jna-base/name->global-function "ir.Module_UpdateFunction"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Module_UpdateFunction
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Module_UpdateFunction"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} NodeSetSpan
 (let [gfn* (delay (jna-base/name->global-function "ir.NodeSetSpan"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn NodeSetSpan
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.NodeSetSpan"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OpGetAttr
 (let [gfn* (delay (jna-base/name->global-function "ir.OpGetAttr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OpGetAttr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.OpGetAttr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OpResetAttr
 (let [gfn* (delay (jna-base/name->global-function "ir.OpResetAttr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OpResetAttr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.OpResetAttr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} OpSetAttr
 (let [gfn* (delay (jna-base/name->global-function "ir.OpSetAttr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn OpSetAttr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.OpSetAttr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PointerType
 (let [gfn* (delay (jna-base/name->global-function "ir.PointerType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PointerType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.PointerType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PrettyPrint
 (let [gfn* (delay (jna-base/name->global-function "ir.PrettyPrint"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PrettyPrint
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.PrettyPrint"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} PrimType
 (let [gfn* (delay (jna-base/name->global-function "ir.PrimType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn PrimType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.PrimType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Range
 (let [gfn* (delay (jna-base/name->global-function "ir.Range"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Range
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Range"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Range_from_min_extent
 (let [gfn* (delay (jna-base/name->global-function "ir.Range_from_min_extent"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Range_from_min_extent
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Range_from_min_extent"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RegisterOpAttr
 (let [gfn* (delay (jna-base/name->global-function "ir.RegisterOpAttr"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RegisterOpAttr
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.RegisterOpAttr"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} RelayRefType
 (let [gfn* (delay (jna-base/name->global-function "ir.RelayRefType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn RelayRefType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.RelayRefType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} SourceName
 (let [gfn* (delay (jna-base/name->global-function "ir.SourceName"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn SourceName
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.SourceName"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} Span
 (let [gfn* (delay (jna-base/name->global-function "ir.Span"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn Span
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.Span"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TensorType
 (let [gfn* (delay (jna-base/name->global-function "ir.TensorType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TensorType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TensorType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TextPrinter
 (let [gfn* (delay (jna-base/name->global-function "ir.TextPrinter"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TextPrinter
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TextPrinter"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TupleType
 (let [gfn* (delay (jna-base/name->global-function "ir.TupleType"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TupleType
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TupleType"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TypeCall
 (let [gfn* (delay (jna-base/name->global-function "ir.TypeCall"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TypeCall
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TypeCall"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TypeData
 (let [gfn* (delay (jna-base/name->global-function "ir.TypeData"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TypeData
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TypeData"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TypeRelation
 (let [gfn* (delay (jna-base/name->global-function "ir.TypeRelation"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TypeRelation
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TypeRelation"}
+     (apply jna-base/call-function @gfn* args))))
 
-(def ^{:doc "TVM PackedFn"
-:arglists '([& args])} TypeVar
 (let [gfn* (delay (jna-base/name->global-function "ir.TypeVar"))]
-    (fn [& args] (apply jna-base/call-function @gfn* args))))
+  (defn TypeVar
+   "TVM PackedFn"
+   [& args]
+   (with-bindings {#'jna-base/fn-name "ir.TypeVar"}
+     (apply jna-base/call-function @gfn* args))))
 
