@@ -4,15 +4,17 @@
             [tvm-clj.jna.node :as jna-node]
             [tvm-clj.jna.fns.te :as te-fns]
             [tvm-clj.jna.fns.tir :as tir-fns]
+            [tvm-clj.jna.fns.ir :as ir-fns]
             [tvm-clj.jna.fns.node :as node-fns]
             [tvm-clj.jna.fns.schedule :as schedule-fns]
-            [tvm-clj.jna.fns.ir-pass :as ir-pass-fns]
             [tvm-clj.jna.fns.tir.transform :as tir-transform-fns]
             [tvm-clj.jna.fns.transform :as transform-fns]
             [tvm-clj.jna.fns.codegen :as codegen-fns]
-            [tvm-clj.jna.fns.make :as make-fns]
-            [tech.v2.datatype :as dtype]
-            [tech.resource :as resource]
+            [tvm-clj.jna.fns.schedule :as schedule-fns]
+            [tvm-clj.jna.fns.target :as target-fns]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.errors :as errors]
+            [tech.v3.resource :as resource]
             [clojure.set :as c-set]
             [clojure.string :as s])
   (:refer-clojure :exclude [range cast mod min max]))
@@ -46,9 +48,7 @@
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (bindings/global-node-function "_Var"
-                          (safe-str name)
-                          (->dtype dtype)))
+  (tir-fns/Var (safe-str name) (->dtype dtype)))
 
 
 (defn placeholder
@@ -59,14 +59,15 @@
                      [shape]
                      shape)
                    (mapv ->node))]
-    (bindings/global-node-function "_Placeholder" shape (->dtype dtype)
-                                   (safe-str name))))
+    (te-fns/Placeholder shape
+                        (->dtype dtype)
+                        (safe-str name))))
 
 
 (defn range
   "Create a range with defined start inclusive and end exclusive"
   [start end]
-  (bindings/global-node-function "Range" start end))
+  (ir-fns/Range start end))
 
 
 (defn const
@@ -187,18 +188,13 @@
                 :index-count (count indices)}))
     (let [indices
           (mapv (fn [index-val]
-                  (let [node-data (->node index-val)]
-                    (cond
-                      (= :iteration-variable (bindings/get-node-type node-data))
+                  (let [node-data (->node index-val)
+                        node-type-name (bindings/node-type-name node-data)]
+                    (if (= "tir.IterVar" node-type-name)
                       (:var node-data)
-                      (bindings/is-expression-node? node-data)
-                      node-data
-                      :else
-                      (throw (ex-info "Must be iteration variable or expression"
-                                      {:node-type (bindings/get-node-type node-data)})))))
+                      node-data)))
                 indices)]
-      (call (:dtype tensor) (get-in tensor [:op :name]) indices
-            :halide (:op tensor) (:value_index tensor)))))
+      (tir-fns/ProducerLoad tensor indices))))
 
 
 (defmethod jna-node/get-extended-node-value :tensor
@@ -214,12 +210,10 @@
 
 (defmacro def-bin-op
   "Define a binary operation"
-  [op-name make-name]
-  (let [lhs (symbol "lhs")
-        rhs (symbol "rhs")]
-    `(defn ~op-name
-       [~lhs ~rhs]
-       (bindings/global-node-function ~make-name ~lhs ~rhs))))
+  [op-name op-fn]
+  `(defn ~op-name
+     [~'lhs ~'rhs]
+     (~op-fn ~'lhs ~'rhs)))
 
 
 (defmacro def-op
@@ -253,26 +247,26 @@
 
 
 
-(def-bin-op add "make.Add")
-(def-bin-op sub "make.Sub")
-(def-bin-op mod "make.Mod")
-(def-bin-op mul "make.Mul")
-(def-bin-op div "make.Div")
-(def-bin-op eq "make.EQ")
-(def-bin-op min "make.Min")
-(def-bin-op max "make.Max")
-(def-intrin-op exp)
-(def-intrin-op tanh)
-(def-intrin-op sigmoid)
-(def-intrin-op log)
-(def-intrin-op sqrt)
-(def-intrin-op floor)
-(def-intrin-op ceil)
-(def-intrin-op trunc)
-(def-op abs "make.abs")
-(def-intrin-op round)
-(def-bin-intrin-op power)
-(def-intrin-op popcount)
+(def-bin-op add tir-fns/Add)
+;; (def-bin-op sub "make.Sub")
+;; (def-bin-op mod "make.Mod")
+;; (def-bin-op mul "make.Mul")
+;; (def-bin-op div "make.Div")
+;; (def-bin-op eq "make.EQ")
+;; (def-bin-op min "make.Min")
+;; (def-bin-op max "make.Max")
+;; (def-intrin-op exp)
+;; (def-intrin-op tanh)
+;; (def-intrin-op sigmoid)
+;; (def-intrin-op log)
+;; (def-intrin-op sqrt)
+;; (def-intrin-op floor)
+;; (def-intrin-op ceil)
+;; (def-intrin-op trunc)
+;; (def-op abs "make.abs")
+;; (def-intrin-op round)
+;; (def-bin-intrin-op power)
+;; (def-intrin-op popcount)
 
 
 
@@ -352,7 +346,7 @@ clojure 'if' statement."
    ;; * \note This is usually used to implement composite op
    ;; *  or external op, where the
    ;; */
-   :opaque 4
+   :dim-info 4
    ;; // The following are possible additional
    ;; // types that are provided during schedule
    ;; /*!
@@ -404,13 +398,11 @@ expressions,
 
   (let [domain (when domain
                  (if (and (bindings/is-node-handle? domain)
-                          (= :range (bindings/get-node-type domain)))
+                          (= :range (bindings/node-type-name domain)))
                    domain
                    (range (first domain) (second domain))))
         v (variable name)]
-    (bindings/global-node-function "_IterVar" domain v
-                            (iteration-variable-types iteration-type)
-                            thread-tag)))
+    (tir-fns/IterVar domain v (iteration-variable-types iteration-type) thread-tag)))
 
 
 (defn name->thread-axis-iterator
@@ -474,7 +466,7 @@ expressions,
           body-data (if-not (instance? clojure.lang.Sequential body-data)
                       [body-data]
                       body-data)]
-      (bindings/g-fn "_ComputeOp" (safe-str name) tag attrs compute-dim body-data))))
+      (te-fns/ComputeOp (safe-str name) tag attrs compute-dim body-data))))
 
 
 (defn commutative-reduce
@@ -500,8 +492,8 @@ expressions,
 
 (defn output-tensors
   [compute-op]
-  (->> (clojure.core/range (bindings/global-function "_OpNumOutputs" compute-op))
-       (mapv #(bindings/global-node-function "_OpGetOutput" compute-op (int %1)))))
+  (->> (clojure.core/range (te-fns/OpNumOutputs compute-op))
+       (mapv (partial te-fns/OpGetOutput compute-op))))
 
 
 (defn input-tensors
@@ -519,12 +511,9 @@ expressions,
 
 (defn ->operation
   [tens-or-op]
-  (case (bindings/get-node-type tens-or-op)
-    :tensor (throw-nil tens-or-op :op)
-    :compute-operation tens-or-op
-    :scan-operation tens-or-op
-    :placeholder-operation tens-or-op
-    :external-operation tens-or-op))
+  (if (= (bindings/node-type-name tens-or-op) "Tensor")
+    (throw-nil tens-or-op :op)
+    tens-or-op))
 
 
 (defn create-schedule
@@ -538,10 +527,10 @@ expressions,
 
 (defn ->stage
   [stage-or-schedule operation]
-  (case (bindings/get-node-type stage-or-schedule)
-    :stage stage-or-schedule
-    :schedule (throw-nil (:stage_map stage-or-schedule)
-                         (->operation operation))))
+  (case (bindings/node-type-name stage-or-schedule)
+    "Stage" stage-or-schedule
+    "Schedule" (throw-nil (:stage_map stage-or-schedule)
+                          (->operation operation))))
 
 
 (defmethod jna-node/get-extended-node-value :schedule
@@ -673,6 +662,18 @@ expressions,
     retval))
 
 
+;;Below taken from
+;;https://github.com/apache/incubator-tvm/blob/728b829575e5e690870b111ae2256cbe0f3dbe6f/python/tvm/driver/build_module.py
+
+(def lowered-function-type->int-map
+  {:mixed-function 0
+   :host-function 1
+   :device-functions 2})
+
+
+(def int->lowered-function-type-map (c-set/map-invert lowered-function-type->int-map))
+
+
 (defn declare-buffer
   "Decleare a new symbolic buffer.
 
@@ -747,9 +748,11 @@ expressions,
                 shape
                 [shape])
         elem-offset (if elem-offset elem-offset 0)
-        data (if data data (variable name :dtype "handle"))
+        data (if data data
+                 (tir-fns/Var name (ir-fns/PointerType
+                                    (ir-fns/PrimType dtype))))
         offset-factor 0]
-    (te-fns/Buffer
+    (tir-fns/Buffer
      data (->dtype dtype) shape strides elem-offset
      (safe-str name) scope
      data-alignment offset-factor
@@ -762,87 +765,76 @@ and bind map with all arguments bound to input buffers with defined buffer layou
 Bind map is a map of type NodeHandle->NodeHandle where the keys are tensors and the
 values are buffers.  The default is to bind a compact, non-offset buffer so if you want
 a different buffer type than this then you need to bind it yourself."
-  [arg-list bind-map build-config]
+  [arg-list compact? bind-map]
   (reduce (fn [[arg-list bind-map] arg]
-            (condp = (bindings/get-node-type arg)
-              :tensor
+            (condp = (bindings/node-type-name arg)
+              "Tensor"
               (if-let [buf (bind-map arg)]
                 [(conj arg-list buf) bind-map]
                 (let [shape (:shape arg)
                       new-buf (declare-buffer
-                               (:shape arg) :dtype (:dtype arg)
-                               :data-alignment (:data_alignment build-config))]
+                               (:shape arg) :dtype (:dtype arg))]
                   [(conj arg-list new-buf) (assoc bind-map arg new-buf)]))
-              :buffer
+              "Buffer"
               [(conj arg-list arg) bind-map]
-              :variable
+              "tir.Var"
               [(conj arg-list arg) bind-map]))
-          [[] bind-map]
+          [[] (or bind-map {})]
           arg-list))
 
 
-(defn- gfnr
-  "Like global-node-function but the first argument is assumed to be the 'this' object
-  and the second is the function to call.  We need this slight transposition in order
-  to use the threading macro with the long set of ir pass possibilities."
-  [item fn-name & args]
-  ;;These are all nodes but don't upack fields; this causes too much unnecessary
-  ;;unpacking.
-  (apply bindings/g-fn fn-name item args))
+(defn schedule->function
+  "According to the given schedule, form a function.
+
+    Parameters
+    ----------
+    sch : tvm.te.schedule.Schedule
+        The given scheduler to form the raw body
+
+    args : list of Buffer or Tensor or Var
+        The argument lists to the function.
+
+    name : str
+        The name of result function.
+
+    binds : dict of :any:`Tensor` to :any:`Buffer`, optional
+        The binds information
+
+    Returns
+    -------
+    The body formed according to the given schedule"
+  [sch args name binds]
+  ;; normalize schedule first
+  (let [pass-ctx (transform-fns/GetCurrentPassContext)
+        config (into {} (:config pass-ctx))
+        sch (te-fns/ScheduleNormalize sch)
+        bounds (schedule-fns/InferBound sch)
+        stmt (schedule-fns/ScheduleOps sch bounds)
+        compact? (schedule-fns/VerifyCompactBuffer stmt)
+        [arg-list binds] (bind-arguments args compact? binds)
+
+        stmt (schedule-fns/SchedulePostProcRewriteForTensorCore stmt sch binds)
+        func (schedule-fns/SchedulePostProcToPrimFunc arg-list stmt binds)
+        func (ir-fns/BaseFuncWithAttr func
+                                      (->node "global_symbol")
+                                      (->node name))
+
+        func (if (get config "tir.noalias" true)
+               (ir-fns/BaseFuncWithAttr func
+                                        (->node "tir.noalias")
+                                        (->node true))
+               func)]
+    (ir-fns/IRModule {(ir-fns/GlobalVar (safe-str name)) func}
+                     {})))
 
 
-
-(def lowered-function-type->int-map
-  {:mixed-function 0
-   :host-function 1
-   :device-functions 2})
-
-
-(def int->lowered-function-type-map (c-set/map-invert lowered-function-type->int-map))
-
-
-(def build-config-node-defaults
-  {
-   "auto_unroll_max_step" 0
-   "auto_unroll_max_depth" 8
-   "auto_unroll_max_extent" 0
-   "unroll_explicit" true
-   "detect_global_barrier" false
-   "partition_const_loop" false
-   "offset_factor" 0
-   "data_alignment" -1
-   "restricted_func" true
-   "double_buffer_split_loop" 1
-   "dump_pass_ir" false
-   "instrument_bound_checkers" false
-   "disable_select_rewriting" false
-   "disable_vectorize" false
-   })
-
-(defn make-build-config
-  []
-  (apply node-fns/MakeNode "BuildConfig"
-         (flatten (seq build-config-node-defaults))))
-
-(defn- form-body
-  [schedule]
-  (let [sch (te-fns/ScheduleNormalize schedule)]
-    (-> sch
-        (schedule-fns/ScheduleOps(schedule-fns/InferBound sch))
-        (tir-transform-fns/InjectPrefetch))))
-
-(defn get-build-config
-  [& [build-config]]
-  (or build-config (te-fns/GetCurrentBuildConfig)))
-
-
-(defn schedule->lowered-function
+(defn lower
   "Lowering step before build into target.
 
     Parameters
     ----------
-    schedule : tvm.Schedule
-        The schedule to be builded
+    sch : tvm.te.schedule.Schedule
+        The schedule to be built
 
     args : list of Buffer or Tensor or Var
         The argument lists to the function.
@@ -850,222 +842,140 @@ a different buffer type than this then you need to bind it yourself."
     name : str, optional
         The name of result function.
 
-    bind-map: map of {:tensor :buffer}, optional
-        mapping fuction or hash-map that maps the Tensor to Buffer which specified the
-  data layout
+    binds : dict of :any:`Tensor` to :any:`Buffer`, optional
+        Dictionary that maps the Tensor to Buffer which specified the data layout
         requirement of the function. By default, a new compact buffer is created
-        for each tensor in the argument list.
+        for each tensor in the argument.
 
-    simple-mode? : bool, optional (not currently implemented)
+    simple_mode : bool, optional
         Whether only output simple and compact statement, this will skip
         LoopPartition, api wrapper generation and Unrolling.
 
     Returns
     -------
-    f : LoweredFunc or Stmt
-       The result function, if with_api_wrapper=False
-       Then the Stmt before make api is returned.
+    m : IRModule or Stmt
+       The result IRModule, if simple_mode=False
+       Then the Stmt before make api is returned."
+  [sch args {:keys [name binds simple-mode? optimization-level]
+             :or {name "main"
+                  optimization-level 2}}]
+  ;; config setup
+  (let [pass-ctx (transform-fns/GetCurrentPassContext)
+        ;;Make defaults work without exceptions
+        config (into {} (:config pass-ctx))
+        instrument-bound-checkers? (boolean (get config "tir.instrument_bound_checkers"))
+        disable-vectorize? (boolean (get config "tir.disable_vectorize"))
+        ;;Lower passes are tuples [pass-idx pass-fn]
+        lower-phases (->> (get config "tir.add_lower_pass")
+                          (group-by first)
+                          (map (fn [[k v]] [k (mapv second v)]))
+                          (into {}))
+
+        ;; Phase 0
+        mod (if (= "Schedule" (bindings/node-type-name sch))
+              (schedule->function sch args name binds)
+              sch)
+        pass-list (concat (get lower-phases 0)
+                          [(tir-transform-fns/InjectPrefetch)
+                           (tir-transform-fns/StorageFlatten 64 instrument-bound-checkers?)
+                           (tir-transform-fns/BF16Legalize)
+                           (tir-transform-fns/NarrowDataType 32)
+                           (tir-transform-fns/Simplify)]
+                          (get lower-phases 1)
+                          (when-not simple-mode?
+                            [(tir-transform-fns/LoopPartition)])
+                          [(tir-transform-fns/VectorizeLoop (not disable-vectorize?))
+                           (tir-transform-fns/InjectVirtualThread)
+                           (tir-transform-fns/InjectDoubleBuffer)
+                           (tir-transform-fns/StorageRewrite)
+                           (tir-transform-fns/UnrollLoop)]
+                          (get lower-phases 2)
+                          [(tir-transform-fns/Simplify)
+                           (tir-transform-fns/RemoveNoOp)
+                           (tir-transform-fns/RewriteUnsafeSelect)
+                           (tir-transform-fns/HoistIfThenElse)]
+                          (get lower-phases 3)
+                          (when instrument-bound-checkers?
+                            [(tir-transform-fns/InstrumentBoundCheckers)]))
+        optimize (transform-fns/Sequential pass-list optimization-level "sequential" nil)]
+    (transform-fns/RunPass optimize mod)))
+
+
+
+(defn build
+    "Build a function with arguments as signature. Code will be generated
+    for devices coupled with target information.
+
+    Parameters
+    ----------
+    inputs : tvm.te.Schedule, IRModule, or dict of target to IRModule
+        The schedule to be built
+
+    args : list of Buffer or Tensor or Var, optional
+        The argument lists to the function.
+
+    target : str or :any:`tvm.target.Target`, optional
+        The target and option of the compilation.
+
+    target_host : str or :any:`tvm.target.Target` optional
+        Host compilation target, if target is device.
+        When TVM compiles device specific program such as CUDA,
+        we also need host(CPU) side code to interact with the driver
+        setup the dimensions and parameters correctly.
+        target_host is used to specify the host side codegen target.
+        By default, llvm is used if it is enabled,
+        otherwise a stackvm intepreter is used.
+
+    name : str, optional
+        The name of result function.
+
+    binds : dict, optional
+        Dictionary that maps the binding of symbolic buffer to Tensor.
+        By default, a new buffer is created for each tensor in the argument.
+
+    Returns
+    -------
+    ret : tvm.module
+        A module that combines both host and device code.
+
+    Examples
+    ________
+    There are two typical example uses of this function depending on the type
+    of the argument `inputs`:
+    1. it is an IRModule.
+
+    .. code-block:: python
+
+        n = 2
+        A = te.placeholder((n,), name='A')
+        B = te.placeholder((n,), name='B')
+        C = te.compute(A.shape, lambda *i: A(*i) + B(*i), name='C')
+        s = tvm.te.create_schedule(C.op)
+        m = tvm.lower(s, [A, B, C], name=\"test_add\")
+        rt_mod = tvm.build(m, target=\"llvm\")
+
+    2. it is a dict of compilation target to IRModule.
+
+    .. code-block:: python
+
+        n = 2
+        A = te.placeholder((n,), name='A')
+        B = te.placeholder((n,), name='B')
+        C = te.compute(A.shape, lambda *i: A(*i) + B(*i), name='C')
+        s1 = tvm.te.create_schedule(C.op)
+        with tvm.target.cuda() as cuda_tgt:
+          s2 = topi.cuda.schedule_injective(cuda_tgt, [C])
+          m1 = tvm.lower(s1, [A, B, C], name=\"test_add1\")
+          m2 = tvm.lower(s2, [A, B, C], name=\"test_add2\")
+          rt_mod = tvm.build({\"llvm\": m1, \"cuda\": m2}, target_host=\"llvm\")
+
+    Note
+    ----
+    See the note on :any:`tvm.target` on target string format.
     "
-  [schedule args name
-   & {:keys [build-config bind-map simple-mode? cache-line-size]
-      :or {bind-map {}
-           cache-line-size 64}}]
-  (let [build-config (or build-config (get-build-config))
-        [arg-list bind-map] (bind-arguments args bind-map build-config)
-        stmt (form-body schedule)
-        compact (ir-pass-fns/VerifyCompactBuffer stmt)
-        ;;unpack the build config
-        {:keys [instrument_bound_checkers
-                partition_const_loop
-                double_buffer_split_loop
-                auto_unroll_max_step
-                auto_unroll_max_depth
-                auto_unroll_max_extent
-                unroll_explicit
-                disable_select_rewriting
-                disable_vectorize
-                restricted_func]
-         } build-config
-        ;;Phase 1
-        stmt
-        (-> stmt
-            (ir-pass-fns/StorageFlatten bind-map cache-line-size
-                                        instrument_bound_checkers)
-            (ir-pass-fns/CanonicalSimplify))
-
-        ;;Phase 2
-        stmt (if simple-mode?
-               stmt
-               (ir-pass-fns/LoopPartition stmt partition_const_loop))
-        stmt (if (not= 0 disable_vectorize)
-               (ir-pass-fns/SkipVectorize stmt)
-               (ir-pass-fns/VectorizeLoop stmt))
-
-        stmt (-> stmt
-                 (ir-pass-fns/InjectVirtualThread)
-                 (ir-pass-fns/InjectDoubleBuffer double_buffer_split_loop)
-                 (ir-pass-fns/StorageRewrite)
-                 (ir-pass-fns/UnrollLoop auto_unroll_max_step
-                                         auto_unroll_max_depth
-                                         auto_unroll_max_extent
-                                         unroll_explicit))
-        stmt (-> stmt
-                 (ir-pass-fns/Simplify)
-                 (ir-pass-fns/LowerStorageAccessInfo)
-                 (ir-pass-fns/RemoveNoOp))
-        stmt (if (not= 0 disable_select_rewriting)
-               stmt
-               (ir-pass-fns/RewriteUnsafeSelect stmt))
-        stmt (if (not= 0 instrument_bound_checkers)
-               (ir-pass-fns/InstrumentBoundCheckers stmt)
-               stmt)]
-    (if simple-mode?
-      stmt
-      (ir-pass-fns/MakeAPI stmt name arg-list 0 restricted_func))))
-
-
-(defn node->str
-  [node]
-  (bindings/g-fn "_format_str" node))
-
-
-(defn schedule->str
-  [schedule arg-list fn-name]
-  (-> (schedule->lowered-function schedule arg-list fn-name :simple-mode? true)
-      node->str))
-
-
-(def target-name->props
-  [[#{:llvm :cpu} {:keys #{:cpu}}]
-   [#{:cuda :nvptx} (fn [target-name]
-                        {:keys #{:cuda :gpu}
-                         :max-num-threads 512
-                         :thread-warp-size 32})]
-   [#{:rocm :opencl} (fn [target-name]
-                         {:keys #{:rocm :gpu}
-                          :max-num-threads 256})]
-   [#{:metal :vulkan} (fn [target-name]
-                          {:keys #{:gpu target-name}
-                           :max-num-threads 256})]
-   [#{:opengl} (fn [target-name]
-                  {:keys #{:opengl}})]])
-
-(defn target-info
-  [target-name]
-  (let [target-map-fn (->> target-name->props
-                           (filter #((first %) target-name))
-                           first
-                           second)]
-    (when-not-error target-map-fn
-      (ex-info "Failed to find target properties in target"
-               {:target-name target-name}))
-    (merge {:target-name target-name
-            :thread-warp-size 1}
-           (target-map-fn target-name))))
-
-
-(defn target-name->thread-warp-size
-  ^long [target-name]
-  (long
-   (:thread-warp-size (target-info target-name))))
-
-
-(defn lowered-functions->module
-  [lowered-function-seq & {:keys [build-config target-name target-host]
-                           :or {target-name :llvm
-                                target-host :llvm}}]
-  (let [arg-type-list (map bindings/get-node-type lowered-function-seq)]
-    (when-not-error (= #{:lowered-function} (set arg-type-list))
-      (ex-info "Argumentis not a sequence of lowered functions"
-               {:arg-types arg-type-list})))
-  (let [build-config (or build-config (get-build-config))
-        arg-name-set (->> (map :name lowered-function-seq)
-                          set)
-        _ (when-not-error (= (count lowered-function-seq)
-                             (count arg-name-set))
-            (ex-info "Arguments have duplicate names or are themselves duplicated"
-                     {:arg-names (mapv :name lowered-function-seq)}))
-        [host-fns device-fns]
-        (reduce (fn [[host-fns device-fns] lowered-fn]
-                  (condp = (:func_type lowered-fn)
-                    1 ;kHostFunc
-                    [(conj host-fns lowered-fn) device-fns]
-                    2 ;kDeviceFunc
-                    [host-fns (conj device-fns lowered-fn)]
-                    0 ;kMixedFunc
-                    (let [warp-size (long (target-name->thread-warp-size target-name))
-                          fsplits (-> (if (not= 0 (:detect_global_barrier
-                                                   build-config))
-                                        (ir-pass-fns/ThreadSync lowered-fn "global")
-                                        lowered-fn)
-                                      (ir-pass-fns/LowerThreadAllreduce warp-size)
-                                      (ir-pass-fns/SplitHostDevice))]
-                      [(conj host-fns (first fsplits))
-                       (concat device-fns (rest fsplits))])))
-                [[] []]
-                lowered-function-seq)
-        host-fns
-        (mapv (fn [host-fn]
-                (ir-pass-fns/BindDeviceType
-                 host-fn
-                 (bindings/device-type->int target-host))
-                (-> (ir-pass-fns/LowerTVMBuiltin host-fn)
-                    (ir-pass-fns/LowerIntrin (name target-host))
-                    (ir-pass-fns/CombineContextCall)))
-              host-fns)
-        ^runtime$TVMModuleHandle mhost (codegen-fns/_Build
-                                        host-fns
-                                        (name target-host))]
-    (when (seq device-fns)
-      (resource/stack-resource-context
-       (->> (mapv #(bindings/g-fn "ir_pass.LowerIntrin" % (name target-name))
-                  device-fns)
-             (#(bindings/g-fn "codegen._Build" % (name target-name)))
-             (bindings/mod-import mhost))))
-    mhost))
-
-
-(defn schedules->fns
-  "Given a sequence of schedule-data, return a map of name to clojure
-  callable function.
-  A module is created and added to the resource context transparently.
-  Schedule data:
-  {:name :fn-name
-   :arglist arguments
-   :schedule schedule
-   :bind-map (optional) bind-map
-  }
-  returns:
-  {:module module
-   :fn-map map of name->IFn (clojure callable function.)"
-  [sched-data-seq & {:keys [build-config
-                            target-name
-                            target-host]
-                     :or {
-                          target-name :llvm
-                          target-host :llvm}}]
-  (let [build-config (or build-config (get-build-config))
-        sched-data-seq (map (fn [{:keys [name] :as entry}]
-                              (assoc entry :c-name
-                                     (safe-str name)))
-                            sched-data-seq)
-        lowered-functions
-        (mapv (fn [{:keys [c-name arglist schedule bind-map]}]
-                             (schedule->lowered-function
-                              schedule arglist c-name
-                              :build-config build-config
-                              :bind-map (or bind-map {})))
-                           sched-data-seq)
-        module (lowered-functions->module
-                lowered-functions
-                :build-config build-config
-                :target-name target-name
-                :target-host target-host)]
-    {:module module
-     :fn-map
-     (->> sched-data-seq
-          (map (fn [{:keys [c-name name] :as seq}]
-                 (let [mod-fn (bindings/get-module-function module c-name)]
-                   [name (fn [& args]
-                           (apply bindings/call-function mod-fn args))])))
-          (into {}))}))
+  [fn-seq {:keys [target target-host]
+           :or {target "llvm"
+                target-host "llvm"}}]
+  ;;map of target to IRModule
+  (let [])
+)

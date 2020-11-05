@@ -2,9 +2,9 @@
   (:require [clojure.test :refer :all]
             [tvm-clj.api :as api]
             [tvm-clj.tvm-jna :as tvm-bindings]
-            [tech.resource :as resource]
-            [tech.v2.datatype :as dtype]
-            [tech.v2.datatype.functional :as dfn]))
+            [tech.v3.resource :as resource]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.functional :as dfn]))
 
 
 (defn call-myadd-fn
@@ -39,11 +39,12 @@
     (if (= :cpu build-target)
       (api/stage-cpu-injective schedule compute-op)
       (api/stage-gpu-injective schedule compute-op))
-    (-> (api/schedules->fns [{:name :myadd
-                              :arglist [A B C]
-                              :schedule schedule}]
-                            :target-name build-target)
-        (get-in [:fn-map :myadd]))))
+    #_(-> (api/schedules->fns [{:name :myadd
+                                :arglist [A B C]
+                                :schedule schedule}]
+                              :target-name build-target)
+          (get-in [:fn-map :myadd]))
+    :failed))
 
 
 (deftest add-cpu

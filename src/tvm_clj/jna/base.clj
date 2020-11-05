@@ -237,8 +237,8 @@ Argpair is of type [symbol type-coersion]."
                  "Call a tvm function"
                  Integer
                  [fn-handle checknil]
-                 [arg_values checknil]
-                 [type_codes checknil]
+                 [arg_values jna/as-ptr]
+                 [type_codes jna/as-ptr]
                  [num_args int]
                  [ret_val long-ptr]
                  [ret_type_code int-ptr])
@@ -297,21 +297,27 @@ This is in order to ensure that, for instance, deserialization of a node's field
   [long-val val-type-kwd]
   nil)
 
+(defn raw-call-function
+  "Call the function but make no attempt to convert the result tuple
+  into the jvm."
+  [tvm-fn & args]
+  (resource/stack-resource-context
+   (let [retval (LongByReference.)
+         rettype (IntByReference.)
+         [tvm-args arg-types n-args] (arg-list->tvm-args args)]
+     (check-call
+      (TVMFuncCall tvm-fn
+                   tvm-args arg-types n-args
+                   retval rettype))
+     [(.getValue retval)
+      (tvm-datatype->keyword-nothrow (.getValue rettype))])))
+
 
 (defn call-function
   [tvm-fn & args]
-  (let [fn-ret-val
-        (resource/stack-resource-context
-         (let [retval (LongByReference.)
-               rettype (IntByReference.)
-               [tvm-args arg-types n-args] (arg-list->tvm-args args)]
-           (check-call
-            (TVMFuncCall tvm-fn
-                         tvm-args arg-types n-args
-                         retval rettype))
-           [(.getValue retval)
-            (tvm-datatype->keyword-nothrow (.getValue rettype))]))]
+  (let [fn-ret-val (apply raw-call-function tvm-fn args)]
     (apply tvm-value->jvm fn-ret-val)))
+
 
 (make-tvm-jna-fn TVMObjectFree
                  "Free a tvm node."

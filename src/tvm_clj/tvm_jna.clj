@@ -1,5 +1,6 @@
 (ns tvm-clj.tvm-jna
   (:require [tvm-clj.jna.library-paths]
+            [tech.v3.datatype.errors :as errors]
             ;;PRotocols independent of specific bindings
             [tvm-clj.bindings.protocols :as bindings-proto]
             ;;Definitions indepdnent of specific bindings
@@ -8,7 +9,8 @@
             [tvm-clj.jna.dl-tensor :as dl-tensor]
             [tvm-clj.jna.base :as tvm-jna-base]
             [tvm-clj.jna.node :as node]
-            [tvm-clj.jna.module :as module])
+            [tvm-clj.jna.module :as module]
+            [tvm-clj.jna.fns.runtime :as runtime])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
@@ -40,7 +42,7 @@
 
 (defn node-type-name
   [item]
-  (bindings-proto/node-type-index item))
+  (bindings-proto/node-type-name item))
 
 
 (defn device-id
@@ -155,26 +157,23 @@ Not all backends in TVM can offset their pointer types.  For this reason, tvm ar
   (node/is-node-handle? item))
 
 
-(defn get-node-type
-  [node-handle]
-  (node/get-node-type node-handle))
-
 (defn is-expression-node?
   [node]
-  (definitions/expression-set (get-node-type node)))
+  (errors/throwf "is-expression-node? %s" (node-type-name node)))
 
 
 (defn tvm-array
   [jvm-ary]
   (apply node/tvm-array jvm-ary))
 
+
 (defn device-exists?
   [device-type ^long device-id]
   (if (= device-type :cpu)
     (= device-id 0)
-    (= 1
-       (g-fn "_GetDeviceAttr" (tvm-jna-base/device-type->int device-type) device-id
-             (definitions/device-attribute-map :exists)))))
+    (= 1 (runtime/GetDeviceAttr
+          (tvm-jna-base/device-type->int device-type) device-id
+          (definitions/device-attribute-map :exists)))))
 
 
 (defn get-module-function

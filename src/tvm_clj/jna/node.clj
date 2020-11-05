@@ -31,16 +31,10 @@
            [clojure.lang MapEntry IFn]))
 
 
-(defn get-node-type
-  [node-handle]
-  (get bindings-defs/node-type-name->keyword-map
-       (bindings-proto/node-type-name node-handle)))
-
-
 (defmulti get-extended-node-value
   "Override this to enable type-specific lookups into nodes."
   (fn [node-handle item-key]
-    (get-node-type node-handle)))
+    (bindings-proto/node-type-name node-handle)))
 
 
 (defmethod get-extended-node-value :default
@@ -207,13 +201,14 @@
   (->ptr-backing-store [item] handle)
   Object
   (equals [a b]
-    (= (.hashCode a) (.hashCode b)))
+    (if (nil? b)
+      false
+      (= (.hashCode a) (.hashCode b))))
   (hashCode [this]
-    (-> (global-function "_raw_ptr" this)
+    (-> (runtime/ObjectPtrHash this)
         long
         .hashCode))
-  (toString [this]
-    (jna-base/global-function "_format_str" this))
+  (toString [this] (node-fns/AsRepr this))
 
   ObjectReader
   (lsize [this] num-items)
@@ -265,6 +260,16 @@
   Iterable
   (iterator [this]
     (.iterator ^Iterable (get-map-items this)))
+  Object
+  (equals [a b]
+    (if (nil? b)
+      false
+      (= (.hashCode a) (.hashCode b))))
+  (hashCode [this]
+    (-> (runtime/ObjectPtrHash this)
+        long
+        .hashCode))
+  (toString [this] (node-fns/AsRepr this))
   IFn
   (invoke [this arg] (.get this arg))
   (applyTo [this arglist]
@@ -380,6 +385,9 @@ explicitly; it is done for you."
     (node-fns/_const numeric-value dtype)))
 
 
+(defonce str-fn* (delay (jna-base/name->global-function "runtime.String")))
+
+
 (extend-protocol bindings-proto/PConvertToNode
   Boolean
   (->node [item] (const item "uint1x1"))
@@ -399,10 +407,15 @@ explicitly; it is done for you."
   (->node [item] (apply tvm-array (map bindings-proto/->node item)))
   Map
   (->node [item] (apply tvm-map (apply concat item)))
+  String
+  (->node [item]
+    (let [[long-val _ntype] (jna-base/raw-call-function @str-fn* item)]
+      (NodeHandle. (Pointer. (long long-val)) #{})))
   Object
   (->node [item]
     (cond
       (instance? Iterable item)
       (apply tvm-array (map bindings-proto/->node item))
       :else
-      (throw (Exception. "Failed to go to node.")))))
+      (throw (Exception. (format "Object type %s is not convertible to node"
+                                 (type item)))))))
