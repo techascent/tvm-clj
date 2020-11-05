@@ -8,31 +8,32 @@
                                       datatype->dl-datatype
                                       dl-datatype->datatype]]
             [tvm-clj.jna.stream :as stream]
-            [tech.resource :as resource]
+            [tech.v3.resource :as resource]
             [tvm-clj.bindings.protocols :refer [->tvm
                                                 base-ptr
                                                 ->tvm-value
                                                 byte-offset] :as bindings-proto]
             [tvm-clj.bindings.definitions :refer [device-type-int->device-type]]
 
-            [tech.jna :refer [checknil] :as jna]
-            [tech.v2.datatype :as dtype]
-            [tech.v2.datatype.protocols :as dtype-proto]
-            [tech.v2.datatype.jna :as dtype-jna]
-            [tech.v2.datatype.casting :as casting]
-            [tech.v2.tensor.dimensions :as tens-dims]
-            [tech.v2.tensor.dimensions.analytics :as dims-analytics]
-            [tech.v2.tensor.pprint :as dtt-pprint]
-            [tech.v2.tensor :as dtt]
-            [tech.v2.tensor.protocols :as dtt-proto])
+            [tech.v3.jna :refer [checknil] :as jna]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.protocols :as dtype-proto]
+            [tech.v3.datatype.casting :as casting]
+            [tech.v3.datatype.native-buffer :as native-buffer]
+            [tech.v3.tensor.dimensions :as tens-dims]
+            [tech.v3.tensor.dimensions.analytics :as dims-analytics]
+            [tech.v3.tensor.pprint :as dtt-pprint]
+            [tech.v3.tensor :as dtt]
+            [clojure.tools.logging :as log])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
             DLPack$DLManagedTensor]
-           [java.io Writer]))
+           [java.io Writer]
+           [tech.v3.datatype.native_buffer NativeBuffer]))
 
 
-(def ^:dynamic *debug-dl-tensor-lifespan* false)
+(set! *warn-on-reflection* true)
 
 
 (defn ensure-array
@@ -76,25 +77,35 @@
 (declare allocate-device-array)
 
 
-(defn as-typed-buffer
-  [^DLPack$DLTensor dl-tensor]
-  (dtype-jna/unsafe-ptr->typed-pointer
-   (jna/->ptr-backing-store dl-tensor)
-   (* (dtype/ecount dl-tensor)
-      (casting/numeric-byte-width (dtype/get-datatype dl-tensor)))
-   (dtype/get-datatype dl-tensor)))
+(defn ->native-buffer
+  ^NativeBuffer [^DLPack$DLTensor dl-tensor]
+  (let [tens-dtype (dtype/elemwise-datatype dl-tensor)]
+    (native-buffer/wrap-address (Pointer/nativeValue
+                                 (jna/->ptr-backing-store dl-tensor))
+                                (* (dtype/ecount dl-tensor)
+                                   (casting/numeric-byte-width tens-dtype))
+                                tens-dtype (dtype-proto/platform-endianness)
+                                dl-tensor)))
 
 
 (declare pointer->tvm-ary)
 
 
+(defn- long-array-ptr->jvm
+  ^NativeBuffer [^Pointer ary ^long n-elems src]
+  (let [nvalue (Pointer/nativeValue ary)]
+    (native-buffer/wrap-address
+     nvalue
+     (* n-elems Long/BYTES)
+     :int64
+     (dtype-proto/platform-endianness)
+     src)))
+
+
 (defn dl-tensor-strides
   [^DLPack$DLTensor item]
   (if-let [strides (.strides item)]
-    (-> (dtype-jna/unsafe-address->typed-pointer
-         (Pointer/nativeValue strides)
-         (* (.ndim item) Long/BYTES)
-         :int64))
+    (long-array-ptr->jvm strides (.ndim item) item)
     (-> (dtype/shape item)
         (dims-analytics/shape-ary->strides))))
 
@@ -119,104 +130,46 @@
         Pointer/nativeValue
         (+ (long (byte-offset item)))
         (Pointer.)))
-  dtype-proto/PDatatype
-  (get-datatype [item] (dl-datatype->datatype (.dtype item)))
+  dtype-proto/PToNativeBuffer
+  (convertible-to-native-buffer? [item] true)
+  (->native-buffer [item] (->native-buffer item))
+  dtype-proto/PElemwiseDatatype
+  (elemwise-datatype [item] (dl-datatype->datatype (.dtype item)))
   dtype-proto/PShape
   (shape [item]
-    (-> (dtype-jna/unsafe-address->typed-pointer
-         (Pointer/nativeValue (.shape item))
-         (* (.ndim item) Long/BYTES)
-         :int64)
-        (dtype/->vector)))
-  dtype-proto/PCountable
+    (vec (long-array-ptr->jvm (.shape item)
+                              (.ndim item)
+                              item)))
+  dtype-proto/PECount
   (ecount [item] (apply * (dtype/shape item)))
   dtype-proto/PClone
   (clone [item]
-    (allocate-device-array (dtype/shape item)
-                           (dtype/get-datatype item)
-                           (bindings-proto/device-type item)
-                           (bindings-proto/device-id item)))
-  dtype-proto/PPrototype
-  (from-prototype [item datatype shape]
-    (allocate-device-array shape datatype
-                           (bindings-proto/device-type item)
-                           (bindings-proto/device-id item)))
-  dtype-proto/PSetConstant
-  (set-constant! [item offset value elem-count]
+    (dtype/copy! item
+                 (allocate-device-array (dtype/shape item)
+                                        (dtype/get-datatype item)
+                                        (bindings-proto/device-type item)
+                                        (bindings-proto/device-id item))))
+  dtype-proto/PToNDBufferDesc
+  (convertible-to-nd-buffer-desc? [item] (is-cpu-tensor? item))
+  (->nd-buffer-descriptor [item]
     (check-cpu-tensor item)
-    (dtype-proto/set-constant! (as-typed-buffer item) offset value elem-count))
-  dtype-proto/PToNioBuffer
-  (convertible-to-nio-buffer? [item] (boolean (is-cpu-tensor? item)))
-  (->buffer-backing-store [item]
-    (dtype-proto/->buffer-backing-store (as-typed-buffer item)))
-  dtype-proto/PBuffer
-  (sub-buffer [buffer offset length]
-    (let [base-ptr (bindings-proto/base-ptr buffer)
-          datatype (dtype/get-datatype buffer)
-          byte-offset (long (bindings-proto/byte-offset buffer))]
-      (pointer->tvm-ary base-ptr
-                        (bindings-proto/device-type buffer)
-                        (bindings-proto/device-id buffer)
-                        datatype
-                        [length]
-                        nil
-                        ;;add the byte offset where the new pointer should start
-                        (+ byte-offset
-                           (* (long offset)
-                              (long (dtype/datatype->byte-size
-                                     datatype))))
-                        ;;Use the passed in buffer as a gc-root object; obviously the
-                        ;;new thing should refer back to the source.
-                        buffer)))
-  ;;Do jna buffer to take advantage of faster memcpy, memset, and
-  ;;other things jna datatype bindings provide.
-  dtype-proto/PCopyRawData
-  (copy-raw->item! [raw-data ary-target target-offset options]
-    (check-cpu-tensor raw-data)
-    (dtype-proto/copy-raw->item! (as-typed-buffer raw-data) ary-target
-                                 target-offset options))
-  dtype-proto/PToArray
-  (->sub-array [item])
-  (->array-copy [item]
-    (check-cpu-tensor item)
-    (dtype-proto/->array-copy (as-typed-buffer item)))
-
-  dtype-proto/PToBufferDesc
-  (convertible-to-buffer-desc? [item] (is-cpu-tensor? item))
-  (->buffer-descriptor [item]
     ;;Get a typed buffer to get the pointer offsetting correct.
-    (let [typed-buf (as-typed-buffer item)
+    (let [typed-buf (->native-buffer item)
           ;;link the ptr to the item with the gc system.
-          new-ptr (resource/track
-                   (jna/->ptr-backing-store typed-buf)
-                   #(bindings-proto/byte-offset item)
-                   :gc)
           item-dtype (dtype/get-datatype item)]
-      {:ptr new-ptr
-       :datatype item-dtype
+      {:ptr (.address typed-buf)
+       :elemwise-datatype item-dtype
+       :datatype :tvm-tensor
        :shape (dtype/shape item)
        :strides (->> (dl-tensor-strides item)
-                     (dtype/->reader)
-                     (mapv (partial * (casting/numeric-byte-width item-dtype))))}))
+                     (mapv (partial * (casting/numeric-byte-width item-dtype))))
+       :source item}))
 
-  dtype-proto/PToWriter
-  (convertible-to-writer? [item] (is-cpu-tensor? item))
-  (->writer [item options]
+  dtype-proto/PToTensor
+  (as-tensor [item]
     (check-cpu-tensor item)
-    (dtype-proto/->writer (as-typed-buffer item) options))
-
-  dtype-proto/PToReader
-  (convertible-to-reader? [item] (is-cpu-tensor? item))
-  (->reader [item options]
-    (check-cpu-tensor item)
-    (dtype-proto/->reader (as-typed-buffer item) options))
-
-  dtt-proto/PToTensor
-  (tensor-convertible? [item] (is-cpu-tensor? item))
-  (convert-to-tensor [item]
-    (check-cpu-tensor item)
-    (-> (dtype-proto/->buffer-descriptor item)
-        (dtt/buffer-descriptor->tensor)))
+    (-> (dtype-proto/->nd-buffer-descriptor item)
+        (dtt/nd-buffer-descriptor->tensor)))
 
   bindings-proto/PTVMDeviceId
   (device-id [item]
@@ -262,26 +215,31 @@
 
 
 (defn allocate-device-array
-  ^DLPack$DLTensor [shape datatype device-type ^long device-id]
-  (let [n-dims (dtype/ecount shape)
-        ^DLPack$DLDataType dl-dtype (datatype->dl-datatype datatype)
-        retval-ptr (PointerByReference.)]
-    (check-call
-     (TVMArrayAlloc shape n-dims
-                    (.code dl-dtype) (.bits dl-dtype) (.lanes dl-dtype)
-                    device-type device-id
-                    retval-ptr))
-    (let [retval (DLPack$DLTensor. (.getValue retval-ptr))
-          address (Pointer/nativeValue (.data retval))]
-      (when *debug-dl-tensor-lifespan*
-        (println "allocated root tensor of shape" shape ":" address))
-      ;;We allow the gc to help us clean up these things.
-      (resource/track retval #(do
-                                (when *debug-dl-tensor-lifespan*
-                                  (println "freeing root tensor of shape"
-                                           shape ":" address))
-                                (TVMArrayFree (.getValue retval-ptr)))
-                      [:stack :gc]))))
+  (^DLPack$DLTensor [shape datatype device-type device-id
+                     {:keys [resource-type]}]
+   (let [n-dims (dtype/ecount shape)
+         ^DLPack$DLDataType dl-dtype (datatype->dl-datatype datatype)
+         retval-ptr (PointerByReference.)]
+     (check-call
+      (TVMArrayAlloc shape n-dims
+                     (.code dl-dtype) (.bits dl-dtype) (.lanes dl-dtype)
+                     device-type device-id
+                     retval-ptr))
+     (let [retval (DLPack$DLTensor. (.getValue retval-ptr))
+           address (Pointer/nativeValue (.data retval))]
+       (when *debug-dl-tensor-lifespan*
+         (println "allocated root tensor of shape" shape ":" address))
+       ;;We allow the gc to help us clean up these things.
+       (resource/track retval
+                       {:dispose-fn #(do
+                                       (when *debug-dl-tensor-lifespan*
+                                         (println "freeing root tensor of shape"
+                                                  shape ":" address))
+                                       (TVMArrayFree (.getValue retval-ptr)))
+
+                        :track-type resource-type}))))
+  (^DLPack$DLTensor [shape datatype device-type ^long device-id]
+   (allocate-device-array shape datatype device-type device-id nil)))
 
 
 (defn ensure-tensor
@@ -342,32 +300,43 @@
     (check-call (TVMArrayCopyFromTo src dst stream))))
 
 
+(defn- untracked-long-data
+  ^Pointer [data-ary]
+  (-> (dtype/copy! data-ary
+                   (-> (native-buffer/malloc
+                        (* (dtype/ecount data-ary) Long/BYTES)
+                        {:resource-type nil})
+                       (native-buffer/set-native-datatype :int64)))
+      (jna/->ptr-backing-store)))
+
+
 (defn pointer->tvm-ary
   "Not all backends in TVM can offset their pointer types.  For this reason, tvm arrays
   have a byte_offset member that you can use to make an array not start at the
   pointer's base address.  If provided this new object will keep the gc-root alive
-  in the eyes of the gc."
+  in the eyes of the gc at the cost of an extra gc cycle in order to clean up
+  gc root.  Ideally caller maintains a reference to gc-root, not this method."
   ^DLPack$DLTensor [ptr device-type device-id
                     datatype shape strides
-                    byte-offset & [gc-root]]
+                    byte-offset {:keys [gc-root resource-type log-level]}]
   ;;Allocate child pointers untracked.  We have to manually track them because on the
   ;;actual dl-tensor object, they are stored in separate structures that only share the
   ;;long address.  Thus the GC, after this method, believes that the shape-ptr and
   ;;strides-ptr objects are free to be cleaned up.
-  (let [shape-ptr (dtype-jna/make-typed-pointer
-                   :int64 shape {:untracked? true})
-        strides-ptr (when strides
-                      (dtype-jna/make-typed-pointer
-                       :int64 strides {:untracked? true}))
-        datatype (or datatype (dtype/get-datatype ptr))
+  (let [shape-ptr (untracked-long-data shape)
+        strides-ptr (when strides (untracked-long-data strides))
+        datatype (or datatype (dtype/elemwise-datatype ptr))
         ;;Get the real pointer
-        address (-> (jna/->ptr-backing-store ptr)
-                    dtype-jna/pointer->address)
+        address (-> (if (jna/is-jna-ptr-convertible? ptr)
+                      (jna/->ptr-backing-store ptr)
+                      (-> (dtype-proto/->native-buffer ptr)
+                          (jna/->ptr-backing-store)))
+                    (Pointer/nativeValue))
         retval (DLPack$DLTensor.)
         ctx (DLPack$DLContext.)
         gc-root-options {:gc-root gc-root}]
-    (when *debug-dl-tensor-lifespan*
-      (println "deriving from root of shape" shape ":" address))
+    (when log-level
+      (log/logf log-level "deriving from root of shape %s:  %s" shape ": 0x%016X" address))
     (when-not (> address 0)
       (throw (ex-info "Failed to get pointer for buffer."
                       {:original-ptr ptr})))
@@ -385,22 +354,21 @@
     ;;Attach any free calls to the dl-tensor object itself.  Not to its data members.
     (resource/track
      retval
-     #(do
-        ;;This is important to establish a valid chain of scopes for the gc system
-        ;;between whatever is providing the ptr data *and* the derived tensor
-        (when *debug-dl-tensor-lifespan*
-          (println "freeing derived tensor of shape" shape ":"
-                   (-> (jna/->ptr-backing-store ptr)
-                       dtype-jna/pointer->address)))
-        ;;Call into the gc root object with a general protocol so it is rooted in this
-        ;;closure.  Then throw it away.
-        (get gc-root-options :gc-root)
-        (-> (jna/->ptr-backing-store shape-ptr)
-            dtype-jna/unsafe-free-ptr)
-        (when strides-ptr
-          (-> (jna/->ptr-backing-store strides-ptr)
-              dtype-jna/unsafe-free-ptr)))
-     [:gc :stack])))
+     {:dispose-fn
+      #(do
+         ;;This is important to establish a valid chain of scopes for the gc system
+         ;;between whatever is providing the ptr data *and* the derived tensor
+         (when log-level
+           (println "freeing derived tensor of shape" shape ":"
+                    (-> (jna/->ptr-backing-store ptr)
+                        (Pointer/nativeValue))))
+         ;;Call into the gc root object with a general protocol so it is rooted in this
+         ;;closure.  Then throw it away.
+         (get gc-root-options :gc-root)
+         (native-buffer/free (Pointer/nativeValue shape-ptr))
+         (when strides-ptr
+           (native-buffer/free (Pointer/nativeValue strides-ptr))))
+      :track-type resource-type})))
 
 
 (defn buffer-desc->dl-tensor
@@ -421,7 +389,7 @@
 (extend-type Object
   bindings-proto/PToTVM
   (->tvm [item]
-    (if-let [buf-desc (dtype-proto/->buffer-descriptor item)]
+    (if-let [buf-desc (dtype-proto/->nd-buffer-descriptor item)]
       (buffer-desc->dl-tensor buf-desc
                               (bindings-proto/device-type item)
                               (bindings-proto/device-id item))

@@ -4,9 +4,9 @@
                                       device-id->int
                                       ptr-ptr
                                       check-call]]
-            [tech.resource :as resource]
+            [tech.v3.resource :as resource]
             [tvm-clj.bindings.protocols :refer [->tvm] :as bindings-proto]
-            [tech.jna :as jna])
+            [tech.v3.jna :as jna])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]))
 
