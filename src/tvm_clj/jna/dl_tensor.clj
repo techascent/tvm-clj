@@ -20,7 +20,8 @@
             [tech.v3.datatype.protocols :as dtype-proto]
             [tech.v3.datatype.casting :as casting]
             [tech.v3.datatype.native-buffer :as native-buffer]
-            [tech.v3.tensor.dimensions :as tens-dims]
+            ;;JNA bindings for native buffers
+            [tech.v3.datatype.jna]
             [tech.v3.tensor.dimensions.analytics :as dims-analytics]
             [tech.v3.tensor.pprint :as dtt-pprint]
             [tech.v3.tensor :as dtt]
@@ -30,6 +31,7 @@
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
             DLPack$DLManagedTensor]
            [java.io Writer]
+           [tech.v3.datatype NDBuffer]
            [tech.v3.datatype.native_buffer NativeBuffer]))
 
 
@@ -216,7 +218,7 @@
 
 (defn allocate-device-array
   (^DLPack$DLTensor [shape datatype device-type device-id
-                     {:keys [resource-type]}]
+                     {:keys [resource-type log-level]}]
    (let [n-dims (dtype/ecount shape)
          ^DLPack$DLDataType dl-dtype (datatype->dl-datatype datatype)
          retval-ptr (PointerByReference.)]
@@ -227,17 +229,15 @@
                      retval-ptr))
      (let [retval (DLPack$DLTensor. (.getValue retval-ptr))
            address (Pointer/nativeValue (.data retval))]
-       (when *debug-dl-tensor-lifespan*
-         (println "allocated root tensor of shape" shape ":" address))
+       (when log-level
+         (log/logf log-level "allocating:  %s : 0x%016X" shape address))
        ;;We allow the gc to help us clean up these things.
        (resource/track retval
                        {:dispose-fn #(do
-                                       (when *debug-dl-tensor-lifespan*
-                                         (println "freeing root tensor of shape"
-                                                  shape ":" address))
+                                       (when log-level
+                                         (log/logf log-level "freeing:  %s : 0x%016X" shape address))
                                        (TVMArrayFree (.getValue retval-ptr)))
-
-                        :track-type resource-type}))))
+                        :track-type (or resource-type :auto)}))))
   (^DLPack$DLTensor [shape datatype device-type ^long device-id]
    (allocate-device-array shape datatype device-type device-id nil)))
 
@@ -326,17 +326,19 @@
   (let [shape-ptr (untracked-long-data shape)
         strides-ptr (when strides (untracked-long-data strides))
         datatype (or datatype (dtype/elemwise-datatype ptr))
-        ;;Get the real pointer
-        address (-> (if (jna/is-jna-ptr-convertible? ptr)
-                      (jna/->ptr-backing-store ptr)
-                      (-> (dtype-proto/->native-buffer ptr)
-                          (jna/->ptr-backing-store)))
+
+        ;;Get the real pointer.  In the case of something like an opencv image it
+        ;;really has two jna ptrs, one to the image object and one to the data buffer.
+        ;;Because of this we first convert to a native-buffer which implies a pointer to
+        ;;the data buffer and then convert to a jna ptr.
+        address (-> (dtype-proto/->native-buffer ptr)
+                    (jna/->ptr-backing-store)
                     (Pointer/nativeValue))
         retval (DLPack$DLTensor.)
         ctx (DLPack$DLContext.)
         gc-root-options {:gc-root gc-root}]
     (when log-level
-      (log/logf log-level "deriving from root of shape %s:  %s" shape ": 0x%016X" address))
+      (log/logf log-level "wrapping:  %s : 0x%016X" shape address))
     (when-not (> address 0)
       (throw (ex-info "Failed to get pointer for buffer."
                       {:original-ptr ptr})))
@@ -359,16 +361,14 @@
          ;;This is important to establish a valid chain of scopes for the gc system
          ;;between whatever is providing the ptr data *and* the derived tensor
          (when log-level
-           (println "freeing derived tensor of shape" shape ":"
-                    (-> (jna/->ptr-backing-store ptr)
-                        (Pointer/nativeValue))))
+           (log/logf log-level "unwrapping:  %s : 0x%016X" shape address))
          ;;Call into the gc root object with a general protocol so it is rooted in this
          ;;closure.  Then throw it away.
          (get gc-root-options :gc-root)
          (native-buffer/free (Pointer/nativeValue shape-ptr))
          (when strides-ptr
            (native-buffer/free (Pointer/nativeValue strides-ptr))))
-      :track-type resource-type})))
+      :track-type (or resource-type :auto)})))
 
 
 (defn buffer-desc->dl-tensor
@@ -386,7 +386,7 @@
    (buffer-desc->dl-tensor descriptor :cpu 0)))
 
 
-(extend-type Object
+(extend-type NDBuffer
   bindings-proto/PToTVM
   (->tvm [item]
     (if-let [buf-desc (dtype-proto/->nd-buffer-descriptor item)]
