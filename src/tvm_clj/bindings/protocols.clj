@@ -1,5 +1,6 @@
 (ns tvm-clj.bindings.protocols
-  (:require [tech.v3.jna :as jna])
+  (:require [tech.v3.jna :as jna]
+            [tech.v3.datatype :as dtype])
   (:import [com.sun.jna Pointer]))
 
 
@@ -55,6 +56,20 @@ So we need to get the actual base ptr sometimes."
   (base-ptr [item]))
 
 
+(defn string->ptr
+  ([str-data {:keys [encoding]
+              :or {encoding "UTF-8"}}]
+   (let [str-bytes (.getBytes ^String str-data
+                              (java.nio.charset.Charset/forName encoding))
+         retval (dtype/make-container :native-heap :int8
+                                      {:resource-type :stack}
+                                      ;;force zero pad the ending
+                                      (+ (alength str-bytes) 4))]
+     (dtype/copy! str-bytes (dtype/sub-buffer retval 0 (alength str-bytes)))))
+  ([str-data]
+   (string->ptr str-data nil)))
+
+
 (extend-protocol PJVMTypeToTVMValue
   Double
   (->tvm-value [value] [(Double/doubleToLongBits (double value)) :float])
@@ -73,8 +88,9 @@ So we need to get the actual base ptr sometimes."
                              (long 1)
                              (long 0)) :int])
   String
-  (->tvm-value [value] [(Pointer/nativeValue (jna/string->ptr value {:track-type :auto}))
-                        :string])
+  (->tvm-value [value] [(-> (string->ptr value)
+                            (jna/as-ptr)
+                            (Pointer/nativeValue)) :string])
 
   nil
   (->tvm-value [value]

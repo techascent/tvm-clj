@@ -241,15 +241,17 @@
   (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item] handle)
   Map
-  (containsKey [item k] (contains? (.keySet item) (bindings-proto/->node k)))
+  (containsKey [item k] (not= 0 (node-fns/MapCount item (bindings-proto/->node k))))
   (entrySet [this]
     (->> (.iterator this)
          iterator-seq
          set))
   (get [this obj-key]
-    (node-fns/MapGetItem this (bindings-proto/->node obj-key)))
+    (let [key-node (bindings-proto/->node obj-key)]
+      (when (.containsKey this key-node)
+        (node-fns/MapGetItem this key-node))))
   (getOrDefault [item obj-key obj-default-value]
-    (if (contains? item obj-key)
+    (if (.containsKey item obj-key)
       (.get item obj-key)
       obj-default-value))
   (isEmpty [this] (= 0 (.size this)))
@@ -329,7 +331,7 @@ explicitly; it is done for you."
 
 
 (defn tvm-map
-  "Call like hash-map except all keys must be node handles.  Most users will not need to call this explicitly"
+  "Create tvm map of values.  Works like hash-map."
   [& args]
   (when-not (= 0 (rem (count args)
                       2))
@@ -347,7 +349,7 @@ explicitly; it is done for you."
     (condp = tname
       "runtime.String"
       (try
-        (node-fns/AsRepr (NodeHandle. tptr #{}))
+        (runtime/GetFFIString (NodeHandle. tptr #{}))
         (finally (TVMObjectFree tptr)))
       (-> (construct-node (Pointer. long-val))
           (resource/track {:track-type :auto

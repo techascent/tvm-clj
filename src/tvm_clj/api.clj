@@ -783,6 +783,10 @@ a different buffer type than this then you need to bind it yourself."
           [[] (or bind-map {})]
           arg-list))
 
+(defn current-pass-context-config
+  []
+  (:config (transform-fns/GetCurrentPassContext)))
+
 
 (defn schedule->function
   "According to the given schedule, form a function.
@@ -806,8 +810,7 @@ a different buffer type than this then you need to bind it yourself."
     The body formed according to the given schedule"
   [sch args name binds]
   ;; normalize schedule first
-  (let [pass-ctx (transform-fns/GetCurrentPassContext)
-        config (into {} (:config pass-ctx))
+  (let [config (current-pass-context-config)
         sch (te-fns/ScheduleNormalize sch)
         bounds (schedule-fns/InferBound sch)
         stmt (schedule-fns/ScheduleOps sch bounds)
@@ -827,6 +830,17 @@ a different buffer type than this then you need to bind it yourself."
                func)]
     (ir-fns/IRModule {(ir-fns/GlobalVar (safe-str name)) func}
                      {})))
+
+
+(defn sequential-pass
+  ([mod {:keys [optimization-level]
+          :or {optimization-level 2}}
+    pass-list]
+   (-> (transform-fns/Sequential pass-list optimization-level "sequential" nil)
+       (transform-fns/RunPass mod))
+   ([mod pass-list]
+    (sequential-pass mod nil pass-list))))
+
 
 
 (defn lower
@@ -861,9 +875,7 @@ a different buffer type than this then you need to bind it yourself."
              :or {name "main"
                   optimization-level 2}}]
   ;; config setup
-  (let [pass-ctx (transform-fns/GetCurrentPassContext)
-        ;;Make defaults work without exceptions
-        config (into {} (:config pass-ctx))
+  (let [config (current-pass-context-config)
         instrument-bound-checkers? (boolean (get config "tir.instrument_bound_checkers"))
         disable-vectorize? (boolean (get config "tir.disable_vectorize"))
         ;;Lower passes are tuples [pass-idx pass-fn]
@@ -875,31 +887,126 @@ a different buffer type than this then you need to bind it yourself."
         ;; Phase 0
         mod (if (= "Schedule" (bindings/node-type-name sch))
               (schedule->function sch args name binds)
-              sch)
-        pass-list (concat (get lower-phases 0)
-                          [(tir-transform-fns/InjectPrefetch)
-                           (tir-transform-fns/StorageFlatten 64 instrument-bound-checkers?)
-                           (tir-transform-fns/BF16Legalize)
-                           (tir-transform-fns/NarrowDataType 32)
-                           (tir-transform-fns/Simplify)]
-                          (get lower-phases 1)
-                          (when-not simple-mode?
-                            [(tir-transform-fns/LoopPartition)])
-                          [(tir-transform-fns/VectorizeLoop (not disable-vectorize?))
-                           (tir-transform-fns/InjectVirtualThread)
-                           (tir-transform-fns/InjectDoubleBuffer)
-                           (tir-transform-fns/StorageRewrite)
-                           (tir-transform-fns/UnrollLoop)]
-                          (get lower-phases 2)
-                          [(tir-transform-fns/Simplify)
-                           (tir-transform-fns/RemoveNoOp)
-                           (tir-transform-fns/RewriteUnsafeSelect)
-                           (tir-transform-fns/HoistIfThenElse)]
-                          (get lower-phases 3)
-                          (when instrument-bound-checkers?
-                            [(tir-transform-fns/InstrumentBoundCheckers)]))
-        optimize (transform-fns/Sequential pass-list optimization-level "sequential" nil)]
-    (transform-fns/RunPass optimize mod)))
+              sch)]
+    (->> (concat (get lower-phases 0)
+                 [(tir-transform-fns/InjectPrefetch)
+                  (tir-transform-fns/StorageFlatten 64 instrument-bound-checkers?)
+                  (tir-transform-fns/BF16Legalize)
+                  (tir-transform-fns/NarrowDataType 32)
+                  (tir-transform-fns/Simplify)]
+                 (get lower-phases 1)
+                 (when-not simple-mode?
+                   [(tir-transform-fns/LoopPartition)])
+                 [(tir-transform-fns/VectorizeLoop (not disable-vectorize?))
+                  (tir-transform-fns/InjectVirtualThread)
+                  (tir-transform-fns/InjectDoubleBuffer)
+                  (tir-transform-fns/StorageRewrite)
+                  (tir-transform-fns/UnrollLoop)]
+                 (get lower-phases 2)
+                 [(tir-transform-fns/Simplify)
+                  (tir-transform-fns/RemoveNoOp)
+                  (tir-transform-fns/RewriteUnsafeSelect)
+                  (tir-transform-fns/HoistIfThenElse)]
+                 (get lower-phases 3)
+                 (when instrument-bound-checkers?
+                   [(tir-transform-fns/InstrumentBoundCheckers)]))
+     (sequential-pass mod {:optimization-level optimization-level}))))
+
+
+(defn make-fn-pass
+  "Define a TVM compiler pass given a clojure fn.  Fn is a function from IRModule->IRModule.
+
+  Options:
+
+  * `opt_level` : `int`
+        The optimization level of this module pass.  Defaults to zero which guarantees
+        it will run.  Optimization levels go from 0 to at least 2.
+
+  * `name` : Optional[str]
+        The name of the function pass. The name could be empty. In this case, the
+        name of the optimization function will be used as the pass name.
+
+  * `required` : Optional[List[str]]
+        The list of passes that the function pass is dependent on."
+  [map-fn {:keys [opt-level fname required]
+           :or {opt-level 0
+                fname "Apply"
+                required []}}]
+  (tir-transform-fns/CreatePrimFuncPass map-fn (transform-fns/PassInfo opt-level fname required)))
+
+
+(defn map-pass
+  "Map a function across an IRModule potentially modifying the input
+  IRModule.  The IRModule is returned.
+
+  map-fn is expected to be a function from IRModule->IRModule.
+
+  Options : See options for `fn-pass`"
+  ([map-fn options ir-module]
+   (-> (make-fn-pass map-fn options)
+       (transform-fns/RunPass ir-module)))
+  ([map-fn ir-module]
+   (map-pass map-fn nil ir-module)))
+
+
+(defn rvalue-reference
+  "Create an RValue reference to the object and mark the object as moved.
+
+  This marks the object letting the TVM system know that it will not be
+  accessed by caller after this point.
+
+  A unique reference may trigger a copy on write optimization that avoids
+  a copy when we mutably transform an object.
+
+  Note
+  ----
+  All the reference of the object becomes invalid after it is moved.
+  Be very careful when using this feature.
+
+  Examples
+  --------
+
+
+```clojure
+```"
+  [node]
+  (vary-meta node assoc :rvalue-reference? true))
+
+
+(defn assoc-attr
+  "Create a new copy of the function and update the attribute.
+
+   Parameters
+   ----------
+
+   * attr_key_or_dict : Union[str, dict]
+     The attribute key to use or a dict containing multiple key value pairs.
+
+   * attr_value : Object
+     The new attribute value.
+
+   Returns
+   -------
+   * func : Function - A new copy of the function."
+  [relay-expr attr-name attr-value & args]
+  (let [args (concat [attr-name attr-value]
+                     args)
+        _ (errors/when-not-errorf
+           (== 0 (rem (count args) 2))
+           "Assoc takes an even number of att-name,att-value arguments: %s"
+           (mapv str args))]
+    (reduce (fn [relay-expr [attr-name attr-value]]
+              (-> (rvalue-reference relay-expr)
+                  (ir-fns/BaseFuncWithAttr attr-name (->node attr-value))))
+            ;;Copy the relay-expr so we know we can guarantee it is an rvalue-reference
+            ;;above.
+            (ir-fns/BaseFuncCopy relay-expr)
+            (map vec (partition 2 args)))))
+
+
+(def ^long DEVICE_KERNEL_LAUNCH 2)
+(def ^long C_PACKED_FUNC 1)
+(def ^long DEFAULT 0)
 
 
 (defn build_for_device
@@ -928,68 +1035,57 @@ a different buffer type than this then you need to bind it yourself."
   (let [target (target-fns/Target target)
         target_host (target-fns/Target target_host)
         device-type (bindings/device-type->int target)
+        config (current-pass-context-config)
+        mod-mixed input-modn
+        ;;mark every function as being on the device
+        mod-mixed (map-pass #(assoc-attr % "target" target) input-modn)
 
-        mod_mixed = input_modn
-        mod_mixed = tvm.tir.transform.Apply(lambda f: f.with_attr("target", target))(mod_mixed)
+        mod-mixed (->> (concat
+                        [(tir-transform-fns.VerifyMemory)]
+                        (when (== 1 (count (:functions mod-mixed)))
+                          [(make-fn-pass #(assoc-attr % "tir.is_entry_func" true))])
+                        (when (get config "tir.detect_global_barrier")
+                          [(tir-transform-fns/ThreadSync "global")])
+                        [(tir-transform-fns/ThreadSync "shared")
+                         (tir-transform-fns/ThreadSync "warp")
+                         (tir-transform-fns/InferFragment)
+                         (tir-transform-fns/LowerThreadAllreduce)
+                         (tir-transform-fns/MakePackedAPI)
+                         (tir-transform-fns/SplitHostDevice)])
+                       (sequential-pass mod-mixed))
 
-        opt_mixed = [tvm.tir.transform.VerifyMemory()]
-        if len(mod_mixed.functions) == 1:
-        opt_mixed += [tvm.tir.transform.Apply(lambda f: f.with_attr("tir.is_entry_func", True))]
+        ;; device optimizations
+        opt-device = (->> [(make-filter-pass #(= (get-in % [:attrs "calling_conv"])
+                                                 DEVICE_KERNEL_LAUNCH))
+                           (tir-transform-fns/LowerWarpMemory)
+                           (tir-transform-fns/Simplify)
+                           (tir-transform-fns/LowerDeviceStorageAccessInfo)
+                           (tir-transform-fns/LowerCustomDatatypes)
+                           (tir-transform-fns/LowerIntrin)]
+                          (sequential-pass mod-mixed))
 
-        if PassContext.current().config.get("tir.detect_global_barrier", False):
-        opt_mixed += [tvm.tir.transform.ThreadSync("global")]
-        opt_mixed += [
-                      tvm.tir.transform.ThreadSync("shared"),
-                      tvm.tir.transform.ThreadSync("warp"),
-                      tvm.tir.transform.InferFragment(),
-                      tvm.tir.transform.LowerThreadAllreduce(),
-                      tvm.tir.transform.MakePackedAPI(),
-                      tvm.tir.transform.SplitHostDevice(),
-                      ]
-        mod_mixed = tvm.transform.Sequential(opt_mixed)(mod_mixed)
+        ;; host optimizations
+        opt_host = (->> [(make-filter-pass #(not= (get-in % [:attrs "calling_conv"])
+                                                  DEVICE_KERNEL_LAUNCH)),
+                         (make-fn-pass #(assoc-attr % "target" target)),
+                         (tir-transform-fns/LowerTVMBuiltin)
+                         (tir-transform-fns/LowerDeviceStorageAccessInfo)
+                         (tir-transform-fns/LowerCustomDatatypes)
+                         (tir-transform-fns/LowerIntrin)
+                         (tir-transform-fns/CombineContextCall)]
+                        (sequential-pass mod-mixed))]
 
-        # device optimizations
-        opt_device = tvm.transform.Sequential(
-                                              [
-                                               tvm.tir.transform.Filter(
-                                                                        lambda f: "calling_conv" in f.attrs
-                                                                        and f.attrs["calling_conv"].value == CallingConv.DEVICE_KERNEL_LAUNCH
-                                                                        ),
-                                               tvm.tir.transform.LowerWarpMemory(),
-                                               tvm.tir.transform.Simplify(),
-                                               tvm.tir.transform.LowerDeviceStorageAccessInfo(),
-                                               tvm.tir.transform.LowerCustomDatatypes(),
-                                               tvm.tir.transform.LowerIntrin(),
-                                               ]
-                                              )
-        mod_dev = opt_device(mod_mixed)
 
-        # host optimizations
-        opt_host = tvm.transform.Sequential(
-                                            [
-                                             tvm.tir.transform.Filter(
-                                                                      lambda f: "calling_conv" not in f.attrs
-                                                                      or f.attrs["calling_conv"].value != CallingConv.DEVICE_KERNEL_LAUNCH
-                                                                      ),
-                                             tvm.tir.transform.Apply(lambda f: f.with_attr("target", target)),
-                                             tvm.tir.transform.LowerTVMBuiltin(),
-                                             tvm.tir.transform.LowerDeviceStorageAccessInfo(),
-                                             tvm.tir.transform.LowerCustomDatatypes(),
-                                             tvm.tir.transform.LowerIntrin(),
-                                             tvm.tir.transform.CombineContextCall(),
-                                             ]
-                                            )
-        mod_host = opt_host(mod_mixed)])
 
     if device_type == ndarray.cpu(0).device_type and target_host == target:
-        assert len(mod_dev.functions) == 0
+    assert len(mod_dev.functions) == 0
     if "gpu" in target.keys and len(mod_dev.functions) == 0:
-        warnings.warn(
-            "Specified target %s, but cannot find device code, did you do " "bind?" % target
-        )
+    warnings.warn(
+                  "Specified target %s, but cannot find device code, did you do " "bind?" % target
+                  )
 
     rt_mod_dev = codegen.build_module(mod_dev, target) if len(mod_dev.functions) != 0 else None
-    return mod_host, rt_mod_dev)
+    return mod_host, rt_mod_dev))
 
 
 
