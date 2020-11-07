@@ -1,6 +1,8 @@
 (ns tvm-clj.jna.base
   (:require [tech.v3.jna :refer [checknil] :as jna]
             [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.native-buffer :as native-buffer]
+            [tech.v3.datatype.protocols :as dtype-proto]
             [tech.v3.datatype.errors :as errors]
             ;;JNA bindings for dtype datastructures
             [tech.v3.datatype.jna]
@@ -14,8 +16,10 @@
             [clojure.tools.logging :as log])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
+           [clojure.lang IFn]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
-            DLPack$DLManagedTensor]))
+            DLPack$DLManagedTensor CFunction$TVMPackedCFunc
+            CFunction$TVMPackedCFuncFinalizer]))
 
 
 ;;C interface functions.
@@ -297,6 +301,48 @@ This is in order to ensure that, for instance, deserialization of a node's field
   [long-val val-type-kwd]
   nil)
 
+
+(make-tvm-jna-fn TVMCFuncSetReturn
+                 "Set the return value of TVMPackedCFunc.
+
+This function is called by TVMPackedCFunc to set the return value.
+When this function is not called, the function returns null by default.
+
+* ret The return value handle, pass by ret in TVMPackedCFunc
+* value The value to be returned.
+* type_code The type of the value to be returned.
+* num_ret Number of return values, for now only 1 is supported."
+                 Integer
+                 [ret jna/as-ptr]
+                 [value jna/ensure-ptr]
+                 [type-code jna/ensure-ptr]
+                 [num-ret int])
+
+
+(make-tvm-jna-fn TVMAPISetLastError
+                 "Set the last error from a function call."
+                 nil
+                 [msg str])
+
+
+(make-tvm-jna-fn TVMFuncCreateFromCFunc
+                 "Wrap a TVMPackedCFunc to become a FunctionHandle.
+
+ The resource_handle will be managed by TVM API, until the function is no longer used.
+
+ * `func` The packed C function.
+ * `resource_handle` The resource handle from front-end, can be NULL.
+ * `fin` The finalizer on resource handle when the FunctionHandle get freed, can be NULL
+ * `out` the result function handle.
+
+ returns 0 when success, -1 when failure happens"
+                 Integer
+                 [func identity]
+                 [res-hdl jna/as-ptr]
+                 [finalizer jna/as-ptr]
+                 [out identity])
+
+
 (defn raw-call-function
   "Call the function but make no attempt to convert the result tuple
   into the jvm."
@@ -325,12 +371,83 @@ This is in order to ensure that, for instance, deserialization of a node's field
                  [handle checknil])
 
 
+(defmacro ^:private impl-tvm-ifn
+  []
+  `(deftype ~'TVMFunction [~'handle ~'gc-obj]
+     bindings-proto/PJVMTypeToTVMValue
+     (->tvm-value [this#] [(Pointer/nativeValue ~'handle) :func-handle])
+     bindings-proto/PToTVM
+     (->tvm [this#] this#)
+     jna/PToPtr
+     (is-jna-ptr-convertible? [this#] true)
+     (->ptr-backing-store [this#] ~'handle)
+     IFn
+     ~@(->> (range 16)
+         (map (fn [idx]
+                (let [argsyms (->> (range idx)
+                                   (map (fn [arg-idx]
+                                          (symbol (str "arg-" arg-idx)))))]
+                  `(invoke ~(vec (concat ['this]
+                                         argsyms))
+                           (call-function ~'handle ~@argsyms))))))
+     (applyTo [this# argseq#]
+       (apply call-function ~'handle argseq#))))
+
+
+(impl-tvm-ifn)
+
+
+(defn clj-fn->tvm-fn
+  "Given a clojure IFn implementation, return a tvm packed function that TVM can call
+  or you can call using call-function.."
+  [clj-fn]
+  (let [iface (reify CFunction$TVMPackedCFunc
+                (invoke [this args typecodes num-args ret-val-handle _resource-handle]
+                  (let [num-args (long num-args)
+                        clj-args (when-not (== 0 num-args)
+                                   (let [arg-buf (native-buffer/wrap-address
+                                                  (Pointer/nativeValue args)
+                                                  (* num-args Long/BYTES)
+                                                  :int64 (dtype-proto/platform-endianness)
+                                                  nil)
+                                         typecodes (native-buffer/wrap-address
+                                                    (Pointer/nativeValue typecodes)
+                                                    (* num-args Integer/BYTES)
+                                                    :int32 (dtype-proto/platform-endianness)
+                                                    nil)]
+                                     (map (fn [value typecode]
+                                            (tvm-value->jvm value (tvm-datatype->keyword-nothrow
+                                                                   typecode)))
+                                          arg-buf typecodes)))]
+                    (try
+                      (when-let [retval (apply clj-fn clj-args)]
+                        (resource/stack-resource-context
+                         (let [[tvm-args arg-types n-args] (arg-list->tvm-args [retval])]
+                           ;;n-args is guaranteed to be 1
+                           (TVMCFuncSetReturn ret-val-handle tvm-args arg-types 1))))
+                      (int 0)
+                      (catch Throwable e
+                        (let [msg (.getMessage e)]
+                          (TVMAPISetLastError msg))
+                        (int -1))))))
+        retval-hdl (LongByReference.)
+        _ (check-call (TVMFuncCreateFromCFunc iface nil nil retval-hdl))
+        ;;The interface instance must stay around as long as the function does.
+        retval (TVMFunction. (Pointer. (.getValue retval-hdl)) iface)]
+    retval))
+
+
+(extend-type IFn
+  bindings-proto/PJVMTypeToTVMValue
+  (->tvm-value [ifn-inst]
+    (clj-fn->tvm-fn ifn-inst)))
+
+
 (defmethod tvm-value->jvm :func-handle
   [long-val _val-type-kwd]
   (let [long-val (long long-val)
         ptr-data (Pointer. long-val)
-        retval (fn [& args]
-                 (apply call-function ptr-data args))]
+        retval (TVMFunction. ptr-data nil)]
     (resource/track retval {:track-type :auto
                             :dispose-fn #(TVMObjectFree ptr-data)})))
 

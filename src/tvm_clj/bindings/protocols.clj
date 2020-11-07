@@ -73,7 +73,7 @@ So we need to get the actual base ptr sometimes."
                              (long 1)
                              (long 0)) :int])
   String
-  (->tvm-value [value] [(Pointer/nativeValue (jna/string->ptr value))
+  (->tvm-value [value] [(Pointer/nativeValue (jna/string->ptr value {:track-type :auto}))
                         :string])
 
   nil
