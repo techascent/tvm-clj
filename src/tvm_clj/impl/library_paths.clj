@@ -1,4 +1,4 @@
-(ns tvm-clj.jna.library-paths
+(ns tvm-clj.impl.library-paths
   (:require [tech.v3.jna :as jna])
   (:import [java.io File]))
 

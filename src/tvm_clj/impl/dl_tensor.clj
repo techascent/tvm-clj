@@ -1,5 +1,5 @@
-(ns tvm-clj.jna.dl-tensor
-  (:require [tvm-clj.jna.base :refer [make-tvm-jna-fn
+(ns tvm-clj.impl.dl-tensor
+  (:require [tvm-clj.impl.base :refer [make-tvm-jna-fn
                                       device-type->int
                                       device-id->int
                                       ptr-ptr
@@ -7,14 +7,13 @@
                                       ->long-ptr
                                       datatype->dl-datatype
                                       dl-datatype->datatype]]
-            [tvm-clj.jna.stream :as stream]
+            [tvm-clj.impl.stream :as stream]
             [tech.v3.resource :as resource]
-            [tvm-clj.bindings.protocols :refer [->tvm
-                                                base-ptr
-                                                ->tvm-value
-                                                byte-offset] :as bindings-proto]
-            [tvm-clj.bindings.definitions :refer [device-type-int->device-type]]
-
+            [tvm-clj.impl.protocols :refer [->tvm
+                                            base-ptr
+                                            ->tvm-value
+                                            byte-offset] :as bindings-proto]
+            [tvm-clj.impl.definitions :refer [device-type-int->device-type]]
             [tech.v3.jna :refer [checknil] :as jna]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.protocols :as dtype-proto]

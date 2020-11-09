@@ -1,4 +1,4 @@
-(ns tvm-clj.jna.base
+(ns tvm-clj.impl.base
   (:require [tech.v3.jna :refer [checknil] :as jna]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.native-buffer :as native-buffer]
@@ -6,11 +6,11 @@
             [tech.v3.datatype.errors :as errors]
             ;;JNA bindings for dtype datastructures
             [tech.v3.datatype.jna]
-            [tvm-clj.jna.library-paths :as jna-lib-paths]
-            [tvm-clj.bindings.definitions :as definitions]
-            [tvm-clj.bindings.protocols :refer [->tvm-value ->tvm ->node
-                                                device-type device-id byte-offset
-                                                base-ptr] :as bindings-proto]
+            [tvm-clj.impl.library-paths :as jna-lib-paths]
+            [tvm-clj.impl.definitions :as definitions]
+            [tvm-clj.impl.protocols :refer [->tvm-value ->tvm ->node
+                                            device-type device-id byte-offset
+                                            base-ptr] :as bindings-proto]
             [clojure.set :as c-set]
             [tech.v3.resource :as resource]
             [clojure.tools.logging :as log]

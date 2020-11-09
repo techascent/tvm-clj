@@ -1,4 +1,4 @@
-(ns tvm-clj.bindings.protocols
+(ns tvm-clj.impl.protocols
   (:require [tech.v3.jna :as jna]
             [tech.v3.datatype :as dtype])
   (:import [com.sun.jna Pointer]))

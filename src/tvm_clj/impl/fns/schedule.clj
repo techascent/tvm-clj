@@ -1,87 +1,87 @@
-(ns tvm-clj.jna.fns.schedule
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.schedule
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.AutoInlineElemWise"))]
-  (defn AutoInlineElemWise
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.AutoInlineElemWise"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private AutoInlineElemWise-fnptr* (delay (base/name->global-function "schedule.AutoInlineElemWise")))
+(defn AutoInlineElemWise
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.AutoInlineElemWise"}
+   (apply base/call-function @AutoInlineElemWise-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.AutoInlineInjective"))]
-  (defn AutoInlineInjective
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.AutoInlineInjective"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private AutoInlineInjective-fnptr* (delay (base/name->global-function "schedule.AutoInlineInjective")))
+(defn AutoInlineInjective
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.AutoInlineInjective"}
+   (apply base/call-function @AutoInlineInjective-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.CreateAttachPath"))]
-  (defn CreateAttachPath
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.CreateAttachPath"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private CreateAttachPath-fnptr* (delay (base/name->global-function "schedule.CreateAttachPath")))
+(defn CreateAttachPath
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.CreateAttachPath"}
+   (apply base/call-function @CreateAttachPath-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.CreateReadGraph"))]
-  (defn CreateReadGraph
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.CreateReadGraph"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private CreateReadGraph-fnptr* (delay (base/name->global-function "schedule.CreateReadGraph")))
+(defn CreateReadGraph
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.CreateReadGraph"}
+   (apply base/call-function @CreateReadGraph-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.InferBound"))]
-  (defn InferBound
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.InferBound"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private InferBound-fnptr* (delay (base/name->global-function "schedule.InferBound")))
+(defn InferBound
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.InferBound"}
+   (apply base/call-function @InferBound-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.PostDFSOrder"))]
-  (defn PostDFSOrder
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.PostDFSOrder"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private PostDFSOrder-fnptr* (delay (base/name->global-function "schedule.PostDFSOrder")))
+(defn PostDFSOrder
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.PostDFSOrder"}
+   (apply base/call-function @PostDFSOrder-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.ScanFixPointAnalysis"))]
-  (defn ScanFixPointAnalysis
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.ScanFixPointAnalysis"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private ScanFixPointAnalysis-fnptr* (delay (base/name->global-function "schedule.ScanFixPointAnalysis")))
+(defn ScanFixPointAnalysis
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.ScanFixPointAnalysis"}
+   (apply base/call-function @ScanFixPointAnalysis-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.ScanGetBody"))]
-  (defn ScanGetBody
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.ScanGetBody"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private ScanGetBody-fnptr* (delay (base/name->global-function "schedule.ScanGetBody")))
+(defn ScanGetBody
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.ScanGetBody"}
+   (apply base/call-function @ScanGetBody-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.ScheduleOps"))]
-  (defn ScheduleOps
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.ScheduleOps"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private ScheduleOps-fnptr* (delay (base/name->global-function "schedule.ScheduleOps")))
+(defn ScheduleOps
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.ScheduleOps"}
+   (apply base/call-function @ScheduleOps-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.SchedulePostProcRewriteForTensorCore"))]
-  (defn SchedulePostProcRewriteForTensorCore
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.SchedulePostProcRewriteForTensorCore"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private SchedulePostProcRewriteForTensorCore-fnptr* (delay (base/name->global-function "schedule.SchedulePostProcRewriteForTensorCore")))
+(defn SchedulePostProcRewriteForTensorCore
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.SchedulePostProcRewriteForTensorCore"}
+   (apply base/call-function @SchedulePostProcRewriteForTensorCore-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.SchedulePostProcToPrimFunc"))]
-  (defn SchedulePostProcToPrimFunc
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.SchedulePostProcToPrimFunc"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private SchedulePostProcToPrimFunc-fnptr* (delay (base/name->global-function "schedule.SchedulePostProcToPrimFunc")))
+(defn SchedulePostProcToPrimFunc
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.SchedulePostProcToPrimFunc"}
+   (apply base/call-function @SchedulePostProcToPrimFunc-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "schedule.VerifyCompactBuffer"))]
-  (defn VerifyCompactBuffer
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "schedule.VerifyCompactBuffer"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private VerifyCompactBuffer-fnptr* (delay (base/name->global-function "schedule.VerifyCompactBuffer")))
+(defn VerifyCompactBuffer
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "schedule.VerifyCompactBuffer"}
+   (apply base/call-function @VerifyCompactBuffer-fnptr* args)))
 

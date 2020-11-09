@@ -1,11 +1,11 @@
-(ns tvm-clj.jna.stream
-  (:require [tvm-clj.jna.base :refer [make-tvm-jna-fn
+(ns tvm-clj.impl.stream
+  (:require [tvm-clj.impl.base :refer [make-tvm-jna-fn
                                       device-type->int
                                       device-id->int
                                       ptr-ptr
                                       check-call]]
             [tech.v3.resource :as resource]
-            [tvm-clj.bindings.protocols :refer [->tvm] :as bindings-proto]
+            [tvm-clj.impl.protocols :refer [->tvm] :as bindings-proto]
             [tech.v3.jna :as jna])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]))

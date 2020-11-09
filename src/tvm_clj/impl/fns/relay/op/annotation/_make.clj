@@ -1,38 +1,38 @@
-(ns tvm-clj.jna.fns.relay.op.annotation._make
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.relay.op.annotation._make
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "relay.op.annotation._make.checkpoint"))]
-  (defn checkpoint
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "relay.op.annotation._make.checkpoint"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private checkpoint-fnptr* (delay (base/name->global-function "relay.op.annotation._make.checkpoint")))
+(defn checkpoint
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "relay.op.annotation._make.checkpoint"}
+   (apply base/call-function @checkpoint-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "relay.op.annotation._make.compiler_begin"))]
-  (defn compiler_begin
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "relay.op.annotation._make.compiler_begin"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private compiler_begin-fnptr* (delay (base/name->global-function "relay.op.annotation._make.compiler_begin")))
+(defn compiler_begin
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "relay.op.annotation._make.compiler_begin"}
+   (apply base/call-function @compiler_begin-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "relay.op.annotation._make.compiler_end"))]
-  (defn compiler_end
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "relay.op.annotation._make.compiler_end"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private compiler_end-fnptr* (delay (base/name->global-function "relay.op.annotation._make.compiler_end")))
+(defn compiler_end
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "relay.op.annotation._make.compiler_end"}
+   (apply base/call-function @compiler_end-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "relay.op.annotation._make.on_device"))]
-  (defn on_device
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "relay.op.annotation._make.on_device"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private on_device-fnptr* (delay (base/name->global-function "relay.op.annotation._make.on_device")))
+(defn on_device
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "relay.op.annotation._make.on_device"}
+   (apply base/call-function @on_device-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "relay.op.annotation._make.stop_fusion"))]
-  (defn stop_fusion
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "relay.op.annotation._make.stop_fusion"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private stop_fusion-fnptr* (delay (base/name->global-function "relay.op.annotation._make.stop_fusion")))
+(defn stop_fusion
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "relay.op.annotation._make.stop_fusion"}
+   (apply base/call-function @stop_fusion-fnptr* args)))
 

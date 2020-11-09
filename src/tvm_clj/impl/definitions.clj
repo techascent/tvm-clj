@@ -1,5 +1,5 @@
-(ns tvm-clj.bindings.definitions
-  (:require [clojure.set :as c-set]))
+(ns tvm-clj.impl.definitions
+  (:require [clojure.set :as set]))
 
 
 (def tvm-datatype->keyword-map
@@ -22,7 +22,7 @@
 
 
 (def keyword->tvm-datatype-map
-  (c-set/map-invert tvm-datatype->keyword-map))
+  (set/map-invert tvm-datatype->keyword-map))
 
 
 (def datatype->dl-type-code-map
@@ -49,6 +49,7 @@
 (defn tvm-datatype->keyword-nothrow
   [tvm-datatype]
   (get tvm-datatype->keyword-map tvm-datatype tvm-datatype))
+
 
 (defn tvm-datatype->keyword
   [tvm-datatype]
@@ -94,7 +95,6 @@
     :lanes 1} :uint64})
 
 
-
 (def kwd->device-type-map
   {:cpu 1
    :cpu-pinned 3
@@ -109,7 +109,8 @@
    :vpi 9
    :vulkan 7})
 
-(def device-type->kwd-map (c-set/map-invert kwd->device-type-map))
+
+(def device-type->kwd-map (set/map-invert kwd->device-type-map))
 
 
 (defn device-type->device-type-int

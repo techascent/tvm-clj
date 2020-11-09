@@ -1,17 +1,17 @@
-(ns tvm-clj.jna.fns.test.op
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.test.op
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "test.op.InferTensorizeRegion"))]
-  (defn InferTensorizeRegion
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "test.op.InferTensorizeRegion"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private InferTensorizeRegion-fnptr* (delay (base/name->global-function "test.op.InferTensorizeRegion")))
+(defn InferTensorizeRegion
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "test.op.InferTensorizeRegion"}
+   (apply base/call-function @InferTensorizeRegion-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "test.op.MatchTensorizeBody"))]
-  (defn MatchTensorizeBody
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "test.op.MatchTensorizeBody"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private MatchTensorizeBody-fnptr* (delay (base/name->global-function "test.op.MatchTensorizeBody")))
+(defn MatchTensorizeBody
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "test.op.MatchTensorizeBody"}
+   (apply base/call-function @MatchTensorizeBody-fnptr* args)))
 

@@ -1,17 +1,17 @@
-(ns tvm-clj.jna.fns.parser
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.parser
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "parser.ParseExpr"))]
-  (defn ParseExpr
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "parser.ParseExpr"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private ParseExpr-fnptr* (delay (base/name->global-function "parser.ParseExpr")))
+(defn ParseExpr
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "parser.ParseExpr"}
+   (apply base/call-function @ParseExpr-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "parser.ParseModule"))]
-  (defn ParseModule
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "parser.ParseModule"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private ParseModule-fnptr* (delay (base/name->global-function "parser.ParseModule")))
+(defn ParseModule
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "parser.ParseModule"}
+   (apply base/call-function @ParseModule-fnptr* args)))
 

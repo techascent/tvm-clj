@@ -1,14 +1,14 @@
-(ns tvm-clj.jna.module
-  (:require [tvm-clj.jna.base :as jna-base]
+(ns tvm-clj.impl.module
+  (:require [tvm-clj.impl.base :as jna-base]
             [tech.v3.jna :refer [checknil] :as jna]
-            [tvm-clj.bindings.protocols :as bindings-proto]
-            [tvm-clj.jna.fns.runtime :as runtime]
+            [tvm-clj.impl.protocols :as bindings-proto]
+            [tvm-clj.impl.fns.runtime :as runtime]
             [tech.v3.resource :as resource])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
             DLPack$DLManagedTensor]
-           [tvm_clj.jna.base TVMFunction]))
+           [tvm_clj.impl.base TVMFunction]))
 
 
 (jna-base/make-tvm-jna-fn TVMModFree
@@ -58,7 +58,9 @@
 (defn get-module-function
   ([module ^String fn-name query-imports?]
    (let [retval (PointerByReference.)]
-     (jna-base/check-call (TVMModGetFunction module fn-name (int (if query-imports? 1 0)) retval))
+     (jna-base/check-call (TVMModGetFunction
+                           module fn-name
+                           (int (if query-imports? 1 0)) retval))
      (when (= 0 (Pointer/nativeValue (.getValue retval)))
        (throw (ex-info "Could not find module function"
                        {:fn-name fn-name})))

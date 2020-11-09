@@ -1,5 +1,5 @@
-(ns tvm-clj.jna.node
-  (:require [tvm-clj.jna.base :refer [make-tvm-jna-fn
+(ns tvm-clj.impl.node
+  (:require [tvm-clj.impl.base :refer [make-tvm-jna-fn
                                       device-type->int
                                       device-id->int
                                       ptr-ptr
@@ -11,15 +11,13 @@
                                       global-function
                                       tvm-value->jvm]
              :as jna-base]
-            [tvm-clj.bindings.typenames :as typenames]
-            [tvm-clj.bindings.definitions :refer [tvm-datatype->keyword-nothrow]
-             :as bindings-defs]
-            [tvm-clj.bindings.protocols :as bindings-proto]
+            [tvm-clj.impl.typenames :as typenames]
+            [tvm-clj.impl.protocols :as bindings-proto]
             [tech.v3.jna :refer [checknil] :as jna]
             [tech.v3.resource :as resource]
             ;;Force generation of global functions
-            [tvm-clj.jna.fns.node :as node-fns]
-            [tvm-clj.jna.fns.runtime :as runtime]
+            [tvm-clj.impl.fns.node :as node-fns]
+            [tvm-clj.impl.fns.runtime :as runtime]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.protocols :as dtype-proto]
             [clojure.tools.logging :as log])

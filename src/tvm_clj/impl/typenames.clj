@@ -1,4 +1,4 @@
-(ns tvm-clj.bindings.typenames)
+(ns tvm-clj.impl.typenames)
 
 
 (comment

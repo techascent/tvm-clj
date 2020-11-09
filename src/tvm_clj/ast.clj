@@ -1,10 +1,10 @@
-(ns tvm-clj.api
+(ns tvm-clj.ast
   "Higher level API to build and compile tvm functions."
-  (:require [tvm-clj.tvm-jna :refer [->node] :as bindings]
-            [tvm-clj.jna.node :as jna-node]
-            [tvm-clj.jna.fns.te :as te-fns]
-            [tvm-clj.jna.fns.tir :as tir-fns]
-            [tvm-clj.jna.fns.ir :as ir-fns]
+  (:require [tvm-clj.impl.protocols :refer [->node] :as bindings]
+            [tvm-clj.impl.node :as jna-node]
+            [tvm-clj.impl.fns.te :as te-fns]
+            [tvm-clj.impl.fns.tir :as tir-fns]
+            [tvm-clj.impl.fns.ir :as ir-fns]
             [tech.v3.datatype :as dtype]
             [clojure.string :as s])
   (:refer-clojure :exclude [range cast mod min max]))
@@ -69,7 +69,7 @@
 (defn static-cast
   "Cast an item from one datatype to another"
   [dtype expr-node]
-  (bindings/global-node-function "make.Cast" (->dtype dtype) (->node expr-node)))
+  (throw (Exception. "Failwhale")))
 
 
 (defn cast
@@ -108,9 +108,10 @@
   value from the tensor is calling a halide function with the tensor's generating-op and
   value index."
   [ret-dtype fn-name fn-args call-type function-ref value-index]
-  (bindings/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
-                          (->call-type call-type)
-                          function-ref value-index))
+  #_(bindings/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
+                                   (->call-type call-type)
+                                   function-ref value-index)
+  (throw (Exception. "Failwhale")))
 
 
 (defn call-pure-intrin
@@ -264,7 +265,8 @@
   "Select between two expressions based on a condition.  Thus works similar to the
 clojure 'if' statement."
   [bool-stmt true-stmt false-stmt]
-  (bindings/global-node-function "make.Select" bool-stmt true-stmt false-stmt))
+  #_(bindings/global-node-function "make.Select" bool-stmt true-stmt false-stmt)
+  (throw (Exception. "Failwhale")))
 
 
 (defn- get-for-type-idx
@@ -466,7 +468,7 @@ expressions,
   expr-ary - one for each (const) right hand side.
   dtype - datatype of all inputs to reduction"
   [reduce-op identity-val dtype expr-seq axis-seq]
-  (let [fn-arglists (->> (meta reduce-op)
+  #_(let [fn-arglists (->> (meta reduce-op)
                          :arglists
                          (map clojure.core/name)
                          (mapv #(variable % :dtype dtype)))
@@ -477,7 +479,9 @@ expressions,
                              lhs-vars rhs-vars
                              (->node reduce-ast)
                              (->node [identity-val]))]
-    (bindings/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0)))
+
+      (bindings/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0))
+  (throw (Exception. "Failwhale")))
 
 
 (defn output-tensors

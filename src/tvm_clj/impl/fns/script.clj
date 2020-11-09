@@ -1,10 +1,10 @@
-(ns tvm-clj.jna.fns.script
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.script
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "script.AsTVMScript"))]
-  (defn AsTVMScript
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "script.AsTVMScript"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private AsTVMScript-fnptr* (delay (base/name->global-function "script.AsTVMScript")))
+(defn AsTVMScript
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "script.AsTVMScript"}
+   (apply base/call-function @AsTVMScript-fnptr* args)))
 

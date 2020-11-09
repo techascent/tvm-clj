@@ -1,17 +1,17 @@
-(ns tvm-clj.jna.fns.device_api
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.device_api
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "device_api.cpu"))]
-  (defn cpu
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "device_api.cpu"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private cpu-fnptr* (delay (base/name->global-function "device_api.cpu")))
+(defn cpu
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "device_api.cpu"}
+   (apply base/call-function @cpu-fnptr* args)))
 
-(let [gfn* (delay (jna-base/name->global-function "device_api.rpc"))]
-  (defn rpc
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "device_api.rpc"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private rpc-fnptr* (delay (base/name->global-function "device_api.rpc")))
+(defn rpc
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "device_api.rpc"}
+   (apply base/call-function @rpc-fnptr* args)))
 

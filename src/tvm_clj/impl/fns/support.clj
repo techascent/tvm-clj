@@ -1,10 +1,10 @@
-(ns tvm-clj.jna.fns.support
-  (:require [tvm-clj.jna.base :as jna-base]))
+(ns tvm-clj.impl.fns.support
+  (:require [tvm-clj.impl.base :as base]))
 
-(let [gfn* (delay (jna-base/name->global-function "support.GetLibInfo"))]
-  (defn GetLibInfo
-   "TVM PackedFn"
-   [& args]
-   (with-bindings {#'jna-base/fn-name "support.GetLibInfo"}
-     (apply jna-base/call-function @gfn* args))))
+(defonce ^:private GetLibInfo-fnptr* (delay (base/name->global-function "support.GetLibInfo")))
+(defn GetLibInfo
+ "TVM PackedFn"
+ [& args]
+ (with-bindings {#'base/fn-name "support.GetLibInfo"}
+   (apply base/call-function @GetLibInfo-fnptr* args)))
 
