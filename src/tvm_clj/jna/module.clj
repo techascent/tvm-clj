@@ -7,7 +7,8 @@
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [tvm_clj.tvm DLPack$DLContext DLPack$DLTensor DLPack$DLDataType
-            DLPack$DLManagedTensor]))
+            DLPack$DLManagedTensor]
+           [tvm_clj.jna.base TVMFunction]))
 
 
 (jna-base/make-tvm-jna-fn TVMModFree
@@ -55,15 +56,15 @@
 
 
 (defn get-module-function
-  [module ^String fn-name query-imports?]
-  (let [retval (PointerByReference.)]
-    (jna-base/check-call (TVMModGetFunction module fn-name (int (if query-imports? 1 0)) retval))
-    (when (= 0 (Pointer/nativeValue (.getValue retval)))
-      (throw (ex-info "Could not find module function"
-                      {:fn-name fn-name})))
-    (resource/track (->ModuleFunctionHandle (.getValue retval))
-                    {:dispose-fn #(TVMFuncFree (.getValue retval))
-                     :track-type :auto})))
+  ([module ^String fn-name query-imports?]
+   (let [retval (PointerByReference.)]
+     (jna-base/check-call (TVMModGetFunction module fn-name (int (if query-imports? 1 0)) retval))
+     (when (= 0 (Pointer/nativeValue (.getValue retval)))
+       (throw (ex-info "Could not find module function"
+                       {:fn-name fn-name})))
+     (TVMFunction. (.getValue retval) nil)))
+  ([module fn-name]
+   (get-module-function module fn-name false)))
 
 
 (defn get-module-source

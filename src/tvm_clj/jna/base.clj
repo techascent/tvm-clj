@@ -13,7 +13,8 @@
                                                 base-ptr] :as bindings-proto]
             [clojure.set :as c-set]
             [tech.v3.resource :as resource]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [clojure.stacktrace :as st])
   (:import [com.sun.jna Native NativeLibrary Pointer Function Platform]
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [clojure.lang IFn]
@@ -258,7 +259,8 @@ Argpair is of type [symbol type-coersion]."
           (fn [idx arg]
             (let [[long-val dtype :as data] (->tvm-value arg)]
               (when-not data
-                (throw (Exception. (format "Invalid tvm function argument: %s" arg))))
+                (throw (Exception. (format "Calling %s - Invalid tvm function argument: (%s) %s"
+                                           fn-name (type arg) arg))))
               (dtype/set-value! arg-vals idx long-val)
               (dtype/set-value! arg-types idx
                                 (keyword->tvm-datatype dtype)))))
@@ -371,6 +373,12 @@ When this function is not called, the function returns null by default.
                  [handle checknil])
 
 
+(make-tvm-jna-fn TVMFuncFree
+                 "Free a tvm function"
+                 Integer
+                 [handl (jna/as-ptr)])
+
+
 (defmacro ^:private impl-tvm-ifn
   []
   `(deftype ~'TVMFunction [~'handle ~'gc-obj]
@@ -391,7 +399,12 @@ When this function is not called, the function returns null by default.
                                          argsyms))
                            (call-function ~'handle ~@argsyms))))))
      (applyTo [this# argseq#]
-       (apply call-function ~'handle argseq#))))
+       (apply call-function ~'handle argseq#))
+     (run [this#]
+       (TVMObjectFree ~'handle))
+     java.lang.AutoCloseable
+     (close [this#]
+       (TVMObjectFree ~'handle))))
 
 
 (impl-tvm-ifn)
@@ -427,7 +440,10 @@ When this function is not called, the function returns null by default.
                            (TVMCFuncSetReturn ret-val-handle tvm-args arg-types 1))))
                       (int 0)
                       (catch Throwable e
-                        (let [msg (.getMessage e)]
+                        (let [msg (format "%s:\n%s\n"
+                                          (.getMessage e)
+                                          (with-out-str
+                                            (st/print-stack-trace e 20)))]
                           (TVMAPISetLastError msg))
                         (int -1))))))
         retval-hdl (LongByReference.)
@@ -435,12 +451,6 @@ When this function is not called, the function returns null by default.
         ;;The interface instance must stay around as long as the function does.
         retval (TVMFunction. (Pointer. (.getValue retval-hdl)) iface)]
     retval))
-
-
-(extend-type IFn
-  bindings-proto/PJVMTypeToTVMValue
-  (->tvm-value [ifn-inst]
-    (clj-fn->tvm-fn ifn-inst)))
 
 
 (defmethod tvm-value->jvm :func-handle

@@ -331,9 +331,11 @@
         ;;really has two jna ptrs, one to the image object and one to the data buffer.
         ;;Because of this we first convert to a native-buffer which implies a pointer to
         ;;the data buffer and then convert to a jna ptr.
-        address (-> (dtype-proto/->native-buffer ptr)
-                    (jna/->ptr-backing-store)
-                    (Pointer/nativeValue))
+        address (long (if (number? ptr)
+                        ptr
+                        (-> (dtype-proto/->native-buffer ptr)
+                            (jna/->ptr-backing-store)
+                            (Pointer/nativeValue))))
         retval (DLPack$DLTensor.)
         ctx (DLPack$DLContext.)
         gc-root-options {:gc-root gc-root}]
@@ -372,16 +374,16 @@
 
 
 (defn buffer-desc->dl-tensor
-  ([{:keys [ptr datatype shape strides] :as descriptor}
+  ([{:keys [ptr elemwise-datatype shape strides] :as descriptor}
     device-type device-id]
    (let [canonical-strides (->> (dims-analytics/shape-ary->strides shape)
                                 (mapv (partial * (casting/numeric-byte-width
-                                                  datatype))))
+                                                  elemwise-datatype))))
          strides (if-not (= canonical-strides strides)
-                   (mapv #(/ % (casting/numeric-byte-width datatype))
+                   (mapv #(/ % (casting/numeric-byte-width elemwise-datatype))
                          strides)
                    nil)]
-     (pointer->tvm-ary ptr device-type device-id datatype shape strides 0 descriptor)))
+     (pointer->tvm-ary ptr device-type device-id elemwise-datatype shape strides 0 descriptor)))
   ([descriptor]
    (buffer-desc->dl-tensor descriptor :cpu 0)))
 

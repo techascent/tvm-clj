@@ -28,7 +28,7 @@
            [java.util Map List RandomAccess]
            [java.io Writer]
            [tech.v3.datatype ObjectReader ObjectWriter]
-           [clojure.lang MapEntry IFn]))
+           [clojure.lang MapEntry IFn IObj]))
 
 
 (defmulti get-extended-node-value
@@ -104,9 +104,14 @@
 (declare construct-node-handle)
 
 
-(deftype NodeHandle [^Pointer handle fields]
+(deftype NodeHandle [^Pointer handle fields metadata]
   bindings-proto/PJVMTypeToTVMValue
-  (->tvm-value [this] [(Pointer/nativeValue handle) :node-handle])
+  (->tvm-value [this]
+    (let [retval [(Pointer/nativeValue handle)
+                  (if (:rvalue-reference? metadata)
+                    :object-rvalue-ref-arg
+                    :node-handle)]]
+      retval))
   bindings-proto/PToTVM
   (->tvm [this] this)
   bindings-proto/PConvertToNode
@@ -159,6 +164,10 @@
   Iterable
   (iterator [this]
     (.iterator ^Iterable (map #(MapEntry. % (.get this %)) fields)))
+  IObj
+  (meta [this] metadata)
+  (withMeta [this newmeta]
+    (NodeHandle. handle fields newmeta))
   IFn
   (invoke [this arg]
     (if (and (keyword? arg)
@@ -294,25 +303,26 @@
 
 (defmulti construct-node
   (fn [ptr]
-    (-> (NodeHandle. ptr #{})
+    (-> (NodeHandle. ptr #{} nil)
         (bindings-proto/node-type-name))))
 
 
 (defmethod construct-node :default
   [ptr]
-  (NodeHandle. ptr (try (->> (NodeHandle. ptr #{})
+  (NodeHandle. ptr (try (->> (NodeHandle. ptr #{} nil)
                              (get-node-fields)
                              (map keyword)
                              set)
                         (catch Exception e
                           (log/warnf e "Failed to get node fields")
                           #{}
-                          ))))
+                          ))
+               nil))
 
 
 (defmethod construct-node "Array"
   [ptr]
-  (let [init-handle (NodeHandle. ptr #{})
+  (let [init-handle (NodeHandle. ptr #{} nil)
         node-size (long (node-fns/ArraySize init-handle))]
     (ArrayHandle. ptr node-size)))
 
@@ -349,11 +359,31 @@ explicitly; it is done for you."
     (condp = tname
       "runtime.String"
       (try
-        (runtime/GetFFIString (NodeHandle. tptr #{}))
-        (finally (TVMObjectFree tptr)))
+        (runtime/GetFFIString (NodeHandle. tptr #{} nil))
+        (finally (do #_(println (format "freeing string 0x%016X" long-val))
+                     (TVMObjectFree tptr))))
       (-> (construct-node (Pointer. long-val))
           (resource/track {:track-type :auto
-                           :dispose-fn #(TVMObjectFree (Pointer. long-val))})))))
+                           :dispose-fn #(do
+                                          #_(println (format "Freeing object 0x%016X" long-val))
+                                          (TVMObjectFree (Pointer. long-val)))})))))
+
+
+(defmethod tvm-value->jvm :object-rvalue-ref-arg
+  [long-val val-type-kwd]
+  (let [tptr (Pointer. long-val)
+        tidx (get-node-type-index tptr)
+        tname (get @node-type-index->name* tidx)]
+    ;;Like a regular node except we do not free these nodes
+    ;;We do not free rvalue nodes coming from other places.
+    (condp = tname
+      "runtime.String"
+      (runtime/GetFFIString (NodeHandle. tptr #{} nil))
+      (let [
+            ndata
+            (-> (NodeHandle. (Pointer. long-val) #{} nil)
+                (vary-meta assoc :rvalue-reference? true))]
+        ndata))))
 
 
 (extend-protocol bindings-proto/PJVMTypeToTVMValue
@@ -365,6 +395,12 @@ explicitly; it is done for you."
       (map? value)
       (bindings-proto/->tvm-value (apply tvm-map (->> (seq value)
                                                       (apply concat))))
+      (fn? value)
+      (let [data
+            (resource/track
+             (jna-base/clj-fn->tvm-fn value)
+             {:track-type :stack})]
+        (bindings-proto/->tvm-value data))
       (nil? value)
       [(long 0) :null])))
 
@@ -412,7 +448,7 @@ explicitly; it is done for you."
   String
   (->node [item]
     (let [[long-val _ntype] (jna-base/raw-call-function @str-fn* item)]
-      (NodeHandle. (Pointer. (long long-val)) #{})))
+      (NodeHandle. (Pointer. (long long-val)) #{} nil)))
   Object
   (->node [item]
     (cond
