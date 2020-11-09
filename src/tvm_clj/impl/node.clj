@@ -360,6 +360,12 @@ explicitly; it is done for you."
         (runtime/GetFFIString (NodeHandle. tptr #{} nil))
         (finally (do #_(println (format "freeing string 0x%016X" long-val))
                      (TVMObjectFree tptr))))
+      "IntImm"
+      (try (get-node-field (NodeHandle. tptr #{} nil) "value")
+           (finally (TVMObjectFree tptr)))
+      "FloatImm"
+      (try (get-node-field tptr "value")
+           (finally (TVMObjectFree tptr)))
       (-> (construct-node (Pointer. long-val))
           (resource/track {:track-type :auto
                            :dispose-fn #(do
@@ -413,12 +419,14 @@ explicitly; it is done for you."
     (throw (ex-info "Invalid datatype detected"
                     {:dtype dtype-or-name}))))
 
+(defonce ^:private _const-fnptr* (delay (jna-base/name->global-function "node._const")))
+
 (defn const
   "Convert an item to a const (immediate) value"
   [numeric-value & [dtype]]
-  (let [dtype (->dtype (or dtype
-                           (dtype/datatype numeric-value)))]
-    (node-fns/_const numeric-value dtype)))
+  (let [dtype (->dtype (or dtype (dtype/datatype numeric-value)))
+        [long-val _ntype] (jna-base/raw-call-function @_const-fnptr* numeric-value dtype)]
+    (construct-node (Pointer. long-val))))
 
 
 (defonce str-fn* (delay (jna-base/name->global-function "runtime.String")))

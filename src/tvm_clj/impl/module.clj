@@ -23,6 +23,7 @@
   bindings-proto/PJVMTypeToTVMValue
   (->tvm-value [item] [(Pointer/nativeValue tvm-hdl) :module-handle])
   jna/PToPtr
+  (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item] tvm-hdl))
 
 
@@ -31,19 +32,6 @@
   (-> (->ModuleHandle (Pointer. long-val))
       (resource/track {:dispose-fn #(TVMModFree (Pointer. long-val))
                        :track-type :auto})))
-
-
-(jna-base/make-tvm-jna-fn TVMFuncFree
-                          "Free a tvm module function"
-                          Integer
-                          [handle checknil])
-
-
-(defrecord ModuleFunctionHandle [^Pointer handle]
-  bindings-proto/PToTVM
-  (->tvm [item] item)
-  jna/PToPtr
-  (->ptr-backing-store [item] handle))
 
 
 (jna-base/make-tvm-jna-fn TVMModGetFunction

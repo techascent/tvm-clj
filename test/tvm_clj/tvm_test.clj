@@ -39,3 +39,18 @@
     (add-fn tens-a tens-b tens-c)
     (is (dfn/equals tens-c
                     (dfn/+ tens-a tens-b)))))
+
+
+(deftest ^:cuda cuda-add
+  (let [{:keys [schedule arguments compute-op]} (make-add-fn)
+        _ (schedule/stage-gpu-injective schedule compute-op)
+        module (compiler/build {"cuda_add" {:schedule schedule
+                                            :arguments arguments
+                                            :target "cuda"}})
+        add-fn (module/find-function module "cuda_add")
+        tens-a (dtt/->tensor (range 10) :datatype :float32 :container-type :native-heap)
+        tens-b (dtt/->tensor (range 10 20) :datatype :float32 :container-type :native-heap)
+        tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap)]
+    (add-fn tens-a tens-b tens-c)
+    (is (dfn/equals tens-c
+                    (dfn/+ tens-a tens-b)))))

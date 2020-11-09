@@ -476,8 +476,8 @@ a different buffer type than this then you need to bind it yourself."
 (base/make-tvm-jna-fn TVMModImport
                       "Import a tvm module into this"
                       Integer
-                      [this (jna/as-ptr)]
-                      [other (jna/as-ptr)])
+                      [this jna/as-ptr]
+                      [other jna/as-ptr])
 
 
 
@@ -535,7 +535,46 @@ a different buffer type than this then you need to bind it yourself."
     (def C (first (ast/output-tensors compute-op)))
 
     (def schedule (schedule/create-schedule compute-op))
-    (schedule/stage-cpu-injective schedule compute-op))
+    (schedule/stage-gpu-injective schedule compute-op))
+
+
+  (def target (target-fns/Target "cuda"))
+  (def input-mod (lower schedule [A B C] {:name "gpu_add"}))
+  (def targetted-mod (map-pass #(assoc-attr % "target" target) input-mod))
+  (def config (current-pass-context-config))
+
+  (def mod-mixed (->> (concat
+                       [(tir-transform-fns/VerifyMemory)]
+                       (when (== 1 (count (:functions mod-mixed)))
+                         [(make-fn-pass #(assoc-attr % "tir.is_entry_func" true))])
+                       (when (get config "tir.detect_global_barrier")
+                         [(tir-transform-fns/ThreadSync "global")])
+                       [(tir-transform-fns/ThreadSync "shared")
+                        (tir-transform-fns/ThreadSync "warp")
+                        (tir-transform-fns/InferFragment)
+                        (tir-transform-fns/LowerThreadAllreduce)
+                        (tir-transform-fns/MakePackedAPI 0)
+                        (tir-transform-fns/SplitHostDevice)])
+                      (sequential-pass targetted-mod)))
+
+  (def device-modules (->> [(make-filter-pass #(= (get (tvm-fn-attrs %) "calling_conv")
+                                                  DEVICE_KERNEL_LAUNCH))
+                            (tir-transform-fns/LowerWarpMemory)
+                            (tir-transform-fns/Simplify)
+                            (tir-transform-fns/LowerDeviceStorageAccessInfo)
+                            (tir-transform-fns/LowerCustomDatatypes)
+                            (tir-transform-fns/LowerIntrin)]
+                           (sequential-pass mod-mixed)))
+
+  (def host-modules (->> [(make-filter-pass #(not= (get (tvm-fn-attrs %) "calling_conv")
+                                                   DEVICE_KERNEL_LAUNCH))
+                          (make-fn-pass #(assoc-attr % "target" target))
+                          (tir-transform-fns/LowerTVMBuiltin)
+                          (tir-transform-fns/LowerDeviceStorageAccessInfo)
+                          (tir-transform-fns/LowerCustomDatatypes)
+                          (tir-transform-fns/LowerIntrin)
+                          (tir-transform-fns/CombineContextCall)]
+                         (sequential-pass mod-mixed)))
 
   (def module (build {"cpu_add" {:schedule schedule
                                  :arguments [A B C]}}))
