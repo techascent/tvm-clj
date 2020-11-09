@@ -1,15 +1,16 @@
 (ns tvm-clj.compiler
-  (:require [tvm-clj.api :as api]
-            [tvm-clj.jna.base :as base]
-            [tvm-clj.tvm-jna :as bindings]
-            [tvm-clj.jna.fns.ir :as ir-fns]
-            [tvm-clj.jna.fns.transform :as transform-fns]
-            [tvm-clj.jna.fns.tir.transform :as tir-transform-fns]
-            [tvm-clj.jna.fns.schedule :as schedule-fns]
-            [tvm-clj.jna.fns.te :as te-fns]
-            [tvm-clj.jna.fns.tir :as tir-fns]
-            [tvm-clj.jna.fns.target :as target-fns]
-            [tvm-clj.jna.module :as module]
+  (:require [tvm-clj.ast :as ast]
+            [tvm-clj.schedule :as schedule]
+            [tvm-clj.impl.base :as base]
+            [tvm-clj.impl.protocols :as bindings]
+            [tvm-clj.impl.fns.ir :as ir-fns]
+            [tvm-clj.impl.fns.transform :as transform-fns]
+            [tvm-clj.impl.fns.tir.transform :as tir-transform-fns]
+            [tvm-clj.impl.fns.schedule :as schedule-fns]
+            [tvm-clj.impl.fns.te :as te-fns]
+            [tvm-clj.impl.fns.tir :as tir-fns]
+            [tvm-clj.impl.fns.target :as target-fns]
+            [tvm-clj.impl.module :as module]
             [tech.v3.datatype.errors :as errors]
             [tech.v3.jna :as jna]
             [clojure.set :as set]))
@@ -240,8 +241,8 @@
                                     (ir-fns/PrimType dtype))))
         offset-factor 0]
     (tir-fns/Buffer
-     data (api/->dtype dtype) shape strides elem-offset
-     (api/safe-str name) scope
+     data (ast/->dtype dtype) shape strides elem-offset
+     (ast/safe-str name) scope
      data-alignment offset-factor
      "")))
 
@@ -318,7 +319,7 @@ a different buffer type than this then you need to bind it yourself."
                                         (bindings/->node "tir.noalias")
                                         (bindings/->node true))
                func)]
-    (ir-fns/IRModule {(ir-fns/GlobalVar (api/safe-str name)) func}
+    (ir-fns/IRModule {(ir-fns/GlobalVar (ast/safe-str name)) func}
                      {})))
 
 
@@ -522,59 +523,32 @@ a different buffer type than this then you need to bind it yourself."
 
 (comment
   (do
-    (def n (api/variable "n"))
-    (def A (api/placeholder [n] "A"))
-    (def B (api/placeholder [n] "B"))
-    (def compute-op (api/compute [n]
-                                 (api/tvm-fn
+    (def n (ast/variable "n"))
+    (def A (ast/placeholder [n] "A"))
+    (def B (ast/placeholder [n] "B"))
+    (def compute-op (ast/compute [n]
+                                 (ast/tvm-fn
                                   [i]
-                                  (api/add (api/tget A [i])
-                                           (api/tget B [i])))
+                                  (ast/add (ast/tget A [i])
+                                           (ast/tget B [i])))
                                  "C"))
-    (def C (first (api/output-tensors compute-op)))
-    (def schedule (api/create-schedule compute-op))
-    (api/stage-cpu-injective schedule compute-op)
-    (def lowered (lower schedule [A B C] {:name "add"}))
-    (def target (target-fns/Target "llvm")))
+    (def C (first (ast/output-tensors compute-op)))
 
-  (def input-mod (map-pass #(assoc-attr % "target" target) lowered))
-  (def config (current-pass-context-config))
-  (def mod-mixed (->> (concat
-                       [(tir-transform-fns/VerifyMemory)]
-                       (when (== 1 (count (:functions input-mod)))
-                         [(make-fn-pass #(assoc-attr % "tir.is_entry_func" true))])
-                       (when (get config "tir.detect_global_barrier")
-                         [(tir-transform-fns/ThreadSync "global")])
-                       [(tir-transform-fns/ThreadSync "shared")
-                        (tir-transform-fns/ThreadSync "warp")
-                        (tir-transform-fns/InferFragment)
-                        (tir-transform-fns/LowerThreadAllreduce)
-                        ;;0 here indicates the number of parameters we hope to directly
-                        ;;pass via the normal call function
-                        (tir-transform-fns/MakePackedAPI 0)
-                        (tir-transform-fns/SplitHostDevice)])
-                      (sequential-pass input-mod)))
-
-
-  (def device-modules (->> [(make-filter-pass #(= (get (tvm-fn-attrs %) "calling_conv")
-                                                  DEVICE_KERNEL_LAUNCH))
-                            (tir-transform-fns/LowerWarpMemory)
-                            (tir-transform-fns/Simplify)
-                            (tir-transform-fns/LowerDeviceStorageAccessInfo)
-                            (tir-transform-fns/LowerCustomDatatypes)
-                            (tir-transform-fns/LowerIntrin)]
-                           (sequential-pass mod-mixed)))
-
-  (def host-modules (->> [(make-filter-pass #(not= (get (tvm-fn-attrs %) "calling_conv")
-                                                   DEVICE_KERNEL_LAUNCH))
-                          (make-fn-pass #(assoc-attr % "target" target))
-                          (tir-transform-fns/LowerTVMBuiltin)
-                          (tir-transform-fns/LowerDeviceStorageAccessInfo)
-                          (tir-transform-fns/LowerCustomDatatypes)
-                          (tir-transform-fns/LowerIntrin)
-                          (tir-transform-fns/CombineContextCall)]
-                         (sequential-pass mod-mixed)))
+    (def schedule (schedule/create-schedule compute-op))
+    (schedule/stage-cpu-injective schedule compute-op))
 
   (def module (build {"cpu_add" {:schedule schedule
                                  :arguments [A B C]}}))
+
+  (def add-fn (module/get-module-function module "cpu_add"))
+  (do
+
+    (require '[tech.v3.tensor :as dtt])
+    (def tens-a (dtt/->tensor (range 10) :datatype :float32 :container-type :native-heap))
+    (def tens-b (dtt/->tensor (range 10 20) :datatype :float32 :container-type :native-heap))
+    (def tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap))
+    (require '[tvm-clj.impl.dl-tensor])
+    (add-fn tens-a tens-b tens-c)
+
+    )
   )
