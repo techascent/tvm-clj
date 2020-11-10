@@ -23,5 +23,6 @@
                       :namespaces [tvm-clj.ast
                                    tvm-clj.schedule
                                    tvm-clj.compiler
-                                   tvm-clj.module]}}}
+                                   tvm-clj.module
+                                   tvm-clj.device]}}}
   :aliases {"codox" ["with-profile" "codox,dev" "codox"]})

@@ -16,7 +16,7 @@
             [clojure.set :as set]))
 
 
-(defn sequential-pass
+(defn ^:no-doc sequential-pass
   "Perform a sequential pass, using the passes defined in the pass list
   and returning a new ir module."
   ([mod {:keys [optimization-level]
@@ -28,7 +28,7 @@
    (sequential-pass mod nil pass-list)))
 
 
-(defn make-fn-pass
+(defn ^:no-doc make-fn-pass
   "Define a TVM compiler pass given a clojure fn.  Fn is a function from IRModule->IRModule.
 
   Options:
@@ -54,7 +54,7 @@
    (make-fn-pass map-fn nil)))
 
 
-(defn make-filter-pass
+(defn ^:no-doc make-filter-pass
   "Filter functions by the calling convention attribute.
 
     Parameters
@@ -81,7 +81,7 @@
    (make-filter-pass filter-fn nil)))
 
 
-(defn map-pass
+(defn ^:no-doc map-pass
   "Map a function across an IRModule potentially modifying the input
   IRModule.  The IRModule is returned.
 
@@ -95,7 +95,7 @@
    (map-pass map-fn nil ir-module)))
 
 
-(defn rvalue-reference
+(defn ^:no-doc rvalue-reference
   "Create an RValue reference to the object and mark the object as moved.
 
   This marks the object letting the TVM system know that it will not be
@@ -119,7 +119,7 @@
   (vary-meta node assoc :rvalue-reference? true))
 
 
-(defn assoc-attr
+(defn ^:no-doc assoc-attr
   "Create a new copy of the function and update the attribute.
 
    Parameters
@@ -162,7 +162,7 @@
 (def int->lowered-function-type-map (set/map-invert lowered-function-type->int-map))
 
 
-(defn declare-buffer
+(defn ^:no-doc declare-buffer
   "Decleare a new symbolic buffer.
 
     Normally buffer is created automatically during lower and build.
@@ -247,7 +247,7 @@
      "")))
 
 
-(defn bind-arguments
+(defn ^:no-doc bind-arguments
   "Given an arg-list and existing bind map, produce a new arg list
 and bind map with all arguments bound to input buffers with defined buffer layout.
 Bind map is a map of type NodeHandle->NodeHandle where the keys are tensors and the
@@ -274,12 +274,12 @@ a different buffer type than this then you need to bind it yourself."
           arg-list))
 
 
-(defn current-pass-context-config
+(defn ^:no-doc current-pass-context-config
   []
   (:config (transform-fns/GetCurrentPassContext)))
 
 
-(defn schedule->function
+(defn ^:no-doc schedule->function
   "According to the given schedule, form a function.
 
     Parameters
@@ -323,7 +323,7 @@ a different buffer type than this then you need to bind it yourself."
                      {})))
 
 
-(defn lower
+(defn ^:no-doc lower
   "Lowering step before build into target.
 
     Parameters
@@ -393,17 +393,17 @@ a different buffer type than this then you need to bind it yourself."
          (sequential-pass mod {:optimization-level optimization-level}))))
 
 
-(def ^{:tag 'long} DEVICE_KERNEL_LAUNCH 2)
-(def ^{:tag 'long} C_PACKED_FUNC 1)
-(def ^{:tag 'long} DEFAULT 0)
+(def ^{:tag 'long :private true} DEVICE_KERNEL_LAUNCH 2)
+(def ^{:tag 'long :private true} C_PACKED_FUNC 1)
+(def ^{:tag 'long :private true} DEFAULT 0)
 
-(defn tvm-fn-attrs
+(defn ^:no-doc tvm-fn-attrs
   [item]
   (-> (ir-fns/BaseFunc_Attrs item)
       (ir-fns/DictAttrsGetDict)))
 
 
-(defn build-for-device
+(defn ^no-doc build-for-device
     "Build the lowered functions for a device with the given compilation
     target.
 
@@ -426,7 +426,7 @@ a different buffer type than this then you need to bind it yourself."
     mdev : tvm.module
         A module that contains device code."
   [input-mod target target-host]
-  (let [target (target-fns/Target target)
+  (let [target (target-fns/Target (ast/safe-str target))
         config (current-pass-context-config)
         ;;mark every function as being on the device
         mod-mixed (map-pass #(assoc-attr % "target" target) input-mod)
@@ -510,7 +510,8 @@ a different buffer type than this then you need to bind it yourself."
          host-module (let [host-module (ir-fns/IRModule {} {})]
                        (doseq [host-m host-modules]
                          (ir-fns/Module_Update host-module host-m))
-                       (target-fns/Build host-module (target-fns/Target target-host)))]
+                       (target-fns/Build host-module (target-fns/Target
+                                                      (ast/safe-str target-host))))]
      (doseq [dev-mod device-modules]
        (TVMModImport host-module dev-mod))
      host-module))

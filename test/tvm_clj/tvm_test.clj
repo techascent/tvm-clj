@@ -3,8 +3,10 @@
             [tvm-clj.schedule :as schedule]
             [tvm-clj.compiler :as compiler]
             [tvm-clj.module :as module]
+            [tvm-clj.device :as device]
             [tech.v3.tensor :as dtt]
             [tech.v3.datatype.functional :as dfn]
+            [tech.v3.datatype :as dtype]
             [clojure.test :refer [deftest is]]))
 
 
@@ -41,16 +43,37 @@
                     (dfn/+ tens-a tens-b)))))
 
 
-(deftest ^:cuda cuda-add
+(defn device-test
+  [device-type]
   (let [{:keys [schedule arguments compute-op]} (make-add-fn)
         _ (schedule/stage-gpu-injective schedule compute-op)
-        module (compiler/build {"cuda_add" {:schedule schedule
+        module (compiler/build {"device_add" {:schedule schedule
                                             :arguments arguments
-                                            :target "cuda"}})
-        add-fn (module/find-function module "cuda_add")
+                                              :target device-type}})
+        add-fn (module/find-function module "device_add")
         tens-a (dtt/->tensor (range 10) :datatype :float32 :container-type :native-heap)
         tens-b (dtt/->tensor (range 10 20) :datatype :float32 :container-type :native-heap)
-        tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap)]
-    (add-fn tens-a tens-b tens-c)
+        tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap)
+        stream (device/stream device-type 0)
+        _ (device/set-current-thread-stream! stream)
+        dev-a (device/device-tensor (dtype/shape tens-a) (dtype/elemwise-datatype tens-a)
+                                     device-type 0)
+        _ (device/copy-tensor! tens-a dev-a stream)
+        dev-b (device/device-tensor (dtype/shape tens-b) (dtype/elemwise-datatype tens-a)
+                                     device-type 0)
+        _ (device/copy-tensor! tens-b dev-b stream)
+        dev-c (device/device-tensor (dtype/shape tens-c) (dtype/elemwise-datatype tens-c)
+                                     device-type 0)]
+    (add-fn dev-a dev-b dev-c)
+    (device/copy-tensor! dev-c tens-c stream)
+    (device/sync-stream-with-host stream)
     (is (dfn/equals tens-c
                     (dfn/+ tens-a tens-b)))))
+
+
+(deftest ^:cuda cuda-add
+  (device-test :cuda))
+
+
+(deftest ^:opencl opencl-add
+  (device-test :opencl))

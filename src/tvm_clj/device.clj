@@ -1,4 +1,4 @@
-(ns tvm-clj.devices
+(ns tvm-clj.device
   (:require [tvm-clj.impl.definitions :as definitions]
             [tvm-clj.impl.protocols :as tvm-proto]
             [tvm-clj.impl.fns.runtime :as runtime-fns]
@@ -31,19 +31,21 @@
   dest-tens)
 
 
-
 (defn stream
   "Create a device stream of execution."
   [device-type device-id]
-  (stream/create-stream device-type device-id))
+  (when-not (= device-type :opencl)
+    (stream/create-stream device-type device-id)))
 
 
-(defn set-current-thread-stream
+(defn set-current-thread-stream!
   [stream]
-  (stream/set-current-thread-stream stream))
+  (when stream
+    (stream/set-current-thread-stream stream)))
 
 
 (defn sync-stream-with-host
   "Synchonize the device stream with the host"
   [stream]
-  (stream/sync-stream-with-host stream))
+  (when stream
+    (stream/sync-stream-with-host stream)))

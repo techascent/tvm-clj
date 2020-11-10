@@ -78,7 +78,8 @@
     (check-call (TVMStreamCreate device-type device-id retval))
     (resource/track (->StreamHandle device-type device-id (.getValue retval))
                     {:track-type :auto
-                     :dispose-fn #(TVMStreamFree (.getValue retval))})))
+                     :dispose-fn #(TVMStreamFree (.getValue retval)
+                                                 device-type device-id)})))
 
 
 (defn sync-stream-with-host
