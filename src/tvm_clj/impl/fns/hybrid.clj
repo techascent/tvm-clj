@@ -1,10 +1,4 @@
 (ns tvm-clj.impl.fns.hybrid
-  (:require [tvm-clj.impl.base :as base]))
+  (:require [tvm-clj.impl.tvm-ns-fns :as tvm-ns-fns]))
 
-(defonce ^:private _Dump-fnptr* (delay (base/name->global-function "hybrid._Dump")))
-(defn _Dump
- "TVM PackedFn"
- [& args]
- (with-bindings {#'base/fn-name "hybrid._Dump"}
-   (apply base/call-function @_Dump-fnptr* args)))
-
+(tvm-ns-fns/export-tvm-functions "hybrid")

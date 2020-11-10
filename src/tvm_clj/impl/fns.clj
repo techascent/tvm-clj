@@ -5,16 +5,10 @@
   create all sub namespaces.  This does mean these namespaces will not
   have documentation at this point."
   (:require [tvm-clj.impl.base :as jna-base]
+            [tvm-clj.impl.tvm-ns-fns :as tvm-ns-fns]
             [clojure.string :as s]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]))
-
-
-(defn safe-local-name
-  [^String lname]
-  (cond
-    (= "String" lname) "RuntimeString"
-    :else lname))
 
 
 (defn define-tvm-fns!
@@ -40,31 +34,17 @@
       ;;Auto generating the namespace only gets you dynamic resolution of the
       ;;names.  So we *actually* define the namespace.
       (let [ns-path (str root-ns-path (s/join "/" ns-name) ".clj")
-            ns-name (str "tvm-clj.impl.fns." (s/join "." ns-name))
+            tvm-ns-name (s/join "." ns-name)
+            ns-name (str "tvm-clj.impl.fns." tvm-ns-name)
             builder (StringBuilder.)]
         (.append builder (format "(ns %s
-  (:require [tvm-clj.impl.base :as base]))
+  (:require [tvm-clj.impl.tvm-ns-fns :as tvm-ns-fns]))
 
 " ns-name))
 
-        (log/debugf "Generating TVM namespace %s" ns-path)
-        (doseq [{:keys [local-name fullname]} ns-data]
-          (let [gfn-name (str local-name "-fnptr*")]
-            (.append builder (format "(defonce ^:private %s (delay (base/name->global-function \"%s\")))
-(defn %s
- \"TVM PackedFn\"
- [& args]
- (with-bindings {#'base/fn-name \"%s\"}
-   (apply base/call-function @%s args)))
-
-"
-                                     gfn-name
-                                     fullname
-                                     (safe-local-name local-name)
-                                     fullname
-                                     gfn-name))
-            (io/make-parents ns-path)
-            (spit ns-path (.toString builder))))))))
+        (.append builder (format "(tvm-ns-fns/export-tvm-functions \"%s\")"
+                                 tvm-ns-name))
+        (spit ns-path (.toString builder))))))
 
 
 (comment

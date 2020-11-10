@@ -1,10 +1,4 @@
 (ns tvm-clj.impl.fns.relay.ext
-  (:require [tvm-clj.impl.base :as base]))
+  (:require [tvm-clj.impl.tvm-ns-fns :as tvm-ns-fns]))
 
-(defonce ^:private ccompiler-fnptr* (delay (base/name->global-function "relay.ext.ccompiler")))
-(defn ccompiler
- "TVM PackedFn"
- [& args]
- (with-bindings {#'base/fn-name "relay.ext.ccompiler"}
-   (apply base/call-function @ccompiler-fnptr* args)))
-
+(tvm-ns-fns/export-tvm-functions "relay.ext")
