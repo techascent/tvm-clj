@@ -133,4 +133,9 @@
   {:exists 0
    :max-threads-per-block 1
    :warp-size 2
-   :compute-version 3})
+   :max-shared-memory-per-block 3
+   :compute-version 4
+   :device-name 5
+   :max-clock-rate 6
+   :multi-processor-count 7
+   :max-thread-dimensions 8})

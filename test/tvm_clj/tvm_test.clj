@@ -18,6 +18,8 @@
         A (ast/placeholder [n] "A")
         B (ast/placeholder [n] "B")
         compute-op (ast/compute [n]
+                                ;;Attaches metadata to the fn so we know the argument
+                                ;;count.
                                 (ast/tvm-fn
                                  [i]
                                  (ast/add (ast/tget A [i])
@@ -32,8 +34,8 @@
 (deftest cpu-add
   (let [{:keys [schedule arguments compute-op]} (make-add-fn)
         _ (schedule/stage-cpu-injective schedule compute-op)
-        module (compiler/build {"cpu_add" {:schedule schedule
-                                           :arguments arguments}})
+        module (compiler/compile {"cpu_add" {:schedule schedule
+                                             :arguments arguments}})
         add-fn (module/find-function module "cpu_add")
         tens-a (dtt/->tensor (range 10) :datatype :float32
                              :container-type :native-heap)
@@ -42,15 +44,14 @@
         tens-c (dtt/new-tensor [10] :datatype :float32
                                :container-type :native-heap)]
     (add-fn tens-a tens-b tens-c)
-    (is (dfn/equals tens-c
-                    (dfn/+ tens-a tens-b)))))
+    (is (dfn/equals tens-c (dfn/+ tens-a tens-b)))))
 
 
 (defn device-test
   [device-type]
   (let [{:keys [schedule arguments compute-op]} (make-add-fn)
         _ (schedule/stage-gpu-injective schedule compute-op)
-        module (compiler/build {"device_add" {:schedule schedule
+        module (compiler/compile {"device_add" {:schedule schedule
                                             :arguments arguments
                                               :target device-type}})
         add-fn (module/find-function module "device_add")
@@ -58,25 +59,15 @@
                              :container-type :native-heap)
         tens-b (dtt/->tensor (range 10 20) :datatype :float32
                              :container-type :native-heap)
-        tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap)
-        stream (device/stream device-type 0)
-        _ (device/set-current-thread-stream! stream)
-        dev-a (device/device-tensor (dtype/shape tens-a)
-                                    (dtype/elemwise-datatype tens-a)
-                                     device-type 0)
-        _ (device/copy-tensor! tens-a dev-a stream)
-        dev-b (device/device-tensor (dtype/shape tens-b)
-                                    (dtype/elemwise-datatype tens-a)
-                                     device-type 0)
-        _ (device/copy-tensor! tens-b dev-b stream)
-        dev-c (device/device-tensor (dtype/shape tens-c)
-                                    (dtype/elemwise-datatype tens-c)
-                                    device-type 0)]
-    (add-fn dev-a dev-b dev-c)
-    (device/copy-tensor! dev-c tens-c stream)
-    (device/sync-stream-with-host stream)
-    (is (dfn/equals tens-c
-                    (dfn/+ tens-a tens-b)))))
+        device-id 0
+        dev-a (device/cpu->device tens-a device-type device-id)
+        dev-b (device/cpu->device tens-b device-type device-id)
+        ;;Create a device tensor taking the shape and elemwise datatype
+        ;;from the input.
+        dev-c (device/device-tensor tens-a device-type device-id)
+        _ (add-fn dev-a dev-b dev-c)
+        tens-c (device/device->cpu dev-c)]
+    (is (dfn/equals tens-c (dfn/+ tens-a tens-b)))))
 
 
 (deftest ^:cuda cuda-add

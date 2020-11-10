@@ -1,4 +1,7 @@
 (ns tvm-clj.schedule
+  "After describing the algorithm, the user creates a 'schedule' for the
+  algorithm which involve transformations to the algorithm that are guaranteed
+  not to change the results such as the tiling a computation across a tensor."
   (:require [tvm-clj.impl.protocols :refer [->node] :as bindings]
             [tvm-clj.impl.node :as jna-node]
             [tvm-clj.ast :as ast]

@@ -1,5 +1,6 @@
 (ns tvm-clj.ast
-  "Higher level API to build and compile tvm functions."
+  "TVM's algorithms are first described using an AST tailored towards
+  ND-array programming."
   (:require [tvm-clj.impl.protocols :refer [->node] :as bindings]
             [tvm-clj.impl.node :as jna-node]
             [tvm-clj.impl.fns.te :as te-fns]

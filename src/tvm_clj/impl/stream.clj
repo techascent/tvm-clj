@@ -42,7 +42,7 @@
                  Integer
                  [device_type device-type->int]
                  [device_id device-id->int]
-                 [stream ensure-stream->ptr])
+                 [stream jna/as-ptr])
 
 
 (make-tvm-jna-fn TVMStreamStreamSynchronize

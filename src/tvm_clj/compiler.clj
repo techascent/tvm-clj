@@ -1,4 +1,7 @@
 (ns tvm-clj.compiler
+  "Once a user has a schedule, they then need to compile the schedule into actual
+  executable code.  This produces a module which contains all of the executable code,
+  cuda/opencl modules, etc required to run the schedule."
   (:require [tvm-clj.ast :as ast]
             [tvm-clj.schedule :as schedule]
             [tvm-clj.impl.base :as base]
@@ -13,7 +16,8 @@
             [tvm-clj.impl.module :as module]
             [tech.v3.datatype.errors :as errors]
             [tech.v3.jna :as jna]
-            [clojure.set :as set]))
+            [clojure.set :as set])
+  (:refer-clojure :exclude [compile]))
 
 
 (defn ^:no-doc sequential-pass
@@ -323,8 +327,12 @@ a different buffer type than this then you need to bind it yourself."
                      {})))
 
 
-(defn ^:no-doc lower
+(defn lower
   "Lowering step before build into target.
+
+  Users do not often need to call this themselves but it is useful in order to
+  see code produced by different scheduling primitives.  The return value prints
+  the schedule nicely to the REPL.
 
     Parameters
     ----------
@@ -473,15 +481,7 @@ a different buffer type than this then you need to bind it yourself."
 
 
 
-(base/make-tvm-jna-fn TVMModImport
-                      "Import a tvm module into this"
-                      Integer
-                      [this jna/as-ptr]
-                      [other jna/as-ptr])
-
-
-
-(defn build
+(defn compile
     "Build a map of function entries.
   fn-entries is a map of name to fn-data and fn-data is a
   map containing:
@@ -491,8 +491,6 @@ a different buffer type than this then you need to bind it yourself."
   * `:arguments` - argument declarations to the function
   * `:bind-map` - optional map of argument to bind declaration to declare the
     memory layout of the argument.
-  * `:simple-mode?` - optional boolean to indicate not to perform optimizations
-    that result in an unreadable AST.
   "
   ([fn-map {:keys [target-host]
             :or {target-host "llvm"}}]
@@ -513,10 +511,10 @@ a different buffer type than this then you need to bind it yourself."
                        (target-fns/Build host-module (target-fns/Target
                                                       (ast/safe-str target-host))))]
      (doseq [dev-mod device-modules]
-       (TVMModImport host-module dev-mod))
+       (module/TVMModImport host-module dev-mod))
      host-module))
   ([fn-map]
-   (build fn-map nil)))
+   (compile fn-map nil)))
 
 
 
