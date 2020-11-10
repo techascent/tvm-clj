@@ -403,7 +403,7 @@ a different buffer type than this then you need to bind it yourself."
       (ir-fns/DictAttrsGetDict)))
 
 
-(defn ^no-doc build-for-device
+(defn ^:no-doc build-for-device
     "Build the lowered functions for a device with the given compilation
     target.
 

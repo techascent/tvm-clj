@@ -35,9 +35,12 @@
         module (compiler/build {"cpu_add" {:schedule schedule
                                            :arguments arguments}})
         add-fn (module/find-function module "cpu_add")
-        tens-a (dtt/->tensor (range 10) :datatype :float32 :container-type :native-heap)
-        tens-b (dtt/->tensor (range 10 20) :datatype :float32 :container-type :native-heap)
-        tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap)]
+        tens-a (dtt/->tensor (range 10) :datatype :float32
+                             :container-type :native-heap)
+        tens-b (dtt/->tensor (range 10 20) :datatype :float32
+                             :container-type :native-heap)
+        tens-c (dtt/new-tensor [10] :datatype :float32
+                               :container-type :native-heap)]
     (add-fn tens-a tens-b tens-c)
     (is (dfn/equals tens-c
                     (dfn/+ tens-a tens-b)))))
@@ -51,19 +54,24 @@
                                             :arguments arguments
                                               :target device-type}})
         add-fn (module/find-function module "device_add")
-        tens-a (dtt/->tensor (range 10) :datatype :float32 :container-type :native-heap)
-        tens-b (dtt/->tensor (range 10 20) :datatype :float32 :container-type :native-heap)
+        tens-a (dtt/->tensor (range 10) :datatype :float32
+                             :container-type :native-heap)
+        tens-b (dtt/->tensor (range 10 20) :datatype :float32
+                             :container-type :native-heap)
         tens-c (dtt/new-tensor [10] :datatype :float32 :container-type :native-heap)
         stream (device/stream device-type 0)
         _ (device/set-current-thread-stream! stream)
-        dev-a (device/device-tensor (dtype/shape tens-a) (dtype/elemwise-datatype tens-a)
+        dev-a (device/device-tensor (dtype/shape tens-a)
+                                    (dtype/elemwise-datatype tens-a)
                                      device-type 0)
         _ (device/copy-tensor! tens-a dev-a stream)
-        dev-b (device/device-tensor (dtype/shape tens-b) (dtype/elemwise-datatype tens-a)
+        dev-b (device/device-tensor (dtype/shape tens-b)
+                                    (dtype/elemwise-datatype tens-a)
                                      device-type 0)
         _ (device/copy-tensor! tens-b dev-b stream)
-        dev-c (device/device-tensor (dtype/shape tens-c) (dtype/elemwise-datatype tens-c)
-                                     device-type 0)]
+        dev-c (device/device-tensor (dtype/shape tens-c)
+                                    (dtype/elemwise-datatype tens-c)
+                                    device-type 0)]
     (add-fn dev-a dev-b dev-c)
     (device/copy-tensor! dev-c tens-c stream)
     (device/sync-stream-with-host stream)
