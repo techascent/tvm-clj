@@ -1,4 +1,4 @@
-## Justification
+# Technical Background
 
 [tvm](https://github.com/dmlc/tvm) a system for dynamically generating high performance numeric code with backends for cpu, cuda, opencl, opengl, webassembly, vulcan, and verilog.  It has frontends mainly in python and c++ with a clear and well designed C-ABI that not only aids in the implementation of their python interface, but it also eases the binding into other language ecosystems such as the jvm and node.
 
@@ -24,12 +24,6 @@ It should be noted, however, that at this point TVM has diverged significantly f
 
 
 ## What, Concretely, Are You Talking About?
-
-
-### Simple Example
-
-tvm exposes a directed graph along with a declarative scheduling system to build high performance numerical systems for n-dimensional data.  In the example below, we dynamically create a function to add 2 vectors then compile that function for a cpu and gpu backend.  Note that the major difference between the backends lies in the scheduling; not in the algorithm itself.
-[source](../test/tvm_clj/api_test.clj)
 
 
 ### Vector Math Compiler Example
@@ -75,7 +69,6 @@ produce bgr_types_op {
 
 Compiled (opencl) tensor took: "Elapsed time: 4.641527 msecs"
 ```
-[source](../test/tech/libs/tvm/compile_test.clj)
 
 
 ### Image Scaling (TVM vs OpenCV)
@@ -112,12 +105,4 @@ tvm-clj.image.resize-test> (downsample-img :device-type :opencl)
  :tvm-bilinear-time "\"Elapsed time: 16.290168 msecs\"\n"}
 ```
 
-
-tvm-area: ![tvm-results](images/test.jpg)
-
-
-opencv-bilinear: ![opencv-results](images/ref.jpg)
-
-
-* [tvm-clj source](../src/tech/libs/tvm/image/resize.clj)
 * [opencv source](https://github.com/opencv/opencv/blob/master/modules/imgproc/src/resize.cpp)

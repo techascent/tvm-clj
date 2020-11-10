@@ -1,11 +1,24 @@
 # tvm-clj
 
-Clojure bindings and exploration of the [tvm](https://github.com/dmlc/tvm) library, part of the [dmlc](https://github.com/dmlc) ecosystem.
+Clojure bindings and exploration of the [tvm](https://github.com/apache/incubator-tvm) library.
 
-We have a primer on the theory [here](http://techascent.com/blog/high-performance-compilers.html) with a simple example you can read about on our [blog](http://techascent.com/blog/tvm-for-the-win.html) and try out the code yourself in the example [project](examples/src/box_blur.clj).  For a more discoursive introduction, checkout Daniel Compton's repl [podcast](https://www.therepl.net/episodes/13/).
+TVM is a high performance compiler for ND numeric code.  In it's simplest form, it works via
+4 steps: 
+
+1.  Define an AST.
+2.  Schedule the AST, doing things such as tiling and operation or caching a partial
+    result in GPU shared memory.  This allows us to make transformations to the algorithm
+	which are guaranteed not to break the algorithm but also allow us to map the algorithm
+	to specific hardware such as GPU's and FPGA's.
+3.  Compile the AST to a specific hardware profile.  TVM has backends to a 
+    [wide variety of hardware](https://github.com/apache/incubator-tvm/blob/main/python/tvm/_ffi/runtime_ctypes.py#L156)
+	including extremely optimized versions for x86 and ARM CPUs, Cuda, and OpenCL.
+4.  Load your function and call it.
 
 
-[![Clojars Project](https://img.shields.io/clojars/v/tvm-clj.svg)](https://clojars.org/tvm-clj)
+
+* [API Documents](https://techascent.github.io/tvm-clj/)
+* [simple tests](test/tvm_clj/tvm_test.clj)
 
 
 ## Getting all the source
@@ -15,7 +28,7 @@ At top level:
 git submodule update --init --recursive
 ```
 
-## Building the TVM java bindings
+## Building TVM
 
 ```bash
 sudo apt install make g++ cmake llvm-dev libopenblas-dev
@@ -54,14 +67,6 @@ make -j8
 popd
 ```
 
-At this point you should have native libraries under tvm/build/
-
-If you want the binaries packaged with the jar, run:
-
-```clojure
-lein jni
-```
-
 This will copy the libs into a platform-specific directory that jna should find.
 
 Another options is to install the tvm libs themselves.  We recommend this pathway as
@@ -73,7 +78,7 @@ instructive to work with.
 ## More Information
 
 
-* [background theoretical documentation](docs/background.md)
+* [background theoretical documentation](topics/background.md)
 
 
 ## License
