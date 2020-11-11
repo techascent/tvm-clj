@@ -79,23 +79,28 @@
   (device-add-test :opencl))
 
 
-
 (deftest cpu-reduction
   (let [n (ast/variable "n")
         A (ast/placeholder [n] "A")
-        n-axis (ast/iteration-variable [0 n] "reduce-n" :communicative-reduce)
+
+        reducer (ast/tvm-fn->commutative-reducer
+                 ;;reduce-fn, arguments are divided into accumulators
+                 ;;and inputs.  Accum args are implicitly defined by the
+                 ;;number of identity values passed in..
+                 (ast/tvm-fn
+                  [lhs rhs]
+                  (ast-op/max lhs rhs))
+                 ;;reduction identity values, one for each accumulator argument.
+                 [(ast-op/min-value :float32)])
+
         compute-op (ast/compute
                     [1]
                     (ast/tvm-fn
                      [i]
                      (ast/commutative-reduce
-                      (ast/tvm-fn
-                       [lhs rhs]
-                       (ast-op/max lhs rhs))
-                      (ast-op/min-value :float32)
-                      :float32
-                      [(ast/tget A [n-axis])]
-                      [n-axis]))
+                      reducer
+                      [{:name "reduce-n" :domain [0 n]}]
+                      [#(ast/tget A [%])]))
                     "C")
         C (first (ast/output-tensors compute-op))
         schedule (schedule/create-schedule compute-op)

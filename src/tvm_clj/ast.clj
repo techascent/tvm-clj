@@ -1,12 +1,14 @@
 (ns tvm-clj.ast
   "TVM's algorithms are first described using an AST tailored towards
   ND-array programming."
-  (:require [tvm-clj.impl.protocols :refer [->node] :as bindings]
+  (:require [tvm-clj.impl.protocols :refer [->node] :as tvm-proto]
             [tvm-clj.impl.node :as jna-node]
             [tvm-clj.impl.fns.te :as te-fns]
             [tvm-clj.impl.fns.tir :as tir-fns]
             [tvm-clj.impl.fns.ir :as ir-fns]
             [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.casting :as casting]
+            [tech.v3.datatype.errors :as errors]
             [clojure.string :as s])
   (:refer-clojure :exclude [range cast mod min max]))
 
@@ -76,7 +78,7 @@
     (let [indices
           (mapv (fn [index-val]
                   (let [node-data (->node index-val)
-                        node-type-name (bindings/node-type-name node-data)]
+                        node-type-name (tvm-proto/node-type-name node-data)]
                     (if (= "tir.IterVar" node-type-name)
                       (:var node-data)
                       node-data)))
@@ -96,7 +98,7 @@
                  `(let [evaled-expr# ~expr
                         ~var-symbol (variable ~(safe-str var-symbol)
                                               :dtype (:dtype evaled-expr#))]
-                    (bindings/g-fn "make.Let" ~var-symbol evaled-expr# ~data)))
+                    (tvm-proto/g-fn "make.Let" ~var-symbol evaled-expr# ~data)))
                body)))
 
 
@@ -195,8 +197,8 @@ expressions,
               :iteration-type iteration-type}))
 
   (let [domain (when domain
-                 (if (and (bindings/is-node-handle? domain)
-                          (= :range (bindings/node-type-name domain)))
+                 (if (and (tvm-proto/is-node-handle? domain)
+                          (= :range (tvm-proto/node-type-name domain)))
                    domain
                    (range (first domain) (second domain))))
         v (variable name)]
@@ -212,9 +214,20 @@ expressions,
 (defmacro tvm-fn
   "Like (fn) but retains the arglists.  Lambda in clojure unfortunately does not."
   [arg-vec & body]
-  (let [retval `(fn ~arg-vec
-                  ~@body)]
-    (with-meta retval {:arglists `(quote ~arg-vec)})))
+  `(-> (fn ~arg-vec
+         ~@body)
+       (vary-meta assoc :arglists '(~arg-vec))))
+
+
+(defn tvm-fn->args
+  "Get the vector of tvm-safe string argument names to a tvm function."
+  [tvm-fn]
+  (if-let [retval (first (:arglists (meta tvm-fn)))]
+    (mapv (comp safe-str name) retval)
+    (errors/throwf "Function %s does not appear to have metadata associated with it.
+Perhaps use `tvm-fn` to create the function as `fn` does not produce
+proper metadata on the fn object."
+                   tvm-fn)))
 
 
 (defn compute
@@ -245,9 +258,7 @@ expressions,
     "
   [shape fcompute name & {:keys [tag attrs]
                      :or {tag ""}}]
-  (let [fn-arglists (->> (meta fcompute)
-                         :arglists
-                         (mapv (comp safe-str clojure.core/name)))]
+  (let [fn-arglists (tvm-fn->args fcompute)]
     (when-not-error fn-arglists
       (ex-info "Functions passed into compute must have the arglists in their metadata"
                {}))
@@ -267,26 +278,120 @@ expressions,
       (te-fns/ComputeOp (safe-str name) tag attrs compute-dim body-data))))
 
 
+(defn commutative-reducer
+  "Create a commutative reducer.   Reducers are used in
+  as the part of the commutative reduction pathway.
+
+  * `reduce-fn-args` - sequence of maps of {:name :datatype :argument-type :identity-value}
+    tell you the name of the argument, the datatype, and when the argument
+    is and `:accumulating` arg or an `:incoming` arg.  If the argument is an accumulator argument
+    then an `:identity-value` must be provided.
+  * `incoming-names` - Argument names of the incoming values.
+  * `reduction-ast-fn` - fn taking '(+ (count accum-args) (count incoming-args))'
+    arguments and returning an AST that performs the reduction.
+
+  Returns a commutative reducer you can use in `Reduce`."
+  [reduce-fn-args reduction-ast-fns]
+  (let [accum-args (filterv #(= :accumulating (:argument-type %)) reduce-fn-args)
+        incoming-args (filterv #(= :incoming (:argument-type %)) reduce-fn-args)]
+    (errors/when-not-error
+     (not= (count accum-args) 0)
+     "No accumulating arguments provided")
+    (errors/when-not-error
+     (not= (count incoming-args) 0)
+     "No incoming arguments provided")
+    (let [var-fn #(assoc % :variable (variable (:name %) :dtype (:datatype %)))
+          accum-args (mapv var-fn accum-args)
+          incoming-args (mapv var-fn incoming-args)
+          argmap (->> (concat accum-args incoming-args)
+                      (map (juxt :name :variable))
+                      (into {}))]
+      (tir-fns/CommReducer (mapv :variable accum-args)
+                           (mapv :variable incoming-args)
+                           (mapv #(apply % (map (comp argmap :name) reduce-fn-args))
+                                 reduction-ast-fns)
+                           ;;Identity values, one for each accumulator
+                           (mapv (fn [{:keys [datatype identity-value]}]
+                                   (errors/when-not-error
+                                    identity-value
+                                    "Identity values must be provided for every accumulator")
+                                   (if (number? identity-value)
+                                     (jna-node/const identity-value datatype)
+                                     (tvm-proto/->node identity-value)))
+                                 accum-args)))))
+
+
+(defn tvm-fn->commutative-reducer
+  "Make a reducer out of a tvm function assuming all arguments are the
+  same datatype.
+
+  Accumulation arguments are considered the first N arguments where N
+  is the number of initial values.  The rest of the arguments are considered
+  incoming arguments.  There must be at least one each of accumulation and
+  incoming arguments.
+
+  * `tvm-fn` - a function with proper metadata such that `:arglists` can be found.
+  * `identity-values` - list of identity values.  This implicitly indicates the
+    number of accumulation arguments as there must be one identity value per
+    accumulation arguments.
+  * `datatype` - Option datatype.  If not provided will be inferred from the
+  datatypes of identity-values."
+  ([tvm-fn identity-values datatype]
+   (let [arglist (tvm-fn->args tvm-fn)
+         n-accum-args (count identity-values)
+         accum-args (take n-accum-args arglist)
+         incoming-args (drop n-accum-args arglist)]
+     (commutative-reducer
+      (concat (map (fn [argname identity-value]
+                     {:name argname
+                      :argument-type :accumulating
+                      :datatype datatype
+                      :identity-value identity-value})
+                   accum-args identity-values)
+              (map (fn [argname]
+                     {:name argname
+                      :argument-type :incoming
+                      :datatype datatype})
+                   incoming-args))
+      [tvm-fn])))
+  ([tvm-fn identity-values]
+   (tvm-fn->commutative-reducer tvm-fn identity-values
+                                (reduce casting/widest-datatype
+                                        (map dtype/elemwise-datatype
+                                             identity-values)))))
+
+
 (defn commutative-reduce
-  "1 left hand side, first var of reduce operation
-  N right hand sides, rest of the variables of the reduce operation
-  identity-val - initialization of left hand side.n
-  expr-ary - one for each (const) right hand side.
-  dtype - datatype of all inputs to reduction"
-  [reduce-op identity-val dtype expr-seq axis-seq]
-  (let [fn-arglists (->> (meta reduce-op)
-                         :arglists
-                         (map clojure.core/name)
-                         (mapv #(variable % :dtype dtype)))
-        reduce-ast [(apply reduce-op fn-arglists)]
-        lhs-vars (take 1 fn-arglists)
-        rhs-vars (drop 1 fn-arglists)
-        comm-reducer (tir-fns/CommReducer
-                      lhs-vars rhs-vars
-                      (->node reduce-ast)
-                      (->node [identity-val]))]
-    (tir-fns/Reduce comm-reducer expr-seq
-                    axis-seq nil 0 (->node []))))
+  "Create a reduce node.
+
+  * `comm-reducer` - A commutative reducer produced via either `commutative-reducer`
+  or `tvm-fn->commutative-reducer`.
+  * `reduce-axis` - A list of either maps of {:domain :name} or `iteration-variable`'s
+     of type `:communicative-reduce`. If a list element is a map?, it will be interpreted
+     as a map of {:domain :name} in the corresponding iteration variable will be created for you.
+
+  * `read-exprs` - Either `fn?`'s or a list of expressions that must equal the number of
+    inputs to `commutative-reducer` and that must be based off of the variables defined
+    in `reduce-axis`.  If read-exprs are clojure 'fn?'s they will be called
+    with the reduction variables created from reduce-axis."
+  [comm-reducer reduce-axis read-exprs]
+  (let [reduce-axis (mapv (fn [axis-entry]
+                            (if (map? axis-entry)
+                              (do
+                                (errors/when-not-errorf
+                                 (contains? axis-entry :domain)
+                                 "Mising :domain key from axis argument %s" axis-entry)
+                                (iteration-variable (:domain axis-entry)
+                                                    (:name axis-entry)
+                                                    :communicative-reduce))
+                              axis-entry))
+                          reduce-axis)
+        read-exprs (mapv (fn [read-expr]
+                           (if (fn? read-expr)
+                             (apply read-expr reduce-axis)
+                             read-expr))
+                         read-exprs)]
+    (tir-fns/Reduce comm-reducer read-exprs reduce-axis nil 0 (->node []))))
 
 
 (defn output-tensors
@@ -302,6 +407,6 @@ expressions,
 
 (defn ->operation
   [tens-or-op]
-  (if (= (bindings/node-type-name tens-or-op) "Tensor")
+  (if (= (tvm-proto/node-type-name tens-or-op) "Tensor")
     (:op tens-or-op)
     tens-or-op))
