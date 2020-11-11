@@ -364,7 +364,7 @@ explicitly; it is done for you."
       (try (get-node-field (NodeHandle. tptr #{} nil) "value")
            (finally (TVMObjectFree tptr)))
       "FloatImm"
-      (try (get-node-field tptr "value")
+      (try (get-node-field (NodeHandle. tptr #{} nil) "value")
            (finally (TVMObjectFree tptr)))
       (-> (construct-node (Pointer. long-val))
           (resource/track {:track-type :auto

@@ -1,5 +1,6 @@
 (ns tvm-clj.tvm-test
   (:require [tvm-clj.ast :as ast]
+            [tvm-clj.ast.elemwise-op :as ast-op]
             [tvm-clj.schedule :as schedule]
             [tvm-clj.compiler :as compiler]
             [tvm-clj.module :as module]
@@ -22,8 +23,8 @@
                                 ;;count.
                                 (ast/tvm-fn
                                  [i]
-                                 (ast/add (ast/tget A [i])
-                                          (ast/tget B [i])))
+                                 (ast-op/+ (ast/tget A [i])
+                                           (ast/tget B [i])))
                                 "C")
         C (first (ast/output-tensors compute-op))]
     {:schedule (schedule/create-schedule compute-op)
@@ -47,7 +48,7 @@
     (is (dfn/equals tens-c (dfn/+ tens-a tens-b)))))
 
 
-(defn device-test
+(defn device-add-test
   [device-type]
   (let [{:keys [schedule arguments compute-op]} (make-add-fn)
         _ (schedule/stage-gpu-injective schedule compute-op)
@@ -71,8 +72,41 @@
 
 
 (deftest ^:cuda cuda-add
-  (device-test :cuda))
+  (device-add-test :cuda))
 
 
 (deftest ^:opencl opencl-add
-  (device-test :opencl))
+  (device-add-test :opencl))
+
+
+
+(deftest cpu-reduction
+  (let [n (ast/variable "n")
+        A (ast/placeholder [n] "A")
+        n-axis (ast/iteration-variable [0 n] "reduce-n" :communicative-reduce)
+        compute-op (ast/compute
+                    [1]
+                    (ast/tvm-fn
+                     [i]
+                     (ast/commutative-reduce
+                      (ast/tvm-fn
+                       [lhs rhs]
+                       (ast-op/max lhs rhs))
+                      (ast-op/min-value :float32)
+                      :float32
+                      [(ast/tget A [n-axis])]
+                      [n-axis]))
+                    "C")
+        C (first (ast/output-tensors compute-op))
+        schedule (schedule/create-schedule compute-op)
+        arguments [A C]
+        module (compiler/compile {"vec_max" {:schedule schedule
+                                             :arguments arguments}})
+        max-fn (module/find-function module "vec_max")
+        tens-a (dtt/->tensor (range 10) :datatype :float32
+                             :container-type :native-heap)
+        tens-c (dtt/new-tensor [1] :datatype :float32
+                               :container-type :native-heap)]
+    (max-fn tens-a tens-c)
+    (is (= 9.0
+           (double (first tens-c))))))

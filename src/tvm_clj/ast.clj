@@ -55,116 +55,11 @@
                         (safe-str name))))
 
 
-(defn range
+(defn- range
   "Create a range with defined start inclusive and end exclusive"
   [start end]
   (ir-fns/Range start end))
 
-
-(defn const
-  "Convert an item to a const (immediate) value"
-  [numeric-value & [dtype]]
-  (jna-node/const numeric-value dtype))
-
-
-(defn static-cast
-  "Cast an item from one datatype to another"
-  [dtype expr-node]
-  (throw (Exception. "Failwhale")))
-
-
-(defn cast
-  "See static cast redone to allow usage in ->"
-  [expr-node dtype]
-  (static-cast dtype expr-node))
-
-
-(def call-types
-  "Possible call types from Halide/IR.h"
-  {:extern 0 ;;< A call to an external C-ABI function, possibly with side-effects
-   :extern-c-plus-plus 1 ;;< A call to an external C-ABI function, possibly with side-effects
-   :pure-extern 2 ;;< A call to a guaranteed-side-effect-free external function
-   :halide 3 ;;< A call to a Func
-   :intrinsic 4  ;;< A possibly-side-effecty compiler intrinsic, which has special handling during codegen
-   :pure-intrinsic 5 ;;< A side-effect-free version of the above.
-   })
-
-(defn ->call-type
-  ^long [ctype]
-  (cond
-    (keyword? ctype)
-    (if-let [retval (get call-types ctype)]
-      retval
-      (throw (ex-info "Failed to find call type"
-                      {:call-type ctype})))
-    (number? ctype)
-    (long ctype)))
-
-
-(def call-type-set (set (keys call-types)))
-
-
-(defn call
-  "Call a 'function', which is basically executing a statement.  For instance, getting a
-  value from the tensor is calling a halide function with the tensor's generating-op and
-  value index."
-  [ret-dtype fn-name fn-args call-type function-ref value-index]
-  #_(bindings/global-node-function "make.Call" (->dtype ret-dtype) fn-name fn-args
-                                   (->call-type call-type)
-                                   function-ref value-index)
-  (throw (Exception. "Failwhale")))
-
-
-(defn call-pure-intrin
-  "Build expression by calling a pure intrinsic function.
-
-    Intrinsics can be overloaded with multiple data types via
-    the intrinsic translation rule.
-
-    Parameters
-    ----------
-    dtype : str
-        The data type of the result.
-
-    func_name: str
-        The intrinsic function name.
-
-    args : list
-        Positional arguments.
-
-    Returns
-    -------
-    call : Expr
-        The call expression.
-    "
-  [dtype func-name & args]
-  (call dtype func-name (->node args) :pure-intrinsic nil 0))
-
-
-(defn call-intrin
-  "Build expression by calling an intrinsic function.
-
-    Intrinsics can be overloaded with multiple data types via
-    the intrinsic translation rule.
-
-    Parameters
-    ----------
-    dtype : str
-        The data type of the result.
-
-    func_name: str
-        The intrinsic function name.
-
-    args : list
-        Positional arguments.
-
-    Returns
-    -------
-    call : Expr
-        The call expression.
-    "
-  [dtype func-name & args]
-  (call dtype func-name (->node args) :intrinsic nil 0))
 
 
 (defn tget
@@ -189,96 +84,6 @@
       (tir-fns/ProducerLoad tensor indices))))
 
 
-(defmethod jna-node/get-extended-node-value :tensor
-  [node-handle item-key]
-  (cond
-    (or (number? item-key)
-        (sequential? item-key))
-    (tget node-handle item-key)
-    (= item-key :axis) (:axis (:op node-handle))
-    :else
-    nil))
-
-
-(defmacro def-bin-op
-  "Define a binary operation"
-  [op-name op-fn]
-  `(defn ~op-name
-     [~'lhs ~'rhs]
-     (~op-fn ~'lhs ~'rhs)))
-
-
-(defmacro def-op
-  "Define a binary operation"
-  [op-name make-name]
-  (let [lhs (symbol "lhs")]
-    `(defn ~op-name
-       [~lhs]
-       (bindings/global-node-function ~make-name ~lhs))))
-
-
-(defmacro def-bin-intrin-op
-  [op-name]
-  (let [lhs (symbol "lhs")
-        rhs (symbol "rhs")]
-    `(defn ~op-name
-       [~lhs ~rhs]
-       (call-pure-intrin (dtype/get-datatype ~lhs)
-                         ~(str op-name)
-                         ~lhs
-                         ~rhs))))
-
-(defmacro def-intrin-op
-  [op-name]
-  (let [lhs (symbol "lhs")]
-    `(defn ~op-name
-       [~lhs]
-       (call-pure-intrin (dtype/get-datatype ~lhs)
-                         ~(str op-name)
-                         ~lhs))))
-
-
-
-(def-bin-op add tir-fns/Add)
-;; (def-bin-op sub "make.Sub")
-;; (def-bin-op mod "make.Mod")
-;; (def-bin-op mul "make.Mul")
-;; (def-bin-op div "make.Div")
-;; (def-bin-op eq "make.EQ")
-;; (def-bin-op min "make.Min")
-;; (def-bin-op max "make.Max")
-;; (def-intrin-op exp)
-;; (def-intrin-op tanh)
-;; (def-intrin-op sigmoid)
-;; (def-intrin-op log)
-;; (def-intrin-op sqrt)
-;; (def-intrin-op floor)
-;; (def-intrin-op ceil)
-;; (def-intrin-op trunc)
-;; (def-op abs "make.abs")
-;; (def-intrin-op round)
-;; (def-bin-intrin-op power)
-;; (def-intrin-op popcount)
-
-
-
-(defn select
-  "Select between two expressions based on a condition.  Thus works similar to the
-clojure 'if' statement."
-  [bool-stmt true-stmt false-stmt]
-  #_(bindings/global-node-function "make.Select" bool-stmt true-stmt false-stmt)
-  (throw (Exception. "Failwhale")))
-
-
-(defn- get-for-type-idx
-  ^long [for-type]
-  (case for-type
-    :serial 0
-    :parallel 1
-    :vectorize 2
-    :unroll 3))
-
-
 (defmacro tvm-let
   "Lets in tvm must be nested.  This leads to an exciting macro.
   Pairs must be of the form var val-expr.  Body is *not* an implicit
@@ -295,7 +100,7 @@ clojure 'if' statement."
                body)))
 
 
-(def iteration-variable-types
+(def ^:private iteration-variable-types
   "Iteration variable types defined in tvm/include/Expr.h"
   {
    ;; /*!
@@ -469,20 +274,19 @@ expressions,
   expr-ary - one for each (const) right hand side.
   dtype - datatype of all inputs to reduction"
   [reduce-op identity-val dtype expr-seq axis-seq]
-  #_(let [fn-arglists (->> (meta reduce-op)
+  (let [fn-arglists (->> (meta reduce-op)
                          :arglists
                          (map clojure.core/name)
                          (mapv #(variable % :dtype dtype)))
         reduce-ast [(apply reduce-op fn-arglists)]
         lhs-vars (take 1 fn-arglists)
         rhs-vars (drop 1 fn-arglists)
-        comm-reducer (bindings/g-fn "make.CommReducer"
-                             lhs-vars rhs-vars
-                             (->node reduce-ast)
-                             (->node [identity-val]))]
-
-      (bindings/g-fn "make.Reduce" comm-reducer expr-seq axis-seq (->node true) 0))
-  (throw (Exception. "Failwhale")))
+        comm-reducer (tir-fns/CommReducer
+                      lhs-vars rhs-vars
+                      (->node reduce-ast)
+                      (->node [identity-val]))]
+    (tir-fns/Reduce comm-reducer expr-seq
+                    axis-seq nil 0 (->node []))))
 
 
 (defn output-tensors
