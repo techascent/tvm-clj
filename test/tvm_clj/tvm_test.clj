@@ -7,7 +7,6 @@
             [tvm-clj.device :as device]
             [tech.v3.tensor :as dtt]
             [tech.v3.datatype.functional :as dfn]
-            [tech.v3.datatype :as dtype]
             [clojure.test :refer [deftest is]]))
 
 

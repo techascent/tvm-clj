@@ -1,6 +1,22 @@
 (ns tvm-clj.application.image
-  "Image resize algorithms showing somewhat nontrivial application
-  of TVM operators."
+  "Image resize algorithm showing somewhat nontrivial application
+  of TVM operators.  In this case we have an algorithm which is a simple
+  average area color algorithm used for scaling images down.  This reads a
+  rectangle in the source image and averages it for every destination pixel.
+
+  This is a namespace where you want to view the source :-)
+
+```clojure
+  (def input-img (bufimg/load \"test/data/jen.jpg\"))
+  (def test-fn (-> (tvm-area-resize-algo-def)
+                   (schedule-tvm-area)
+                   (compile-scheduled-tvm-area)))
+
+  (def result (time (area-resize! input-img 512 test-fn)))
+  ;;179 ms
+  (def jvm-result (time (area-resize! input-img 512 jvm-area-resize-fn!)))
+  ;;5.7 seconds
+```"
   (:require [tech.v3.datatype :as dtype]
             [tech.v3.tensor :as dtt]
             [tech.v3.tensor.dimensions :as dims]
@@ -10,62 +26,12 @@
             [tvm-clj.schedule :as schedule]
             [tvm-clj.compiler :as compiler]
             [tvm-clj.module :as module]
-            [tvm-clj.device :as device]
-            [tech.v3.resource :as resource])
+            [tvm-clj.device :as device])
   (:import [tech.v3.datatype NDBuffer ObjectReader]))
 
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
-
-
-(defn- n-img-shape
-  "Normalize shape to dimensions."
-  [shape-vec]
-  (case (count shape-vec)
-    2 (vec (concat [1] shape-vec [1]))
-    3 (vec (concat [1] shape-vec))
-    4 shape-vec))
-
-
-(defn- to-long-round
-  ^long [value]
-  (long (Math/round (double value))))
-
-
-(defn- to-long-ceil
-  ^long [value]
-  (long (Math/ceil value)))
-
-
-(defn- area-filter-pixel-size
-  "The size of the destination pixel in input pixels on one axis."
-  ^long [in-size out-size]
-  (let [temp (/ (double in-size)
-                (double out-size))]
-    (long
-     (if (= (Math/floor temp)
-            temp)
-       temp
-       ;;If it is fractional then it could overlap on either side
-       ;;at the same time.
-       (Math/floor (+ temp 2))))))
-
-
-(defn area-reduction!
-  [input output area-fn]
-  (let [[in-height in-width in-chan] (dtype/shape input)
-        [out-height out-width out-chan] (dtype/shape output)
-        filter-height (/ (double in-height)
-                         (double out-height))
-        filter-width (/ (double in-width)
-                        (double out-width))
-        kernel-height (area-filter-pixel-size in-height out-height)
-        kernel-width (area-filter-pixel-size in-width out-width)]
-    (area-fn input output
-                 kernel-width filter-width
-                 kernel-height filter-height)
-    output))
 
 
 (defn- clamp
@@ -78,43 +44,6 @@
   ^long [^long value ^long val_min ^long val_max]
   (-> (min value val_max)
       (max val_min)))
-
-
-(defn- compute-tensor
-  [output-shape per-pixel-op datatype]
-  (let [dims (dims/dimensions output-shape)
-        output-shape (long-array output-shape)
-        n-dims (count output-shape)
-        n-elems (long (apply * output-shape))
-        shape-chan (aget output-shape (dec n-dims))
-        shape-x (when (> n-dims 1)
-                  (aget output-shape (dec (dec n-dims))))]
-    (dtt/construct-tensor
-     (reify ObjectReader
-       (elemwiseDatatype [rdr] datatype)
-       (lsize [rdr] n-elems)
-       (readObject [rdr idx]
-         (case n-dims
-           1 (per-pixel-op idx)
-           2 (per-pixel-op (quot idx shape-chan)
-                           (rem idx shape-chan))
-           3 (let [c (rem idx shape-chan)
-                   xy (quot idx shape-chan)
-                   x (rem xy (long shape-x))
-                   y (quot xy (long shape-x))]
-               (per-pixel-op y x c))
-           (let [local-data (long-array n-dims)]
-             (loop [fwd-dim-idx 0
-                    idx idx]
-               (when (and (> idx 0) (< fwd-dim-idx n-dims))
-                 (let [dim-idx (- n-dims fwd-dim-idx 1)
-                       local-shape (aget output-shape dim-idx)
-                       cur (rem idx local-shape)]
-                   (aset local-data dim-idx cur)
-                   (recur (unchecked-inc fwd-dim-idx)
-                          (quot idx (aget output-shape dim-idx))))))
-             (apply per-pixel-op local-data)))))
-     dims)))
 
 
 (defn- src-coord
@@ -139,35 +68,38 @@
         reducer (fn [^double accum ^double input]
                   (+ accum input))
         identity-value 0.0]
-    (compute-tensor
+    (dtt/compute-tensor
      [out-height out-width n-chan]
-     (fn [^long y ^long x ^long c]
-       (-> (loop [k-idx-y 0
-                  outer-sum identity-value]
-             (if (< k-idx-y y-kernel-width)
-               (recur (unchecked-inc k-idx-y)
-                      (double
-                       (loop [k-idx-x 0
-                              inner-sum outer-sum]
-                         (if (< k-idx-x x-kernel-width)
-                           (let [src-coord-x (clamp-long
-                                              (src-coord x k-idx-x x-kernel-width x-ratio)
-                                              0
-                                              max-idx-x)
-                                 src-coord-y (clamp-long
-                                              (src-coord y k-idx-y y-kernel-width y-ratio)
-                                              0
-                                              max-idx-y)]
-                             (recur (unchecked-inc k-idx-x)
-                                    (double
-                                     (reducer inner-sum (.ndReadDouble input src-coord-y
-                                                                       src-coord-x c)))))
-                           inner-sum))))
-               outer-sum))
-           (double)
-           (* divisor)
-           (clamp 0.0 255.0)
-           (unchecked-long)))
+     ;;Micro optimization in order to avoid boxing y,x,c on every index
+     ;;access.  Yes, this does have a noticeable perf impact :-)
+     (reify NDBuffer
+       (ndReadObject [this y x c]
+         (-> (loop [k-idx-y 0
+                    outer-sum identity-value]
+               (if (< k-idx-y y-kernel-width)
+                 (recur (unchecked-inc k-idx-y)
+                        (double
+                         (loop [k-idx-x 0
+                                inner-sum outer-sum]
+                           (if (< k-idx-x x-kernel-width)
+                             (let [src-coord-x (clamp-long
+                                                (src-coord x k-idx-x x-kernel-width x-ratio)
+                                                0
+                                                max-idx-x)
+                                   src-coord-y (clamp-long
+                                                (src-coord y k-idx-y y-kernel-width y-ratio)
+                                                0
+                                                max-idx-y)]
+                               (recur (unchecked-inc k-idx-x)
+                                      (double
+                                       (reducer inner-sum (.ndReadDouble input src-coord-y
+                                                                         src-coord-x c)))))
+                             inner-sum))))
+                 outer-sum))
+             (double)
+             (* divisor)
+             (clamp 0.0 255.0)
+             (unchecked-long))))
      :uint8)))
 
 
@@ -179,6 +111,8 @@
 
 
 (defn tvm-area-resize-algo-def
+  "Step 1 is to define the algorithm.  This definition looks strikingly similar
+  to the definition above."
   []
   (let [n-chan (ast/variable "n-chan")
         in-width (ast/variable "in-width")
@@ -208,13 +142,22 @@
                     (ast/tvm-fn
                      [y x c]
                      (ast/commutative-reduce
+
+                      ;;First arg is a commutative reducer.
                       (ast/tvm-fn->commutative-reducer
+                       ;;Here is our reducing function.
                        (ast/tvm-fn [lhs rhs] (ast-op/+ lhs rhs))
+                       ;;Zero is the identity operation for this reduction.
                        [(float 0.0)])
+
+                      ;;Next are the inner axis we will reduce over
                       [{:domain [0 y-kernel-width]
                         :name "k-idx-y"}
                        {:domain [0 x-kernel-width]
                         :name "k-idx-x"}]
+
+                      ;;Finally a function from reduction axes to every input
+                      ;;argument as defined by our reducer above.
                       [(fn [k-idx-y k-idx-x]
                          (-> (ast/tget input
                                        [(-> (coord-fn y k-idx-y y-kernel-width y-ratio)
@@ -223,6 +166,8 @@
                                             (clamp-fn (int 0) max-idx-x))
                                         c])
                              (ast-op/cast :float32)))]))
+                    ;;Finally the name so if we want to see the intermediate represetation we can
+                    ;;tell what it is.
                     "partial_result")
         ;;Result in floating point space.
         partial-result (first (ast/output-tensors compute-op))
@@ -242,6 +187,8 @@
 
 
 (defn schedule-tvm-area
+  "Step 2 is to 'schedule' the algorithm, thus mapping it to a particular
+  hardware backend and definining where parallelism is safe."
   [{:keys [arguments reduce-kernel final-kernel]}]
   (let [schedule (schedule/create-schedule final-kernel)
         stage-map (:stage_map schedule)
@@ -256,6 +203,8 @@
 
 
 (defn compile-scheduled-tvm-area
+  "Step 3 you compile it to a module, find the desired function, and
+  wrap it with whatever wrapping code you need."
   [scheduled]
   (let [module (compiler/compile {"cpu_area" scheduled})
         low-level-fn (module/find-function module "cpu_area")
@@ -270,6 +219,7 @@
 
 
 (defn area-resize!
+  "Perform an area resize with a defined resize algorith."
   [input ^long new-width resize-fn]
   (let [[^long height ^long width _nchan] (dtype/shape input)
         ratio (double (/ new-width width))

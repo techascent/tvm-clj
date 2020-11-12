@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.2-alpha1"]
-                 [cnuernber/dtype-next "6.00-alpha-18"]
+                 [cnuernber/dtype-next "6.00-alpha-21"]
                  [techascent/tech.jna "4.05"]
                  [potemkin "0.4.4"]]
 
@@ -19,10 +19,11 @@
                       :source-paths ["src"]
                       :output-path "docs"
                       :doc-paths ["topics"]
-                      :source-uri "https://github.com/techascent/tech.ml.dataset/blob/master/{filepath}#L{line}"
+                      :source-uri "https://github.com/techascent/tvm-clj/blob/upgrade-to-latest/{filepath}#L{line}"
                       :namespaces [tvm-clj.ast
                                    tvm-clj.schedule
                                    tvm-clj.compiler
                                    tvm-clj.module
-                                   tvm-clj.device]}}}
+                                   tvm-clj.device
+                                   tvm-clj.application.image]}}}
   :aliases {"codox" ["with-profile" "codox,dev" "codox"]})
