@@ -19,7 +19,7 @@
                       :source-paths ["src"]
                       :output-path "docs"
                       :doc-paths ["topics"]
-                      :source-uri "https://github.com/techascent/tvm-clj/blob/upgrade-to-latest/{filepath}#L{line}"
+                      :source-uri "https://github.com/techascent/tvm-clj/blob/master/{filepath}#L{line}"
                       :namespaces [tvm-clj.ast
                                    tvm-clj.schedule
                                    tvm-clj.compiler
