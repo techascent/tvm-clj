@@ -28,6 +28,8 @@
            [tech.v3.datatype ObjectReader ObjectWriter]
            [clojure.lang MapEntry IFn IObj]))
 
+(set! *warn-on-reflection* true)
+
 
 (defmulti get-extended-node-value
   "Override this to enable type-specific lookups into nodes."
@@ -133,8 +135,7 @@
       (= (.hashCode a) (.hashCode b))))
   (hashCode [this]
     (-> (runtime/ObjectPtrHash this)
-        long
-        .hashCode))
+        Long/hashCode))
   (toString [this] (node-fns/AsRepr this))
 
 
@@ -213,8 +214,7 @@
       (= (.hashCode a) (.hashCode b))))
   (hashCode [this]
     (-> (runtime/ObjectPtrHash this)
-        long
-        .hashCode))
+        Long/hashCode))
   (toString [this] (node-fns/AsRepr this))
 
   ObjectReader
@@ -277,7 +277,7 @@
   (hashCode [this]
     (-> (runtime/ObjectPtrHash this)
         long
-        .hashCode))
+        (Long/hashCode)))
   (toString [this] (node-fns/AsRepr this))
   IFn
   (invoke [this arg] (.get this arg))
@@ -289,15 +289,15 @@
 
 (defmethod print-method NodeHandle
   [hdl w]
-  (.write ^Writer w (.toString hdl)))
+  (.write ^Writer w (str hdl)))
 
 (defmethod print-method ArrayHandle
   [hdl w]
-  (.write ^Writer w (.toString hdl)))
+  (.write ^Writer w (str hdl)))
 
 (defmethod print-method MapHandle
   [hdl w]
-  (.write ^Writer w (.toString hdl)))
+  (.write ^Writer w (str hdl)))
 
 (defmulti construct-node
   (fn [ptr]
