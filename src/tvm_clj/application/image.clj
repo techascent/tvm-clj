@@ -239,11 +239,27 @@
         block-axis (schedule/stage-fuse final-stage [y-outer x-outer])
         thread-axis (schedule/stage-fuse final-stage [y-inner x-inner])]
     ;;Each thread does it's own reduction
-    (schedule/stage-compute-at reduce-stage final-stage reduce-thread-axis)
-    ;; (schedule/stage-parallel final-stage final-axis)
-    ;; {:arguments arguments
-    ;;  :schedule schedule})
-    (compiler/lower schedule arguments {:gpu_area "gpu_area"})))
+    (schedule/stage-compute-at reduce-stage final-stage thread-axis)
+    (schedule/stage-bind-gpu final-stage [block-axis] [thread-axis])
+    {:schedule schedule
+     :arguments arguments}))
+
+
+(defn compile-gpu-scheduled-tvm-area
+  [gpu-schedule device-type]
+  (let [module (compiler/compile
+                {"gpu_area" (assoc gpu-schedule :target device-type)})
+        low-level-fn (module/find-function module "gpu_area")]
+    (fn [input output]
+      (let [cpu-input (dtt/clone input :container-type :native-heap)
+            tvm-input (device/cpu->device cpu-input device-type 0)
+            tvm-output (device/device-tensor output device-type 0)
+            ref-map {:module module}]
+        ;;;Dereference ref-map
+        (ref-map :module)
+        (low-level-fn tvm-input tvm-output)
+        (dtype/copy! (device/device->cpu tvm-output)
+                     output)))))
 
 
 (defn area-resize!
@@ -263,6 +279,18 @@
   (def test-fn (-> (tvm-area-resize-algo-def)
                    (schedule-cpu-tvm-area)
                    (compile-cpu-scheduled-tvm-area)))
+
+  (def test-cuda-fn (-> (tvm-area-resize-algo-def)
+                        (schedule-gpu-tvm-area)
+                        (compile-gpu-scheduled-tvm-area :cuda)))
+
+  (def test-opencl-fn (-> (tvm-area-resize-algo-def)
+                          (schedule-gpu-tvm-area)
+                          (compile-gpu-scheduled-tvm-area :opencl)))
+
+  (def cuda-result (time (area-resize! input-img 512 test-cuda-fn)))
+
+  (def opencl-result (time (area-resize! input-img 512 test-opencl-fn)))
 
   (def result (time (area-resize! input-img 512 test-fn)))
   ;;179 ms
