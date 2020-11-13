@@ -1,0 +1,3 @@
+#!/bin/bash
+
+grep -irn -A 1 tvm._ffi.register_object tvm/python

@@ -1,3 +1,4 @@
-[submodule "tvm"]
-	path = tvm
-	url = git@github.com:tech-ascent/tvm.git
+
+[submodule "incubator-tvm"]
+	path = incubator-tvm
+	url = git@github.com:apache/incubator-tvm.git
