@@ -166,7 +166,7 @@
                                             (clamp-fn (int 0) max-idx-x))
                                         c])
                              (ast-op/cast :float32)))]))
-                    ;;Finally the name so if we want to see the intermediate represetation we can
+                    ;;Finally the name so if we want to see the intermediate representation we can
                     ;;tell what it is.
                     "partial_result")
         ;;Result in floating point space.
@@ -186,15 +186,15 @@
      :final-kernel result-op}))
 
 
-(defn schedule-tvm-area
+(defn schedule-cpu-tvm-area
   "Step 2 is to 'schedule' the algorithm, thus mapping it to a particular
-  hardware backend and definining where parallelism is safe."
+  hardware backend and definining where parallelism is safe.  This fuses all
+  three axis into one loop and runs the computation in parallel."
   [{:keys [arguments reduce-kernel final-kernel]}]
   (let [schedule (schedule/create-schedule final-kernel)
         stage-map (:stage_map schedule)
         reduce-stage (get stage-map reduce-kernel)
         final-stage (get stage-map final-kernel)
-        [out-y out-x out-chan] (:axis final-kernel)
         final-axis (schedule/stage-fuse final-stage (:axis final-kernel))]
     (schedule/stage-compute-at reduce-stage final-stage final-axis)
     (schedule/stage-parallel final-stage final-axis)
@@ -202,7 +202,7 @@
      :schedule schedule}))
 
 
-(defn compile-scheduled-tvm-area
+(defn compile-cpu-scheduled-tvm-area
   "Step 3 you compile it to a module, find the desired function, and
   wrap it with whatever wrapping code you need."
   [scheduled]
@@ -216,6 +216,34 @@
         (ref-map :module)
         (low-level-fn tvm-input tvm-output)
         (dtype/copy! tvm-output output)))))
+
+
+(defn schedule-gpu-tvm-area
+  "Scheduling for a GPU means a 2-level breakdown of your algorithm in terms
+  of 'blocks' and 'threads'.  Blocks are multiprocessor units that share
+  a block of memory called 'shared-memory'."
+  [{:keys [arguments reduce-kernel final-kernel]}]
+  (let [schedule (schedule/create-schedule final-kernel)
+        stage-map (:stage_map schedule)
+        reduce-stage (get stage-map reduce-kernel)
+        final-stage (get stage-map final-kernel)
+        [out-y out-x out-chan] (:axis final-kernel)
+        ;;Now e fuxe only the x,channel axis of the kernel
+        x-chan-fused (schedule/stage-fuse final-stage [out-x out-chan])
+        ;;then we tile the stage so the GPU is accessing sub-portions of the
+        ;;source image.
+        [y-outer x-outer y-inner x-inner] (schedule/stage-tile final-stage
+                                                               out-y
+                                                               x-chan-fused
+                                                               16, 16)
+        block-axis (schedule/stage-fuse final-stage [y-outer x-outer])
+        thread-axis (schedule/stage-fuse final-stage [y-inner x-inner])]
+    ;;Each thread does it's own reduction
+    (schedule/stage-compute-at reduce-stage final-stage reduce-thread-axis)
+    ;; (schedule/stage-parallel final-stage final-axis)
+    ;; {:arguments arguments
+    ;;  :schedule schedule})
+    (compiler/lower schedule arguments {:gpu_area "gpu_area"})))
 
 
 (defn area-resize!
@@ -233,8 +261,8 @@
 (comment
   (def input-img (bufimg/load "test/data/jen.jpg"))
   (def test-fn (-> (tvm-area-resize-algo-def)
-                   (schedule-tvm-area)
-                   (compile-scheduled-tvm-area)))
+                   (schedule-cpu-tvm-area)
+                   (compile-cpu-scheduled-tvm-area)))
 
   (def result (time (area-resize! input-img 512 test-fn)))
   ;;179 ms
