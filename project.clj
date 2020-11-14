@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.2-alpha1"]
-                 [cnuernber/dtype-next "6.00-alpha-21"]
+                 [cnuernber/dtype-next "6.00-alpha-23-SNAPSHOT"]
                  [techascent/tech.jna "4.05"]
                  [potemkin "0.4.4"]]
 
