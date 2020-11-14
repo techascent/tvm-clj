@@ -27,7 +27,8 @@
             [tvm-clj.compiler :as compiler]
             [tvm-clj.module :as module]
             [tvm-clj.device :as device]
-            [primitive-math :as pmath])
+            [primitive-math :as pmath]
+            [tech.v3.resource :as resource])
   (:import [tech.v3.datatype NDBuffer ObjectReader]))
 
 
@@ -155,7 +156,11 @@
                                                                   src-coord-x c))))
                        inner-sum)))
         ;;Force the calculation to complete to a temporary
-        temp-img (dtt/ensure-tensor (dtype/clone horiz-sum))]
+        temp-img (-> (dtype/copy! horiz-sum (dtt/new-tensor
+                                             (dtype/shape horiz-sum)
+                                             :datatype (dtype/elemwise-datatype
+                                                         horiz-sum)))
+                     (dtt/ensure-tensor))]
     ;;Return the defined but not executed result.
     (dtt/typed-compute-tensor
      ;;datatype
@@ -198,12 +203,15 @@
         low-level-fn (module/find-function module "cpu_area")
         ref-map {:module module}]
     (fn [input output]
-      (let [tvm-input (dtt/clone input :container-type :native-heap)
-            tvm-output (device/device-tensor output :cpu 0)]
+      (resource/stack-resource-context
+       (let [tvm-input (dtt/clone input :container-type
+                                  :native-heap
+                                  :resource-type :auto)
+             tvm-output (device/device-tensor output :cpu 0)]
         ;;;Dereference ref-map
-        (ref-map :module)
-        (low-level-fn tvm-input tvm-output)
-        (dtype/copy! tvm-output output)))))
+         (ref-map :module)
+         (low-level-fn tvm-input tvm-output)
+         (dtype/copy! tvm-output output))))))
 
 
 (defn compile-gpu-scheduled-tvm-area
@@ -212,15 +220,18 @@
                 {"gpu_area" (assoc gpu-schedule :target device-type)})
         low-level-fn (module/find-function module "gpu_area")]
     (fn [input output]
-      (let [cpu-input (dtt/clone input :container-type :native-heap)
-            tvm-input (device/cpu->device cpu-input device-type 0)
-            tvm-output (device/device-tensor output device-type 0)
-            ref-map {:module module}]
+      (resource/stack-resource-context
+       (let [cpu-input (dtt/clone input
+                                  :container-type :native-heap
+                                  :resource-type :auto)
+             tvm-input (device/cpu->device cpu-input device-type 0)
+             tvm-output (device/device-tensor output device-type 0)
+             ref-map {:module module}]
         ;;;Dereference ref-map
-        (ref-map :module)
-        (low-level-fn tvm-input tvm-output)
-        (dtype/copy! (device/device->cpu tvm-output)
-                     output)))))
+         (ref-map :module)
+         (low-level-fn tvm-input tvm-output)
+         (dtype/copy! (device/device->cpu tvm-output)
+                      output))))))
 
 
 (defn tvm-area-resize-algo
@@ -349,22 +360,26 @@
 
 
 (comment
-  (def input-img (bufimg/load "test/data/jen.jpg"))
+
+  (do
+    (def input-img (bufimg/load "test/data/jen.jpg")))
 
   (def jvm-result (time (area-resize! input-img 512  (partial jvm-area-resize-fn! jvm-area-resize-algo))))
-  ;;2.6 seconds
+  ;;1.8 seconds
+
+
   (def jvm-split-result (time (area-resize!
                                input-img 512
                                (partial jvm-area-resize-fn!
                                         jvm-area-split-resize-algo))))
-  ;;2 seconds
+  ;;1.6 seconds
 
   (def tvm-cpu-fn (-> (tvm-area-resize-algo)
                       (schedule-cpu-tvm-area)
                       (compile-cpu-scheduled-tvm-area)))
 
   (def tvm-cpu-result (time (area-resize! input-img 512 tvm-cpu-fn)))
-  ;;110ms
+  ;;75ms
 
   (def tvm-cuda-fn (-> (tvm-area-resize-algo)
                        (schedule-gpu-tvm-area)
@@ -379,6 +394,6 @@
 
 
   (def opencl-result (time (area-resize! input-img 512 tvm-opencl-fn)))
-  ;;77ms
+  ;;65ms
 
   )
