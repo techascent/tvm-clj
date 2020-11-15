@@ -98,7 +98,7 @@
                  `(let [evaled-expr# ~expr
                         ~var-symbol (variable ~(safe-str var-symbol)
                                               :dtype (:dtype evaled-expr#))]
-                    (tvm-proto/g-fn "make.Let" ~var-symbol evaled-expr# ~data)))
+                    (tir-fns/Let ~var-symbol evaled-expr# ~data)))
                body)))
 
 
@@ -308,8 +308,13 @@ proper metadata on the fn object."
                       (into {}))]
       (tir-fns/CommReducer (mapv :variable accum-args)
                            (mapv :variable incoming-args)
-                           (mapv #(apply % (map (comp argmap :name) reduce-fn-args))
-                                 reduction-ast-fns)
+                           (->> reduction-ast-fns
+                                (map #(let [retval (apply % (map (comp argmap :name) reduce-fn-args))]
+                                        (if (sequential? retval)
+                                          retval
+                                          [retval])))
+                                (apply concat)
+                                vec)
                            ;;Identity values, one for each accumulator
                            (mapv (fn [{:keys [datatype identity-value]}]
                                    (errors/when-not-error
@@ -336,29 +341,29 @@ proper metadata on the fn object."
     accumulation arguments.
   * `datatype` - Option datatype.  If not provided will be inferred from the
   datatypes of identity-values."
-  ([tvm-fn identity-values datatype]
+  ([tvm-fn identity-values datatypes]
    (let [arglist (tvm-fn->args tvm-fn)
          n-accum-args (count identity-values)
          accum-args (take n-accum-args arglist)
          incoming-args (drop n-accum-args arglist)]
      (commutative-reducer
-      (concat (map (fn [argname identity-value]
+      (concat (map (fn [argname identity-value datatype]
                      {:name argname
                       :argument-type :accumulating
                       :datatype datatype
                       :identity-value identity-value})
-                   accum-args identity-values)
-              (map (fn [argname]
+                   accum-args identity-values datatypes)
+              (map (fn [argname datatype]
                      {:name argname
                       :argument-type :incoming
                       :datatype datatype})
-                   incoming-args))
+                   incoming-args datatypes))
       [tvm-fn])))
   ([tvm-fn identity-values]
    (tvm-fn->commutative-reducer tvm-fn identity-values
-                                (reduce casting/widest-datatype
-                                        (map dtype/elemwise-datatype
-                                             identity-values)))))
+                                (map (fn [item]
+                                       (dtype/elemwise-datatype item))
+                                     identity-values))))
 
 
 (defn commutative-reduce
@@ -386,11 +391,15 @@ proper metadata on the fn object."
                                                     :communicative-reduce))
                               axis-entry))
                           reduce-axis)
-        read-exprs (mapv (fn [read-expr]
+        read-exprs (mapcat (fn [read-expr]
                            (if (fn? read-expr)
-                             (apply read-expr reduce-axis)
-                             read-expr))
-                         read-exprs)]
+                             (let [result (apply read-expr reduce-axis)]
+                               (if (sequential? result)
+                                 result
+                                 [result]))
+                             [read-expr]))
+                           read-exprs)]
+    (println "read exprs" read-exprs)
     (tir-fns/Reduce comm-reducer read-exprs reduce-axis nil 0 (->node []))))
 
 

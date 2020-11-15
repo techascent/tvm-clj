@@ -415,8 +415,11 @@ explicitly; it is done for you."
     (name dtype-or-name)
     (string? dtype-or-name)
     dtype-or-name
+    ;;punt if it is already a node
+    (instance? NodeHandle dtype-or-name)
+    dtype-or-name
     :else
-    (throw (ex-info "Invalid datatype detected"
+    (throw (ex-info (format "Invalid datatype detected: %s" dtype-or-name)
                     {:dtype dtype-or-name}))))
 
 (defonce ^:private _const-fnptr* (delay (jna-base/name->global-function "node._const")))
