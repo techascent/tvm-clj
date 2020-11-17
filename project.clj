@@ -4,13 +4,15 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.2-alpha1"]
-                 [cnuernber/dtype-next "6.00-beta-2-SNAPSHOT"]
-                 [techascent/tech.jna "4.05"]
-                 [potemkin "0.4.4"]]
+                 [cnuernber/dtype-next "6.00-beta-2"]
+                 [techascent/tech.jna "4.05"]]
 
   :java-source-paths ["java"]
 
-  :profiles {:dev {:dependencies [[criterium "0.4.5"]]}
+  :profiles {:dev {:dependencies [[criterium "0.4.5"]
+                                  [com.github.haifengl/smile-core   "2.5.3"]
+                                  [ch.qos.logback/logback-classic "1.2.3"
+                                   :exclusions [org.slf4j/slf4j-api]]]}
              :codox
              {:dependencies [[codox-theme-rdash "0.1.2"]]
               :plugins [[lein-codox "0.10.7"]]

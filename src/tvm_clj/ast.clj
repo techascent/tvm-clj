@@ -398,9 +398,16 @@ proper metadata on the fn object."
                                  result
                                  [result]))
                              [read-expr]))
-                           read-exprs)]
-    (println "read exprs" read-exprs)
-    (tir-fns/Reduce comm-reducer read-exprs reduce-axis nil 0 (->node []))))
+                           read-exprs)
+        init (->node [])
+        read-exprs (->node read-exprs)
+        reduce-axis (->node reduce-axis)
+        condition (->node true)]
+    (if (== 1 (count read-exprs))
+      (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition 0 init)
+      (mapv (fn [idx]
+              (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition (int idx) init))
+            (clojure.core/range (count read-exprs))))))
 
 
 (defn output-tensors
