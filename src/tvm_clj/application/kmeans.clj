@@ -517,8 +517,10 @@
                                     (ast/tget squared-diff [row-idx center-idx col-idx]))]))
                                "expanded-distances")
         expanded-distances (first (ast/output-tensors expanded-distances-op))
-        center-indexes (topi-fns/argmin expanded-distances -1 false)
-        mindistance-op (:op center-indexes)
+        center-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
+        mindistance-assign-op (:op center-indexes-assigned)
+        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
+        [center-indexes mindistances] (ast/output-tensors mindistance-op)
         agg-op (ast/compute
                 [n-centers n-cols]
                 (ast/tvm-fn
@@ -526,23 +528,24 @@
                  (ast/commutative-reduce
                   (ast/tvm-fn->commutative-reducer
                    (ast/tvm-fn
-                    [fsum lsum sq-elem inc-amt]
+                    [fsum count-acc score-acc sq-elem count-elem score-elem]
                     [(ast-op/+ fsum sq-elem)
-                     (ast-op/+ lsum inc-amt)])
+                     (ast-op/+ count-acc count-elem)
+                     (ast-op/+ score-elem score-acc)])
                    [(double 0.0)
-                    (int 0)])
+                    (int 0)
+                    (double 0.0)])
                   [{:domain [0 n-rows] :name "row-idx"}]
                   [(fn [row-idx]
                      [(ast-op/cast (ast/tget dataset [row-idx col-idx])
                                    :float64)
-                      (ast-op/select (ast-op/eq col-idx (int 0))
-                                     (ast-op/const 1 :int32)
-                                     (ast-op/const 0 :int32))])]
+                      (ast-op/const (int 1))
+                      (ast-op/cast (ast/tget mindistances [row-idx])
+                                   :float64)])]
                   (fn [row-idx]
                     (ast-op/eq center-idx (ast/tget center-indexes [row-idx])))))
                 "new-centers-sum")
-        new-centers (first (ast/output-tensors agg-op))
-        new-counts (second (ast/output-tensors agg-op))
+        [new-centers new-counts new-scores] (ast/output-tensors agg-op)
         div-op (ast/compute
                 [n-centers n-cols]
                 (ast/tvm-fn
@@ -559,18 +562,18 @@
         sq-diff-stage (stage-map squared-differences-op)
         exp-dist-stage (stage-map expanded-distances-op)
         mindist-copy-stage (stage-map mindistance-op)
-        mindist-calc-op (:op (first (ast/input-tensors mindistance-op)))
-        mindist-calc-stage (stage-map mindist-calc-op)
-        [mindist-calc-rows] (get-in mindist-calc-stage [:op :axis])
+        ;; mindist-calc-op (:op (first (ast/input-tensors mindistance-op)))
+        ;; mindist-calc-stage (stage-map mindist-calc-op)
+        ;;[mindist-calc-rows] (get-in mindist-calc-stage [:op :axis])
         [mindist-copy-rows] (get-in mindist-copy-stage [:op :axis])
         [exp-dist-rows exp-dist-cent] (:axis expanded-distances-op)
         agg-stage (get stage-map agg-op)
         div-stage (get stage-map div-op)
         [center-axis col-axis] (:axis div-op)]
     (schedule/stage-compute-at sq-diff-stage exp-dist-stage exp-dist-cent)
-    (schedule/stage-compute-at exp-dist-stage mindist-calc-stage mindist-calc-rows)
-    (schedule/stage-compute-at mindist-calc-stage mindist-copy-stage mindist-copy-rows)
-    (schedule/stage-vectorize mindist-copy-stage mindist-copy-rows)
+    (schedule/stage-compute-at exp-dist-stage mindist-copy-stage mindist-copy-rows)
+    ;; (schedule/stage-compute-at mindist-calc-stage mindist-copy-stage mindist-copy-rows)
+    ;; (schedule/stage-vectorize mindist-copy-stage mindist-copy-rows)
     (schedule/stage-compute-at agg-stage div-stage col-axis)
 
     ;;Two parallelized passes over the data per iteration
@@ -580,7 +583,7 @@
 
     (schedule/stage-parallel div-stage center-axis)
 
-    {:arguments [dataset centers new-counts output]
+    {:arguments [dataset centers new-scores new-counts output]
      :mindistance-op mindistance-op
      :schedule schedule}))
 
@@ -591,10 +594,13 @@
         module (compiler/compile {"cpu_agg_centers" algo})
         low-level-fn (module/find-function module "cpu_agg_centers")
         ref-map {:module module}]
-    (fn [dataset center-indexes new-counts new-centers]
+    (fn [& args]
       ;;;Dereference ref-map
       (ref-map :module)
-      (low-level-fn dataset center-indexes new-counts new-centers))))
+      (apply low-level-fn args))))
+
+
+(defn )
 
 
 (comment
@@ -637,11 +643,21 @@
                                   :container-type :native-heap
                                   :datatype :int32))
 
+  (def new-scores (dtt/new-tensor (dtype/shape tvm-centers)
+                                  :container-type :native-heap
+                                  :datatype :float64))
+
+  (def n-rows (first (dtype/shape src-input)))
+
+  (def center-indexes (dtt/new-tensor [n-rows]
+                                      :container-type :native-heap
+                                      :datatype :int32))
+
 
   (def agg-fn (make-tvm-agg-centers-fn (last (dtype/shape src-image))))
 
 
-  (time (agg-fn src-input tvm-test-centers new-counts new-centers))
+  (time (agg-fn src-input tvm-test-centers new-scores new-counts new-centers))
 
 
   (def bad-centers (dtt/->tensor [[0 0 0]
