@@ -533,17 +533,13 @@
                     (int 0)])
                   [{:domain [0 n-rows] :name "row-idx"}]
                   [(fn [row-idx]
-                     [(ast-op/select (ast-op/eq center-idx
-                                                (ast/tget center-indexes [row-idx]))
-                                     (ast-op/cast (ast/tget dataset [row-idx col-idx])
-                                                  :float64)
-                                     (double 0.0))
-                      (ast-op/select (ast-op/and
-                                      (ast-op/eq center-idx
-                                                 (ast/tget center-indexes [row-idx]))
-                                      (ast-op/eq col-idx (int 0)))
+                     [(ast-op/cast (ast/tget dataset [row-idx col-idx])
+                                   :float64)
+                      (ast-op/select (ast-op/eq col-idx (int 0))
                                      (ast-op/const 1 :int32)
-                                     (ast-op/const 0 :int32))])]))
+                                     (ast-op/const 0 :int32))])]
+                  (fn [row-idx]
+                    (ast-op/eq center-idx (ast/tget center-indexes [row-idx])))))
                 "new-centers-sum")
         new-centers (first (ast/output-tensors agg-op))
         new-counts (second (ast/output-tensors agg-op))

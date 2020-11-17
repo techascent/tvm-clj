@@ -379,35 +379,40 @@ proper metadata on the fn object."
     inputs to `commutative-reducer` and that must be based off of the variables defined
     in `reduce-axis`.  If read-exprs are clojure 'fn?'s they will be called
     with the reduction variables created from reduce-axis."
-  [comm-reducer reduce-axis read-exprs]
-  (let [reduce-axis (mapv (fn [axis-entry]
-                            (if (map? axis-entry)
-                              (do
-                                (errors/when-not-errorf
-                                 (contains? axis-entry :domain)
-                                 "Mising :domain key from axis argument %s" axis-entry)
-                                (iteration-variable (:domain axis-entry)
-                                                    (:name axis-entry)
-                                                    :communicative-reduce))
-                              axis-entry))
-                          reduce-axis)
-        read-exprs (mapcat (fn [read-expr]
-                           (if (fn? read-expr)
-                             (let [result (apply read-expr reduce-axis)]
-                               (if (sequential? result)
-                                 result
-                                 [result]))
-                             [read-expr]))
-                           read-exprs)
-        init (->node [])
-        read-exprs (->node read-exprs)
-        reduce-axis (->node reduce-axis)
-        condition (->node true)]
-    (if (== 1 (count read-exprs))
-      (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition 0 init)
-      (mapv (fn [idx]
-              (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition (int idx) init))
-            (clojure.core/range (count read-exprs))))))
+  ([comm-reducer reduce-axis read-exprs condition]
+   (let [reduce-axis (mapv (fn [axis-entry]
+                             (if (map? axis-entry)
+                               (do
+                                 (errors/when-not-errorf
+                                  (contains? axis-entry :domain)
+                                  "Mising :domain key from axis argument %s" axis-entry)
+                                 (iteration-variable (:domain axis-entry)
+                                                     (:name axis-entry)
+                                                     :communicative-reduce))
+                               axis-entry))
+                           reduce-axis)
+         read-exprs (mapcat (fn [read-expr]
+                              (if (fn? read-expr)
+                                (let [result (apply read-expr reduce-axis)]
+                                  (if (sequential? result)
+                                    result
+                                    [result]))
+                                [read-expr]))
+                            read-exprs)
+         init (->node [])
+         read-exprs (->node read-exprs)
+         reduce-axis (->node reduce-axis)
+         condition (->node (or (if (fn? condition)
+                                 (apply condition reduce-axis)
+                                 condition)
+                               true))]
+     (if (== 1 (count read-exprs))
+       (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition 0 init)
+       (mapv (fn [idx]
+               (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition (int idx) init))
+             (clojure.core/range (count read-exprs))))))
+  ([comm-reducer reduce-axis read-exprs]
+   (commutative-reduce comm-reducer reduce-axis read-exprs nil)))
 
 
 (defn output-tensors
