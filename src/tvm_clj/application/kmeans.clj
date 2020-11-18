@@ -11,6 +11,7 @@
             [tech.v3.parallel.for :as pfor]
             [tvm-clj.ast :as ast]
             [tvm-clj.impl.fns.topi :as topi-fns]
+            [tvm-clj.impl.base :as tvm-base]
             [tvm-clj.ast.elemwise-op :as ast-op]
             [tvm-clj.schedule :as schedule]
             [tvm-clj.compiler :as compiler]
@@ -23,6 +24,7 @@
   (:import [java.util Random List Map$Entry]
            [java.util.function Consumer LongConsumer]
            [smile.clustering KMeans]
+           [tvm_clj.impl.base TVMFunction]
            [tech.v3.datatype DoubleReader Buffer IndexReduction
             Consumers$StagedConsumer NDBuffer LongReader
             ArrayHelpers]))
@@ -546,18 +548,9 @@
                     (ast-op/eq center-idx (ast/tget center-indexes [row-idx])))))
                 "new-centers-sum")
         [new-centers new-counts new-scores] (ast/output-tensors agg-op)
-        div-op (ast/compute
-                [n-centers n-cols]
-                (ast/tvm-fn
-                 [center-idx col-idx]
-                 (ast-op// (ast/tget new-centers [center-idx col-idx])
-                           (-> (ast/tget new-counts [center-idx 0])
-                               (ast-op/cast :float64))))
-                "new-centers")
 
 
-        output (first (ast/output-tensors div-op))
-        schedule (schedule/create-schedule div-op)
+        schedule (schedule/create-schedule agg-op)
         stage-map (:stage_map schedule)
         sq-diff-stage (stage-map squared-differences-op)
         exp-dist-stage (stage-map expanded-distances-op)
@@ -568,23 +561,18 @@
         [mindist-copy-rows] (get-in mindist-copy-stage [:op :axis])
         [exp-dist-rows exp-dist-cent] (:axis expanded-distances-op)
         agg-stage (get stage-map agg-op)
-        div-stage (get stage-map div-op)
-        [center-axis col-axis] (:axis div-op)]
+        [center-axis col-axis] (:axis agg-op)]
     (schedule/stage-compute-at sq-diff-stage exp-dist-stage exp-dist-cent)
     (schedule/stage-compute-at exp-dist-stage mindist-copy-stage mindist-copy-rows)
     ;; (schedule/stage-compute-at mindist-calc-stage mindist-copy-stage mindist-copy-rows)
     ;; (schedule/stage-vectorize mindist-copy-stage mindist-copy-rows)
-    (schedule/stage-compute-at agg-stage div-stage col-axis)
 
     ;;Two parallelized passes over the data per iteration
-
-
     (schedule/stage-parallel mindist-copy-stage mindist-copy-rows)
 
-    (schedule/stage-parallel div-stage center-axis)
+    (schedule/stage-parallel agg-stage center-axis)
 
-    {:arguments [dataset centers new-scores new-counts output]
-     :mindistance-op mindistance-op
+    {:arguments [dataset centers new-scores new-counts new-centers]
      :schedule schedule}))
 
 
@@ -600,7 +588,219 @@
       (apply low-level-fn args))))
 
 
-(defn )
+(defrecord AggReduceContext [^doubles center
+                             ^doubles score
+                             ^longs n-rows])
+
+
+(defn jvm-agg
+  [^NDBuffer dataset ^NDBuffer center-indexes ^NDBuffer distances
+   n-centers]
+  (let [n-centers (long n-centers)
+        [n-rows n-cols] (dtype/shape dataset)
+        n-rows (long n-rows)
+        n-cols (long n-cols)
+        make-reduce-context #(->AggReduceContext (double-array n-cols)
+                                                 (double-array 1)
+                                                 (long-array 1))
+        ;;Because the number of centers is small compared to the number of rows
+        ;;, the ordered reduction is faster due to much less locking and a
+        ;;free merge step.
+        agg-map
+        (->> (dtype-reduce/ordered-group-by-reduce
+              (reify IndexReduction
+                (reduceIndex [this batch ctx row-idx]
+                  (let [^AggReduceContext ctx (or ctx (make-reduce-context))]
+                    (dotimes [col-idx n-cols]
+                      (ArrayHelpers/accumPlus ^doubles (.center ctx) col-idx
+                                              (.ndReadDouble dataset row-idx col-idx)))
+                    (ArrayHelpers/accumPlus ^doubles (.score ctx) 0 (.ndReadDouble distances row-idx))
+                    (ArrayHelpers/accumPlus ^longs (.n-rows ctx) 0 1)
+                    ctx))
+                (reduceReductions [this lhsCtx rhsCtx]
+                  (let [^AggReduceContext lhsCtx lhsCtx
+                        ^AggReduceContext rhsCtx rhsCtx]
+                    (dotimes [col-idx n-cols]
+                      (ArrayHelpers/accumPlus ^doubles (.center lhsCtx) col-idx
+                                              (aget ^doubles (.center rhsCtx) col-idx)))
+                    (ArrayHelpers/accumPlus ^doubles (.score lhsCtx) 0 (aget ^doubles (.score rhsCtx) 0))
+                    (ArrayHelpers/accumPlus ^longs (.n-rows lhsCtx) 0 (aget ^longs (.n-rows rhsCtx) 0))
+                    lhsCtx)))
+              center-indexes)
+             (map (fn [^Map$Entry entry]
+                    [(.getKey entry) (.getValue entry)]))
+             (sort-by first)
+             (map second))
+        new-centers (dtt/->tensor (mapv :center agg-map) :datatype :float64)
+        row-counts (long-array (mapv (comp first :n-rows) agg-map))
+        scores (double-array (mapv (comp first :score) agg-map))]
+    {:new-centers (dfn// new-centers (-> (dtt/reshape row-counts [n-centers 1])
+                                         (dtt/broadcast  [n-centers n-cols])))
+     :row-counts row-counts
+     :score (dfn/sum (dfn// scores row-counts))}))
+
+
+(defn tvm-centers-distances-algo
+  [n-cols]
+  (let [n-rows (ast/variable "n-rows")
+        n-cols (ast-op/const n-cols :int32)
+        n-centers (ast/variable "n-centers")
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :float32)
+        centers (ast/placeholder [n-centers n-cols] :centers :dtype :float64)
+        squared-differences-op (ast/compute
+                                [n-rows n-centers n-cols]
+                                (ast/tvm-fn
+                                 [row-idx center-idx col-idx]
+                                 (ast/tvm-let
+                                  [row-elem (ast/tget dataset [row-idx col-idx])
+                                   center-elem (ast-op/cast (ast/tget centers [center-idx col-idx]) :float32)
+                                   diff (ast-op/- row-elem center-elem)]
+                                  (ast-op/* diff diff)))
+                                "squared-diff")
+        squared-diff (first (ast/output-tensors squared-differences-op))
+        expanded-distances-op (ast/compute
+                               [n-rows n-centers]
+                               (ast/tvm-fn
+                                [row-idx center-idx]
+                                (ast/commutative-reduce
+                                 (ast/tvm-fn->commutative-reducer
+                                  (ast/tvm-fn
+                                   [sum sq-elem]
+                                   (ast-op/+ sum sq-elem))
+                                  [(float 0.0)])
+                                 [{:domain [0 n-cols] :name "col-idx"}]
+                                 [(fn [col-idx]
+                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
+                               "expanded-distances")
+        expanded-distances (first (ast/output-tensors expanded-distances-op))
+        center-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
+        mindistance-assign-op (:op center-indexes-assigned)
+        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
+        [center-indexes mindistances] (ast/output-tensors mindistance-op)
+
+        [exp-dist-rows exp-dist-cent] (:axis expanded-distances-op)
+        [mindist-rows] (get mindistance-op :axis)
+
+        schedule (schedule/create-schedule mindistance-op)
+        stage-map (:stage_map schedule)
+        sq-diff-stage (stage-map squared-differences-op)
+        exp-dist-stage (stage-map expanded-distances-op)
+        mindist-stage (stage-map mindistance-op)]
+    (schedule/stage-compute-at sq-diff-stage exp-dist-stage exp-dist-cent)
+    (schedule/stage-compute-at exp-dist-stage mindist-stage mindist-rows)
+    (schedule/stage-parallel mindist-stage mindist-rows)
+    {:schedule schedule
+     :arguments [dataset centers center-indexes mindistances]}))
+
+
+(defn make-tvm-centers-distances-fn
+  [n-cols]
+  (let [algo (tvm-centers-distances-algo n-cols)
+        module (compiler/compile {"cpu_agg_centers" algo})
+        low-level-fn (module/find-function module "cpu_agg_centers")
+        ref-map {:module module}]
+    (fn [& args]
+      ;;;Dereference ref-map
+      (ref-map :module)
+      (apply low-level-fn args))))
+
+
+(def tvm-centers-distances-fn* (delay (make-tvm-centers-distances-fn 3)))
+
+(defn jvm-tvm-iterate-kmeans
+  [dataset centers]
+  (resource/stack-resource-context
+   (let [[n-rows n-cols] (dtype/shape dataset)
+         [n-centers n-cols] (dtype/shape centers)
+         center-indexes (dtt/new-tensor [n-rows]
+                                        :datatype :int32
+                                        :container-type :native-heap
+                                        :resource-type :auto)
+         distances (dtt/new-tensor [n-rows]
+                                   :datatype :float32
+                                   :container-type :native-heap
+                                   :resource-type :auto)
+         _ (time (@tvm-centers-distances-fn* dataset centers
+                  center-indexes distances))]
+     (jvm-agg dataset center-indexes distances n-centers))))
+
+
+(def kmeans-fn* (delay
+                  (let [fn-ptr (tvm-base/name->global-function "tvm.contrib.kmeans.aggregate")]
+                    (TVMFunction. fn-ptr nil))))
+
+
+(defn tvm-iterate-kmeans
+  [dataset centers]
+  (resource/stack-resource-context
+   (let [[n-rows n-cols] (dtype/shape dataset)
+         [n-centers n-cols] (dtype/shape centers)
+         center-indexes (dtt/new-tensor [n-rows]
+                                        :datatype :int32
+                                        :container-type :native-heap
+                                        :resource-type :auto)
+         distances (dtt/new-tensor [n-rows]
+                                   :datatype :float32
+                                   :container-type :native-heap
+                                   :resource-type :auto)
+         new-centers (dtt/new-tensor [n-centers n-cols]
+                                     :datatype :float64
+                                     :container-type :native-heap
+                                     :resource-type :auto)
+         new-scores (dtt/new-tensor [n-centers]
+                                    :datatype :float64
+                                    :container-type :native-heap
+                                    :resource-type :auto)
+         new-counts (dtt/new-tensor [n-centers]
+                                    :datatype :int64
+                                    :container-type :native-heap
+                                    :resource-type :auto)
+         _ (time (@tvm-centers-distances-fn* dataset centers
+                  center-indexes distances))
+         _ (@kmeans-fn* dataset center-indexes distances new-centers new-counts new-scores)]
+     {:new-centers (dtype/clone (dfn// new-centers
+                                       (-> (dtt/reshape new-counts [n-centers 1])
+                                           (dtt/broadcast [n-centers n-cols]))))
+      :row-counts (dtype/clone new-counts)
+      :score (dfn/sum (dfn// new-scores new-counts))})))
+
+
+(def tvm-all-in-one* (delay (make-tvm-agg-centers-fn 3)))
+
+
+(defn tvm-all-in-one-iterate-kmeans
+  [dataset centers]
+  (resource/stack-resource-context
+   (let [[n-rows n-cols] (dtype/shape dataset)
+         [n-centers n-cols] (dtype/shape centers)
+         center-indexes (dtt/new-tensor [n-rows]
+                                        :datatype :int32
+                                        :container-type :native-heap
+                                        :resource-type :auto)
+         distances (dtt/new-tensor [n-rows]
+                                   :datatype :float32
+                                   :container-type :native-heap
+                                   :resource-type :auto)
+         new-centers (dtt/new-tensor [n-centers n-cols]
+                                     :datatype :float64
+                                     :container-type :native-heap
+                                     :resource-type :auto)
+         new-scores (dtt/new-tensor [n-centers n-cols]
+                                    :datatype :float64
+                                    :container-type :native-heap
+                                    :resource-type :auto)
+         new-counts (dtt/new-tensor [n-centers n-cols]
+                                    :datatype :int32
+                                    :container-type :native-heap
+                                    :resource-type :auto)]
+     (@tvm-all-in-one* dataset centers new-scores new-counts new-centers)
+     (let [row-counts (long-array (dtt/select new-counts :all 0))]
+       {:new-centers (dtype/clone (dfn// new-centers
+                                         (-> (dtt/reshape row-counts [n-centers 1])
+                                             (dtt/broadcast [n-centers n-cols]))))
+        :row-counts row-counts
+        :score (dfn/sum (dfn// (dtt/select new-scores :all 0) row-counts))}))))
+
 
 
 (comment
@@ -613,11 +813,13 @@
                                                (second src-shape))
                                             (last src-shape)])
                               :datatype :float32
-                              :container-type :native-heap)))
+                              :container-type :native-heap))
+    (def n-rows (first (dtype/shape src-input))))
   (def jvm-centers (time (choose-centers++ src-input 5 jvm-distance-fn {:seed 5})))
 
   (def tvm-distance-fn (make-tvm-distance-fn))
-  (def tvm-centers (time (choose-centers++ src-input 5 tvm-distance-fn {:seed 5})))
+  (def tvm-centers (time (-> (choose-centers++ src-input 5 tvm-distance-fn {:seed 5})
+                             (dtt/clone :container-type :native-heap))))
 
   (def tvm-assign-centers (make-tvm-assign-centers))
 
@@ -631,33 +833,33 @@
 
   (tvm-assign-centers src-input tvm-centers (dtt/ensure-tensor jen-indexes))
 
-  (def tvm-test-centers (dtt/clone tvm-centers
+  (do
+    (def tvm-test-centers (dtt/clone tvm-centers
+                                     :container-type :native-heap
+                                     :datatype :float64))
+
+    (def new-centers (dtt/new-tensor (dtype/shape tvm-test-centers)
+                                     :container-type :native-heap
+                                     :datatype :float64))
+
+    (def new-counts (dtt/new-tensor (dtype/shape tvm-centers)
+                                    :container-type :native-heap
+                                    :datatype :int32))
+
+    (def new-scores (dtt/new-tensor (dtype/shape tvm-centers)
+                                    :container-type :native-heap
+                                    :datatype :float64))
+
+    (def center-indexes (dtt/new-tensor [n-rows]
+                                        :container-type :native-heap
+                                        :datatype :int32))
+
+    (def distances (dtt/new-tensor [n-rows]
                                    :container-type :native-heap
-                                   :datatype :float64))
-
-  (def new-centers (dtt/new-tensor (dtype/shape tvm-test-centers)
-                              :container-type :native-heap
-                              :datatype :float64))
-
-  (def new-counts (dtt/new-tensor (dtype/shape tvm-centers)
-                                  :container-type :native-heap
-                                  :datatype :int32))
-
-  (def new-scores (dtt/new-tensor (dtype/shape tvm-centers)
-                                  :container-type :native-heap
-                                  :datatype :float64))
-
-  (def n-rows (first (dtype/shape src-input)))
-
-  (def center-indexes (dtt/new-tensor [n-rows]
-                                      :container-type :native-heap
-                                      :datatype :int32))
+                                   :datatype :float32)))
 
 
-  (def agg-fn (make-tvm-agg-centers-fn (last (dtype/shape src-image))))
-
-
-  (time (agg-fn src-input tvm-test-centers new-scores new-counts new-centers))
+  (time (@tvm-all-in-one* src-input tvm-test-centers new-scores new-counts new-centers))
 
 
   (def bad-centers (dtt/->tensor [[0 0 0]
