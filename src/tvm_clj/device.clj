@@ -51,9 +51,11 @@
 
 (defn copy-tensor!
   "Copy a src tensor to a destination tensor."
-  [src-tens dest-tens stream]
-  (dl-tensor/copy-array-to-array! src-tens dest-tens stream)
-  dest-tens)
+  ([src-tens dest-tens stream]
+   (dl-tensor/copy-array-to-array! src-tens dest-tens stream)
+   dest-tens)
+  ([src-tens dest-tens]
+   (copy-tensor! src-tens dest-tens nil)))
 
 
 (defn sync-with-host

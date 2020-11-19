@@ -499,10 +499,11 @@ a different buffer type than this then you need to bind it yourself."
    (let [host-dev-modules (->> fn-map
                                (mapv (fn [[fn-name {:keys [schedule arguments bind-map simple-mode?
                                                            target]}]]
-                                       (-> (lower schedule arguments {:name fn-name
-                                                                      :binds bind-map
-                                                                      :simple-mode? simple-mode?})
-                                           (build-for-device (or target "llvm") target-host)))))
+                                       (let [fn-name (ast/safe-str fn-name)]
+                                         (-> (lower schedule arguments {:name fn-name
+                                                                        :binds bind-map
+                                                                        :simple-mode? simple-mode?})
+                                             (build-for-device (or target "llvm") target-host))))))
          host-modules (mapv first host-dev-modules)
          device-modules (vec (remove nil? (map second host-dev-modules)))
          host-module (let [host-module (ir-fns/IRModule {} {})]
@@ -517,7 +518,21 @@ a different buffer type than this then you need to bind it yourself."
    (compile fn-map nil)))
 
 
+(defn ir->fn
+  "Given map of {`:schedule` `:arguments`} containing optionally `:target`
+  create a clojure fn that calls into TVM."
+  [ir-data fn-name]
+  (let [fn-name (ast/safe-str fn-name)]
+    (-> (compile {fn-name ir-data})
+        (module/get-module-function fn-name))))
 
+
+(defn view-ir
+  "Lower the schedule without optimizations returning an IR layer that has a
+  nice pprint for inspecting schedule state."
+  [ir-data]
+  (let [{:keys [schedule arguments]} ir-data]
+    (lower schedule arguments {:name "view_ir"})))
 
 
 (comment

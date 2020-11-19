@@ -108,8 +108,10 @@
                                             0
                                             max-idx-y)]
                            (recur (unchecked-inc k-idx-x)
-                                  (pmath/+ inner-sum (.ndReadDouble input src-coord-y
-                                                                    src-coord-x c))))
+                                  (pmath/+ inner-sum (.ndReadDouble input
+                                                                    src-coord-y
+                                                                    src-coord-x
+                                                                    c))))
                          inner-sum))))
              outer-sum))
          (double)
@@ -156,11 +158,7 @@
                                                                   src-coord-x c))))
                        inner-sum)))
         ;;Force the calculation to complete to a temporary
-        temp-img (-> (dtype/copy! horiz-sum (dtt/new-tensor
-                                             (dtype/shape horiz-sum)
-                                             :datatype (dtype/elemwise-datatype
-                                                         horiz-sum)))
-                     (dtt/ensure-tensor))]
+        temp-img (dtt/clone horiz-sum)]
     ;;Return the defined but not executed result.
     (dtt/typed-compute-tensor
      ;;datatype
@@ -195,50 +193,13 @@
   output)
 
 
-(defn compile-cpu-scheduled-tvm-area
-  "Step 3 you compile it to a module, find the desired function, and
-  wrap it with whatever wrapping code you need."
-  [scheduled]
-  (let [module (compiler/compile {"cpu_area" scheduled})
-        low-level-fn (module/find-function module "cpu_area")
-        ref-map {:module module}]
-    (fn [input output]
-      (resource/stack-resource-context
-       (let [tvm-input (dtt/clone input :container-type
-                                  :native-heap
-                                  :resource-type :auto)
-             tvm-output (device/device-tensor output :cpu 0)]
-        ;;;Dereference ref-map
-         (ref-map :module)
-         (low-level-fn tvm-input tvm-output)
-         (dtype/copy! tvm-output output))))))
-
-
-(defn compile-gpu-scheduled-tvm-area
-  [gpu-schedule device-type]
-  (let [module (compiler/compile
-                {"gpu_area" (assoc gpu-schedule :target device-type)})
-        low-level-fn (module/find-function module "gpu_area")]
-    (fn [input output]
-      (resource/stack-resource-context
-       (let [cpu-input (dtt/clone input
-                                  :container-type :native-heap
-                                  :resource-type :auto)
-             tvm-input (device/cpu->device cpu-input device-type 0)
-             tvm-output (device/device-tensor output device-type 0)
-             ref-map {:module module}]
-        ;;;Dereference ref-map
-         (ref-map :module)
-         (low-level-fn tvm-input tvm-output)
-         (dtype/copy! (device/device->cpu tvm-output)
-                      output))))))
 
 
 (defn tvm-area-resize-algo
   "Step 1 is to define the algorithm.  This definition looks strikingly similar
   to the definition above."
-  []
-  (let [n-chan (ast/variable "n-chan")
+  [n-channels device-type]
+  (let [n-chan (ast-op/const n-channels :int32)
         in-width (ast/variable "in-width")
         in-height (ast/variable "in-height")
         out-width (ast/variable "out-width")
@@ -307,56 +268,65 @@
                         ;;convert back to uint8 space
                         (ast-op/cast :uint8)))
                    "result")
-        output (first (ast/output-tensors result-op))]
-    {:arguments [input output]
-     :partial-result-op partial-result-op
-     :final-op result-op}))
+        output (first (ast/output-tensors result-op))
+        schedule (schedule/create-schedule result-op)
 
-
-(defn schedule-cpu-tvm-area
-  "Step 2 is to 'schedule' the algorithm, thus mapping it to a particular
-  hardware backend and definining where parallelism is safe.  This fuses all
-  three axis into one loop and runs the computation in parallel."
-  [{:keys [arguments partial-result-op final-op]}]
-  (let [schedule (schedule/create-schedule final-op)
         stage-map (:stage_map schedule)
         partial-stage (get stage-map partial-result-op)
-        final-stage (get stage-map final-op)
-        [final-y final-x final-c] (:axis final-op)
-        [final-y-outer final-x-outer final-y-inner final-x-inner]
-        (schedule/stage-tile final-stage
-                             final-y
-                             final-x
-                             1, 16)]
-    (schedule/stage-compute-at partial-stage final-stage final-c)
-    (schedule/stage-parallel final-stage final-x-outer)
-    {:arguments arguments
+        final-stage (get stage-map result-op)
+        [final-y final-x final-c] (:axis result-op)]
+    (if (= device-type :llvm)
+      (let [[final-y-outer final-x-outer final-y-inner final-x-inner]
+            (schedule/stage-tile final-stage
+                                 final-y
+                                 final-x
+                                 1, 16)]
+        (schedule/stage-compute-at partial-stage final-stage final-c)
+        (schedule/stage-parallel final-stage final-x-outer))
+      ;;gpu schedule
+      (let [[final-y-outer final-x-outer final-y-inner final-x-inner]
+            (schedule/stage-tile final-stage
+                                 final-y
+                                 final-x
+                                 16, 16)
+            block-axis (schedule/stage-fuse final-stage [final-y-outer final-x-outer])
+            thread-axis (schedule/stage-fuse final-stage [final-y-inner final-x-inner])]
+        (schedule/stage-compute-at partial-stage final-stage final-c)
+        (schedule/stage-bind-gpu final-stage [block-axis] [thread-axis])))
+    {:arguments [input output]
+     :target device-type
      :schedule schedule}))
 
 
-(defn schedule-gpu-tvm-area
-  "Scheduling for a GPU means a 2-level breakdown of your algorithm in terms
-  of 'blocks' and 'threads'.  Blocks are multiprocessor units that share
-  a block of memory called 'shared-memory'."
-  [{:keys [arguments partial-result-op final-op]}]
-  (let [schedule (schedule/create-schedule final-op)
-        stage-map (:stage_map schedule)
-        partial-stage (get stage-map partial-result-op)
-        final-stage (get stage-map final-op)
-        [final-y final-x final-c] (:axis final-op)
-        [final-y-outer final-x-outer final-y-inner final-x-inner]
-        (schedule/stage-tile final-stage
-                             final-y
-                             final-x
-                             16, 16)
-        block-axis (schedule/stage-fuse final-stage [final-y-outer final-x-outer])
-        thread-axis (schedule/stage-fuse final-stage [final-y-inner final-x-inner])]
-    ;;Each thread does it's own reduction
-    (schedule/stage-compute-at partial-stage final-stage final-c)
-    (schedule/stage-bind-gpu final-stage [block-axis] [thread-axis])
-    {:schedule schedule
-     :arguments arguments}))
-
+(def tvm-fns
+  (memoize
+   (fn [n-chan device-type]
+     (let [tvm-fn (-> (tvm-area-resize-algo n-chan device-type)
+                      (compiler/ir->fn (format "%s_area_resize"
+                                               (name device-type)
+                                               n-chan)))]
+       (fn [input output]
+         (resource/stack-resource-context
+          (let [cpu-input (dtt/clone input
+                                     :container-type :native-heap
+                                     :resource-type :auto)
+                cpu-output (dtt/new-tensor (dtype/shape output)
+                                           :container-type :native-heap
+                                           :resource-type :auto
+                                           :datatype (dtype/elemwise-datatype output))
+                device-id 0
+                kernel-input (if (= device-type :llvm)
+                               cpu-input
+                               (device/cpu->device cpu-input device-type device-id
+                                                   {:resource-type :auto}))
+                kernel-output (if (= device-type :llvm)
+                                cpu-output
+                                (device/device-tensor cpu-output device-type device-id))]
+            (tvm-fn kernel-input kernel-output)
+            (when (not= device-type :llvm)
+              (device/copy-tensor! kernel-output cpu-output nil)
+              (device/sync-with-host device-type 0))
+            (dtype/copy! cpu-output output))))))))
 
 
 (comment
@@ -374,23 +344,17 @@
                                         jvm-area-split-resize-algo))))
   ;;1.6 seconds
 
-  (def tvm-cpu-fn (-> (tvm-area-resize-algo)
-                      (schedule-cpu-tvm-area)
-                      (compile-cpu-scheduled-tvm-area)))
+  (def tvm-cpu-fn (tvm-fns (last (dtype/shape input-img)) :llvm))
 
   (def tvm-cpu-result (time (area-resize! input-img 512 tvm-cpu-fn)))
   ;;75ms
 
-  (def tvm-cuda-fn (-> (tvm-area-resize-algo)
-                       (schedule-gpu-tvm-area)
-                       (compile-gpu-scheduled-tvm-area :cuda)))
+  (def tvm-cuda-fn (tvm-fns (last (dtype/shape input-img)) :cuda))
 
   (def cuda-result (time (area-resize! input-img 512 tvm-cuda-fn)))
   ;;88ms
 
-  (def tvm-opencl-fn (-> (tvm-area-resize-algo)
-                         (schedule-gpu-tvm-area)
-                         (compile-gpu-scheduled-tvm-area :opencl)))
+  (def tvm-opencl-fn (tvm-fns (last (dtype/shape input-img)) :opencl))
 
 
   (def opencl-result (time (area-resize! input-img 512 tvm-opencl-fn)))

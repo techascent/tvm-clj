@@ -268,8 +268,11 @@ proper metadata on the fn object."
                {:shape-rank (count shape)
                 :num-fn-args (count fn-arglists)}))
     (let [compute-dim (map (fn [arg-name shape-value]
-                             (iteration-variable [0 shape-value] arg-name
-                                                 :data-parallel))
+                             (let [shape-value (if (sequential? shape-value)
+                                                 shape-value
+                                                 [0 shape-value])]
+                               (iteration-variable shape-value arg-name
+                                                   :data-parallel)))
                            fn-arglists shape)
           body-data (apply fcompute (map :var compute-dim))
           body-data (if-not (instance? clojure.lang.Sequential body-data)
@@ -431,3 +434,22 @@ proper metadata on the fn object."
   (if (= (tvm-proto/node-type-name tens-or-op) "Tensor")
     (:op tens-or-op)
     tens-or-op))
+
+
+(defn scan
+  "Create a recursive scan operation"
+  [init-op update-op scan-state args & [{:keys [op-name tag attrs]
+                                          :or {op-name "scan"
+                                               tag ""}}]]
+  (let [op-name (safe-str op-name)
+        init-tensors (output-tensors init-op)
+        update-tensors (output-tensors update-op)
+        scan-state (if (sequential? scan-state)
+                     scan-state
+                     [scan-state])
+        iter-var      (iteration-variable
+                       [(first (:shape (first init-tensors)))
+                        (first (:shape (first update-tensors)))]
+                       (format "%s.idx" op-name) :ordered)]
+    (te-fns/ScanOp op-name tag attrs iter-var
+                   init-tensors update-tensors scan-state args)))

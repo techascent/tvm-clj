@@ -52,7 +52,7 @@
      (when (= 0 (Pointer/nativeValue (.getValue retval)))
        (throw (ex-info "Could not find module function"
                        {:fn-name fn-name})))
-     (TVMFunction. (.getValue retval) nil)))
+     (TVMFunction. (.getValue retval) module)))
   ([module fn-name]
    (get-module-function module fn-name false)))
 

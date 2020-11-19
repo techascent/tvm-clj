@@ -9,10 +9,7 @@
 
   :java-source-paths ["java"]
 
-  :profiles {:dev {:dependencies [[criterium "0.4.5"]
-                                  [com.github.haifengl/smile-core   "2.5.3"]
-                                  [ch.qos.logback/logback-classic "1.2.3"
-                                   :exclusions [org.slf4j/slf4j-api]]]}
+  :profiles {:dev {:dependencies [[criterium "0.4.5"]]}
              :codox
              {:dependencies [[codox-theme-rdash "0.1.2"]]
               :plugins [[lein-codox "0.10.7"]]
