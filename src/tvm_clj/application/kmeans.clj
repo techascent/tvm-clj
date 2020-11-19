@@ -24,7 +24,6 @@
             [clojure.tools.logging :as log])
   (:import [java.util Random List Map$Entry]
            [java.util.function Consumer LongConsumer]
-           [smile.clustering KMeans]
            [tvm_clj.impl.base TVMFunction]
            [tech.v3.datatype DoubleReader Buffer IndexReduction
             Consumers$StagedConsumer NDBuffer LongReader
@@ -104,7 +103,7 @@
   (let [[n-rows n-cols] (dtype/shape dataset)
         centers (dtt/new-tensor [n-centers n-cols]
                                 :container-type :native-heap
-                                :datatype :float32
+                                :datatype :float64
                                 :resource-type :auto)]
     (resource/stack-resource-context
      (let [random (seed->random seed)
@@ -136,7 +135,8 @@
                         target-amt
                         (scan-distances (inc next-center-idx))
                         (vec (take 10 distances)))
-           (dtt/mset! centers (inc idx) (dtt/mget dataset next-center-idx))))))))
+           (dtt/mset! centers (inc idx) (dtt/mget dataset next-center-idx))))))
+    centers))
 
 
 (defn tvm-dist-sum-algo
@@ -149,7 +149,7 @@
         center-idx (ast/variable "center-idx")
         ;;The distance calculation is the only real issue here.
         ;;Everything else, sort, etc. is pretty quick and sorting
-        centers (ast/placeholder [n-centers n-cols] "centers" :dtype :float32)
+        centers (ast/placeholder [n-centers n-cols] "centers" :dtype :float64)
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :float32)
         ;;distances are doubles so summation is in double space
         distances (ast/placeholder [n-rows] "distances" :dtype :float64)
@@ -158,7 +158,8 @@
                                 (ast/tvm-fn
                                  [row-idx col-idx]
                                  (ast/tvm-let
-                                  [row-elem (ast/tget dataset [row-idx col-idx])
+                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                                (ast-op/cast :float64))
                                    center-elem (ast/tget centers [center-idx col-idx])
                                    diff (ast-op/- row-elem center-elem)]
                                   (ast-op/* diff diff)))
@@ -174,7 +175,7 @@
                                   (ast/tvm-fn
                                    [sum sq-elem]
                                    (ast-op/+ sum sq-elem))
-                                  [(float 0.0)])
+                                  [(double 0.0)])
                                  [{:domain [0 n-cols] :name "col-idx"}]
                                  [(fn [col-idx]
                                     (ast/tget squared-diff [row-idx col-idx]))]))
@@ -232,7 +233,6 @@
     (schedule/stage-compute-at sq-diff-stage exp-diff-stage exp-diff-axis)
     (schedule/stage-compute-at exp-diff-stage mindist-stage mindist-axis)
     (schedule/stage-parallel mindist-stage mindist-axis)
-    (schedule/stage-parallel scan-stage scan-axis)
     {:arguments [dataset centers center-idx distances mindistances scan-result]
      :schedule schedule}))
 
@@ -254,6 +254,7 @@
   (def sum (dtt/new-tensor [1]
                            :datatype :float64
                            :container-type :native-heap))
+  (dtype/set-constant! scan-distances 0)
 
   (time (@tvm-dist-sum-fn* src-input (dtt/new-tensor [1 3] :datatype :float32 :container-type :native-heap)
          0 distances scan-distances))
@@ -388,9 +389,9 @@
          distances (dtt/new-tensor [n-rows]
                                    :datatype :float32
                                    :container-type :native-heap
-                                   :resource-type :auto)
-         _ (time (@tvm-centers-distances-fn* dataset centers
-                  center-indexes distances))]
+                                   :resource-type :auto)]
+     (@tvm-centers-distances-fn* dataset centers
+      center-indexes distances)
      (jvm-agg dataset center-indexes distances n-centers))))
 
 
@@ -527,6 +528,6 @@
 
 
 (comment
-  (def jvm-tvm (jvm-tvm-iterate-kmeans src-input centers))
-
+  (def jvm-tvm (time (jvm-tvm-iterate-kmeans src-input centers)))
+  (def tvm-allinone (time (tvm-all-in-one-iterate-kmeans src-input centers)))
   )
