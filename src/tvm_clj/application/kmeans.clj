@@ -37,12 +37,10 @@
 (defonce src-shape (dtype/shape src-image))
 ;;Make a 2d matrix out of the image.
 (defonce src-input (dtt/clone (dtt/reshape src-image
-                                       [(* (long (first src-shape))
-                                           (long (second src-shape)))
-                                        (last src-shape)])
-                          :datatype :float32
-                          :container-type :native-heap))
-(def n-rows (first (dtype/shape src-input)))
+                                           [(* (long (first src-shape))
+                                               (long (second src-shape)))
+                                            (last src-shape)])
+                              :container-type :native-heap))
 
 
 (defn- seed->random
@@ -121,7 +119,7 @@
            _ (dtt/mset! centers 0 (dtt/mget dataset initial-seed-idx))
            n-centers (long n-centers)]
        (dotimes [idx (dec n-centers)]
-         (time (distance-fn dataset centers idx distances scan-distances))
+         (distance-fn dataset centers idx distances scan-distances)
          (let [next-flt (.nextDouble ^Random random)
                ;;No one (not intel, not smile) actually sorts the distances
                ;;_ (contrib-sort/argsort distances indexes 0 false)
@@ -150,7 +148,7 @@
         ;;The distance calculation is the only real issue here.
         ;;Everything else, sort, etc. is pretty quick and sorting
         centers (ast/placeholder [n-centers n-cols] "centers" :dtype :float64)
-        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :float32)
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :uint8)
         ;;distances are doubles so summation is in double space
         distances (ast/placeholder [n-rows] "distances" :dtype :float64)
         squared-differences-op (ast/compute
@@ -279,11 +277,19 @@
         make-reduce-context #(->AggReduceContext (double-array n-cols)
                                                  (double-array 1)
                                                  (long-array 1))
+        dataset-buf (dtype/->buffer dataset)
+        ;;A compute tensor's inline implementation beats the tensor's
+        ;;generalized implementation if you know your dimensions
+        dataset (dtt/typed-compute-tensor :float64 [n-rows n-cols]
+                                          [row-idx col-idx]
+                                          (.readDouble dataset-buf
+                                                       (pmath/+ (* row-idx n-cols)
+                                                                col-idx)))
         ;;Because the number of centers is small compared to the number of rows
         ;;, the ordered reduction is faster due to much less locking and a
         ;;free merge step.
         agg-map
-        (->> (dtype-reduce/unordered-group-by-reduce
+        (->> (dtype-reduce/ordered-group-by-reduce
               (reify IndexReduction
                 (reduceIndex [this batch ctx row-idx]
                   (let [^AggReduceContext ctx (or ctx (make-reduce-context))]
@@ -321,15 +327,16 @@
   (let [n-rows (ast/variable "n-rows")
         n-cols (ast-op/const n-cols :int32)
         n-centers (ast/variable "n-centers")
-        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :float32)
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :uint8)
         centers (ast/placeholder [n-centers n-cols] :centers :dtype :float64)
         squared-differences-op (ast/compute
                                 [n-rows n-centers n-cols]
                                 (ast/tvm-fn
                                  [row-idx center-idx col-idx]
                                  (ast/tvm-let
-                                  [row-elem (ast/tget dataset [row-idx col-idx])
-                                   center-elem (ast-op/cast (ast/tget centers [center-idx col-idx]) :float32)
+                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                                (ast-op/cast :float64))
+                                   center-elem (ast/tget centers [center-idx col-idx])
                                    diff (ast-op/- row-elem center-elem)]
                                   (ast-op/* diff diff)))
                                 "squared-diff")
@@ -343,7 +350,7 @@
                                   (ast/tvm-fn
                                    [sum sq-elem]
                                    (ast-op/+ sum sq-elem))
-                                  [(float 0.0)])
+                                  [(double 0.0)])
                                  [{:domain [0 n-cols] :name "col-idx"}]
                                  [(fn [col-idx]
                                     (ast/tget squared-diff [row-idx center-idx col-idx]))]))
@@ -387,7 +394,7 @@
                                         :container-type :native-heap
                                         :resource-type :auto)
          distances (dtt/new-tensor [n-rows]
-                                   :datatype :float32
+                                   :datatype :float64
                                    :container-type :native-heap
                                    :resource-type :auto)]
      (@tvm-centers-distances-fn* dataset centers
@@ -402,15 +409,16 @@
   (let [n-rows (ast/variable "n-rows")
         n-cols (ast-op/const n-cols :int32)
         n-centers (ast/variable "n-centers")
-        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :float32)
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :uint8)
         centers (ast/placeholder [n-centers n-cols] :centers :dtype :float64)
         squared-differences-op (ast/compute
                                 [n-rows n-centers n-cols]
                                 (ast/tvm-fn
                                  [row-idx center-idx col-idx]
                                  (ast/tvm-let
-                                  [row-elem (ast/tget dataset [row-idx col-idx])
-                                   center-elem (ast-op/cast (ast/tget centers [center-idx col-idx]) :float32)
+                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                                (ast-op/cast :float64))
+                                   center-elem (ast/tget centers [center-idx col-idx])
                                    diff (ast-op/- row-elem center-elem)]
                                   (ast-op/* diff diff)))
                                 "squared-diff")
@@ -424,7 +432,7 @@
                                   (ast/tvm-fn
                                    [sum sq-elem]
                                    (ast-op/+ sum sq-elem))
-                                  [(float 0.0)])
+                                  [(double 0.0)])
                                  [{:domain [0 n-cols] :name "col-idx"}]
                                  [(fn [col-idx]
                                     (ast/tget squared-diff [row-idx center-idx col-idx]))]))
@@ -526,8 +534,113 @@
         :score (dfn/sum (dfn// (dtt/select new-scores :all 0) row-counts))}))))
 
 
+(defn tvm-assign-centers-algo
+  [n-cols]
+  (let [n-cols (ast-op/const n-cols :int32)
+        n-rows (ast/variable "n-rows")
+        n-centers (ast/variable "n-centers")
+        centers (ast/placeholder [n-centers n-cols] "centers" :dtype :float64)
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype :uint8)
+        squared-differences-op (ast/compute
+                                [n-rows n-centers n-cols]
+                                (ast/tvm-fn
+                                 [row-idx center-idx col-idx]
+                                 (ast/tvm-let
+                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                                (ast-op/cast :float64))
+                                   center-elem (ast/tget centers [center-idx col-idx])
+                                   diff (ast-op/- row-elem center-elem)]
+                                  (ast-op/* diff diff)))
+                                "squared-diff")
+        squared-diff (first (ast/output-tensors squared-differences-op))
+        expanded-distances-op (ast/compute
+                               [n-rows n-centers]
+                               (ast/tvm-fn
+                                [row-idx center-idx]
+                                (ast/commutative-reduce
+                                 (ast/tvm-fn->commutative-reducer
+                                  (ast/tvm-fn
+                                   [sum sq-elem]
+                                   (ast-op/+ sum sq-elem))
+                                  [(double 0.0)])
+                                 [{:domain [0 n-cols] :name "col-idx"}]
+                                 [(fn [col-idx]
+                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
+                               "expanded-distances")
+        expanded-distances (first (ast/output-tensors expanded-distances-op))
+        center-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
+        mindistance-assign-op (:op center-indexes-assigned)
+        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
+        [center-indexes mindistances] (ast/output-tensors mindistance-op)
+        result-op (ast/compute
+                   [n-rows n-cols]
+                   (ast/tvm-fn
+                    [row-idx col-idx]
+                    (-> (ast/tget centers
+                                  [(ast/tget center-indexes [row-idx])
+                                   col-idx])
+                        (ast-op/cast :uint8)))
+                   "result-ds")
+        schedule (schedule/create-schedule result-op)
+        stage-map (:stage_map schedule)
+        result (first (ast/output-tensors result-op))]
+    (schedule/stage-compute-at (stage-map squared-differences-op)
+                               (stage-map expanded-distances-op)
+                               (last (:axis expanded-distances-op)))
+    (schedule/stage-compute-at (stage-map expanded-distances-op)
+                               (stage-map mindistance-op)
+                               (last (:axis mindistance-op)))
+    (schedule/stage-compute-at (stage-map mindistance-op)
+                               (stage-map result-op)
+                               (last (:axis result-op)))
+    (schedule/stage-parallel (stage-map result-op)
+                             (first (:axis result-op)))
+    {:schedule schedule
+     :arguments [dataset centers result]}))
+
+
+(def assign-clusters-fn* (delay
+                          (-> (tvm-assign-centers-algo 3)
+                              (compiler/ir->fn "assign_clusters"))))
+
+
+(defn quantize-image
+  [src-path n-quantization n-iters seed]
+  (resource/stack-resource-context
+   (let [src-img (bufimg/load src-path)
+         [height width channels] (dtype/shape src-img)
+         n-rows (* (long height) (long width))
+         dataset (-> (dtt/reshape src-img [n-rows channels])
+                     (dtt/clone :container-type :native-heap
+                                :resource-type :stack))
+         centers (time (choose-centers++ dataset n-quantization @tvm-dist-sum-fn*
+                                         {:seed 6}))
+         scores (time (mapv (fn [idx]
+                              (log/infof "Iteration %d" idx)
+                              (let [{:keys [new-centers score]}
+                                    (jvm-tvm-iterate-kmeans dataset centers)]
+                                (dtype/copy! new-centers centers)
+                                score))
+                            (range n-iters)))
+         result-img (bufimg/new-image height width (bufimg/image-type src-img))
+         result-tens (dtt/new-tensor (dtype/shape dataset)
+                                     :datatype (dtype/elemwise-datatype src-img)
+                                     :container-type :native-heap
+                                     :resource-type :stack)]
+     (@assign-clusters-fn* dataset centers result-tens)
+     (log/infof "Scores: %s" scores)
+     {:centers (dtype/clone centers)
+      :result (dtype/copy! result-tens result-img)
+      :scores scores})))
+
 
 (comment
   (def jvm-tvm (time (jvm-tvm-iterate-kmeans src-input centers)))
   (def tvm-allinone (time (tvm-all-in-one-iterate-kmeans src-input centers)))
+  (dotimes [iter 10]
+    (let [n-quantization (* (+ iter 1) 5)]
+      (log/infof "Quantization: %d" n-quantization)
+      (-> (quantize-image "test/data/castle.jpg" n-quantization 3 6)
+          (:result)
+          (bufimg/save! (format "quantized-%d.png" n-quantization)))))
   )
