@@ -453,12 +453,13 @@ When this function is not called, the function returns null by default.
     retval))
 
 
+;;Functions are always tracked via the gc, never the stack.
 (defmethod tvm-value->jvm :func-handle
   [long-val _val-type-kwd]
   (let [long-val (long long-val)
         ptr-data (Pointer. long-val)
         retval (TVMFunction. ptr-data nil)]
-    (resource/track retval {:track-type :auto
+    (resource/track retval {:track-type :gc
                             :dispose-fn #(TVMObjectFree ptr-data)})))
 
 

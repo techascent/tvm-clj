@@ -30,8 +30,9 @@
 (defmethod jna-base/tvm-value->jvm :module-handle
   [long-val val-type-kwd]
   (-> (->ModuleHandle (Pointer. long-val))
+      ;;modules are *always* tracked via the gc, never the stack!
       (resource/track {:dispose-fn #(TVMModFree (Pointer. long-val))
-                       :track-type :auto})))
+                       :track-type :gc})))
 
 
 (jna-base/make-tvm-jna-fn TVMModGetFunction
