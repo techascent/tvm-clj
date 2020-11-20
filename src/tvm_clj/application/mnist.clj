@@ -122,3 +122,25 @@
       (-> (centers idx)
           (dtt/reshape [img-height img-width])
           (save-tensor-as-img (format "center-%d.png" idx))))))
+
+(defn kmeans->histograms
+  "Takes the output of `train-kmeans` and returns a histogram of original labels for each learned center."
+  [{:keys [assigned-centers]}]
+  (->> (for [[idx assigned-center] (map-indexed vector assigned-centers)]
+         (let [idx->label (fn [i]
+                            (->> (map-indexed vector (:labels train-ds))
+                                 (map (fn [[label-i [minimum maximum]]]
+                                        (when (and (<= minimum i) (< i maximum))
+                                          label-i)))
+                                 (remove nil?)
+                                 (first)))]
+           {:label (idx->label idx)
+            :assigned-center assigned-center}))
+       (group-by :assigned-center)
+       (map (fn [[_ item-seq]]
+              (frequencies (map :label item-seq))))
+       (sort-by (fn [hist] (ffirst (sort-by second > hist))))
+       (map (fn [center]
+              (for [i (range 10)]
+                (get center i 0))))
+       (dtt/ensure-tensor)))
