@@ -80,7 +80,7 @@
 
 ;;Datasets are maps of class-label->tensor
 (defonce train-ds (load-dataset train-fnames "train"))
-(defonce test-ds (load-dataset train-fnames "test"))
+(defonce test-ds (load-dataset test-fnames "test"))
 
 
 (defn train-kmeans
