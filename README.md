@@ -64,11 +64,12 @@ mkdir -p tvm/build
 # it.
 cp config.cmake tvm/build/
 
-pushd tvm/build
+cd tvm/build
 
 cmake ..
 make -j8
-popd
+
+
 ```
 
 This will copy the libs into a platform-specific directory that jna should find.
