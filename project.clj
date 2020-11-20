@@ -25,5 +25,6 @@
                                    tvm-clj.compiler
                                    tvm-clj.module
                                    tvm-clj.device
-                                   tvm-clj.application.image]}}}
+                                   tvm-clj.application.image
+                                   tvm-clj.application.kmeans]}}}
   :aliases {"codox" ["with-profile" "codox,dev" "codox"]})
