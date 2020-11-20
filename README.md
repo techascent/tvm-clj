@@ -7,12 +7,16 @@ TVM is a high performance compiler for ND numeric code.  In it's simplest form, 
 
 1.  Define an AST.
 2.  Schedule the AST, doing things such as tiling and operation or caching a partial
-    result in GPU shared memory.  This allows us to make transformations to the algorithm
-	which are guaranteed not to break the algorithm but also allow us to map the algorithm
-	to specific hardware such as GPU's and FPGA's.
+    result in GPU shared memory.  This allows us to make transformations to the algorithm which
+        allow us to map the algorithm to specific hardware such as GPU's, FPGA's, web-based
+	backends such as wasm, graphics backends such as OpenGL and Vulkan and low powered IoT
+	platforms such as [microcontrollers](https://tvm.apache.org/2020/06/04/tinyml-how-tvm-is-taming-tiny).
+	These transformations are are guaranteed not to break the algorithm so they are very safe from
+	a correctness viewpoint but also allow powerful vectorizing, SIMD, and 
+	[SIMT](https://en.wikipedia.org/wiki/Single_instruction,_multiple_threads) optimizations.
 3.  Compile the AST to a specific hardware profile.  TVM has backends to a 
     [wide variety of hardware](https://github.com/apache/incubator-tvm/blob/main/python/tvm/_ffi/runtime_ctypes.py#L156)
-	including extremely optimized versions for x86 and ARM CPUs, Cuda, and OpenCL.
+	including, as mentioned, extremely optimized versions for x86 and ARM CPUs, Cuda, and OpenCL.
 4.  Load your function and call it.
 
 
@@ -60,11 +64,12 @@ mkdir -p tvm/build
 # it.
 cp config.cmake tvm/build/
 
-pushd tvm/build
+cd tvm/build
 
 cmake ..
 make -j8
-popd
+
+
 ```
 
 This will copy the libs into a platform-specific directory that jna should find.
