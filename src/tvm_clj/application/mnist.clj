@@ -6,6 +6,7 @@
             [tech.v3.datatype.native-buffer :as native-buffer]
             [tech.v3.datatype.mmap :as mmap]
             [tech.v3.datatype.argops :as argops]
+            [tech.v3.datatype.functional :as dfn]
             [tech.v3.libs.buffered-image :as bufimg]
             [tvm-clj.application.kmeans :as kmeans]
             [clojure.tools.logging :as log]))
@@ -23,7 +24,7 @@
 
 (defn save-mnist-tensor-as-img
   ([tensor fname]
-   (-> (dtt/reshape tensor [img-height * img-width])
+   (-> (dtt/reshape tensor [img-height img-width])
        (dtype/copy! (bufimg/new-image img-height img-width :byte-gray))
        (bufimg/save! fname))))
 
@@ -55,12 +56,12 @@
   ;;Data is an [n-images height width] tensor
   (log/infof "Loading %s dataset" ds-name)
   {:data (load-data (dataset :data))
-   :labels (load-data (dataset :labels))})
+   :labels (load-labels (dataset :labels))})
 
 
 ;;Datasets are maps of class-label->tensor
-(def train-ds (load-dataset train-fnames "train"))
-(def test-ds (load-dataset test-fnames "test"))
+(defonce train-ds (load-dataset train-fnames "train"))
+(defonce test-ds (load-dataset test-fnames "test"))
 
 
 (defn reshape-data
@@ -72,8 +73,8 @@
 
 (defn train-kmeans-per-label
   [n-per-label & [{:keys [seed n-iters] :as options}]]
-  (kmeans/train-per-label (reshape-data (:data train-fnames))
-                          (:labels train-fnames)
+  (kmeans/train-per-label (reshape-data (:data train-ds))
+                          (:labels train-ds)
                           n-per-label options))
 
 
@@ -82,8 +83,7 @@
   (let [n-centers (long (first (dtype/shape centers)))]
     (doseq [idx (range n-centers)]
       (-> (centers idx)
-          (dtt/reshape [img-height img-width])
-          (save-tensor-as-img (format "center-%d.png" idx))))))
+          (save-mnist-tensor-as-img (format "center-%d.png" idx))))))
 
 (defn kmeans->histograms
   "Takes the output of `train-kmeans` and returns a histogram of original labels for each learned center."
@@ -108,7 +108,28 @@
        (dtt/ensure-tensor)))
 
 
-(defn predict
-  "Produce a probabilty distribution of the centers per-row of the dataset returning
-  the matrix of probabilities along with an array of assigned center indexes."
-  [dataset centers])
+(defn confusion-matrix
+  [labels predictions]
+  (let [retval (dtt/new-tensor [10 10] :datatype :int64)]
+    (doseq [[label pred] (map vector labels predictions)]
+      (.ndAccumPlusLong retval label pred 1)
+      (.ndAccumPlusLong retval pred label 1))
+    retval))
+
+
+
+
+(defn test-n-center-predictors
+  [n-centers]
+  (->> (range 1 (inc n-centers))
+       (mapv (fn [idx]
+               (let [model (kmeans/train-per-label (reshape-data (:data train-ds))
+                                                   (:labels train-ds)
+                                                    idx)
+                     prediction-data (kmeans/predict-per-label (reshape-data (:data test-ds))
+                                                               model)
+                     labels (:labels test-ds)
+                     predictions (:label-indexes prediction-data)]
+                 {:accuracy (/ (dfn/sum (dfn/eq labels predictions))
+                               (dtype/ecount predictions))
+                  :confusion-matrix (confusion-matrix labels predictions)})))))

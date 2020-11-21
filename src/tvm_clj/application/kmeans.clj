@@ -121,7 +121,8 @@
                                           :resource-type :auto)
            initial-seed-idx (.nextInt random (int n-rows))
            _ (dtt/mset! centroids 0 (dtt/mget dataset initial-seed-idx))
-           n-centroids (long n-centroids)]
+           n-centroids (long n-centroids)
+           last-idx (dec n-rows)]
        (dotimes [idx (dec n-centroids)]
          (distance-fn dataset centroids idx distances distances scan-distances)
          (let [next-flt (.nextDouble ^Random random)
@@ -130,7 +131,12 @@
                n-rows (dtype/ecount distances)
                distance-sum (double (scan-distances (dec n-rows)))
                target-amt (* next-flt distance-sum)
-               next-center-idx (double-binary-search scan-distances target-amt)]
+               next-center-idx (min last-idx
+                                    ;;You want the one just *after* where you could safely insert
+                                    ;;the distance as the next distance is likely much larger than the
+                                    ;;current distance and thus your probability of getting a vector that
+                                    ;;that is a large distance away than any known vectors is higher
+                                    (inc (double-binary-search scan-distances target-amt)))]
            #_(log/infof "center chosen: %d\n %e <= %e <= %e\n %s"
                         next-center-idx
                         (scan-distances next-center-idx)
@@ -389,7 +395,7 @@
          (compiler/ir->fn "cpu_centroids_distances")))))
 
 
-(defn- jvm-tvm-iterate-kmeans
+(defn- jvm-tvm-iterate-kmeans!
   [dataset centroids centroid-indexes distances tvm-centroids-distance-fn]
   (let [[n-rows n-cols] (dtype/shape dataset)
         [n-centroids n-cols] (dtype/shape centroids)]
@@ -643,16 +649,17 @@
 
   Options:
 
-  * `:minimal-improvement-threshold` - defaults to 0.001 - algorithm terminates if
-     (1.0 - error(n-2)/error(n-1)) < error-diff-threshold.  When zero means algorithm will
+  * `:minimal-improvement-threshold` - defaults to 0.01 - algorithm terminates if
+     (1.0 - error(n-1)/error(n-2)) < error-diff-threshold.  When Zero means algorithm will
      always train to max-iters.
   * `:n-iters` - defaults to 100 - Max number of iterations, algorithm terminates
      if `(>= iter-idx n-iters).
   * `:rand-seed` - integer or implementation of `java.util.Random`.
   "
-  [dataset n-centroids {:keys [n-iters rand-seed
-                               minimal-improvement-threshold]
-                        :or {minimal-improvement-threshold 0.001}}]
+  [dataset n-centroids & [{:keys [n-iters rand-seed
+                                  minimal-improvement-threshold]
+                           :or {minimal-improvement-threshold 0.01}
+                           :as options}]]
   (errors/when-not-error
    (== 2 (dtype/ecount (dtype/shape dataset)))
    "Dataset must be a matrix of rank 2")
@@ -660,8 +667,10 @@
         ds-dtype (dtype/elemwise-datatype dataset)
         [tvm-dist-sum-fn tvm-centroids-dist-fn score-fn]
         (precompile-kmeans-functions n-cols ds-dtype)
-        n-iters (long (or n-iters 5))]
-    (log/trace "Choosing n-centroids %d with n-iters %d" n-centroids n-iters)
+        n-iters (long (or n-iters 100))
+        minimal-improvement-threshold (double (or minimal-improvement-threshold 0.011))]
+    (log/infof "Choosing n-centroids %d with %f improvement threshold and max %d iters"
+               n-centroids minimal-improvement-threshold n-iters)
     (resource/stack-resource-context
      (let [dataset (ensure-native dataset)
            centroids (if (number? n-centroids)
@@ -682,12 +691,12 @@
                                      :container-type :native-heap
                                      :resource-type :auto)
 
+           minimal-improvement-threshold (double minimal-improvement-threshold)
            dec-n-iters (dec n-iters)
            scores (if-not (== 0 n-iters)
                     (loop [iter-idx 0
-                           last-score Double/MAX_VALUE
+                           last-score 0.0
                            scores []]
-                      (log/tracef "Iteration %d" iter-idx)
                       (let [{:keys [new-centroids score]}
                             ;;Side effects include updating the centroids,
                             ;;center-indexes, and distances, while potentially
@@ -695,10 +704,16 @@
                             (jvm-tvm-iterate-kmeans! dataset centroids
                                                      centroid-indexes distances
                                                      tvm-centroids-dist-fn)
-                            score (double score)]
+                            score (double score)
+                            rel-score (if-not (== 0.0 last-score)
+                                        (- 1.0 (/ score last-score))
+                                        1.0)]
+                        (dtype/copy! new-centroids centroids)
+                        (log/infof "Iteration %d out of %d - relative improvement %f->%f=%f"
+                                   iter-idx n-iters last-score score rel-score)
                         (if (and (< iter-idx dec-n-iters)
                                  (not= 0.0 score)
-                                 (< (- 1.0 (/ last-score score)) error-diff-threshold))
+                                 (> rel-score minimal-improvement-threshold))
                           (recur (unchecked-inc iter-idx) score (conj scores score))
                           scores)))
                     [])
@@ -721,6 +736,7 @@
   ^NDBuffer [centroid-indexes & [center-offset]]
   (let [center-offset (long (or center-offset 0))])
   (->> (argops/arggroup centroid-indexes)
+       (into {})
        (sort-by first)
        (map (comp (partial + center-offset) dtype/ecount second))
        (long-array)
@@ -740,52 +756,242 @@
          (into {}))))
 
 
+(defn- reorder-tensor-algo
+  [ds-dtype]
+  (let [n-rows (ast/variable "n-rows")
+        n-cols (ast/variable "n-cols")
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype ds-dtype)
+        indexes (ast/placeholder [n-rows] "indexes" :dtype :int32)
+        reorder-op (ast/compute
+                    [n-rows n-cols]
+                    (ast/tvm-fn
+                     [row-idx col-idx]
+                     (ast/tget dataset [(ast/tget indexes [row-idx])
+                                        col-idx]))
+                    "result")
+        result (first (ast/output-tensors reorder-op))
+        schedule (schedule/create-schedule reorder-op)
+        stage-map (:stage_map schedule)]
+    (schedule/stage-parallel (stage-map reorder-op) (first (:axis reorder-op)))
+    {:schedule schedule
+     :arguments [dataset indexes result]}))
+
+
+(def ^:private reorder-tensor-fn
+  (memoize
+   (fn [ds-dtype]
+     (-> (reorder-tensor-algo ds-dtype)
+         (compiler/ir->fn "reorder-tensor")))))
+
+
+(defn order-data-labels
+  "Order the dataset and labels such that labels are monotonically increasing.
+  returns tuple of [dataset labels]"
+  [data labels]
+  (let [ds-dtype (dtype/elemwise-datatype data)
+        label-indexes (dtt/clone (argops/argsort labels)
+                                 :container-type :native-heap
+                                 :resource-type :auto)
+        reorder-fn (reorder-tensor-fn ds-dtype)
+        data (ensure-native data)
+        result (dtt/new-tensor (dtype/shape data)
+                               :datatype ds-dtype
+                               :resource-type :auto
+                               :container-type :native-heap)]
+    (reorder-fn data label-indexes result)
+    [result (dtype/indexed-buffer label-indexes labels)]))
+
+
 (defn train-per-label
   "Given a dataset along with per-row integer labels, train N per-label kmeans centroids
-  returning a matrix of `n-per-label` centroids."
-  [data labels n-per-label & [{:keys [seed n-iters
-                                      input-ordered?]
+  returning a map which use can use with predict-per-label."
+  [data labels n-per-label & [{:keys [input-ordered?]
                                :as options}]]
   (when-not (empty? labels)
     (resource/stack-resource-context
      ;;Organize data per-label
      (let [n-per-label (long n-per-label)
-           [data labels] (if (not input-ordered?)
+           ds-dtype (dtype/elemwise-datatype data)
+           [data labels] (if input-ordered?
                            [(ensure-native data) labels]
                            ;;Order data and labels by increasing index
-                           (let [label-indexes (argops/argsort labels)]
-                             [(-> (dtt/select data label-indexes)
-                                  (dtt/clone :resource-type :auto
-                                             :continer-type :native-heap))
-                              (dtype/indexed-buffer label-indexes labels)]))
+                           (order-data-labels data labels))
            [n-rows n-cols] (dtype/shape data)
            labels (->> (argops/arggroup labels)
+                       (into {})
                        (sort-by first)
                        ;;arggroup be default uses an 'ordered' algorithm that guarantees
                        ;;the result index list is ordered.
                        (mapv (fn [[label idx-list]]
-                               [(first idx-list) (last idx-list)])))
-
-           n-labels (count labels)
-
-           centroid-label-indexes (dtt/->tensor (->> (range n-labels)
-                                                     (map (partial repeat n-per-label))
-                                                     (flatten)
-                                                     (long-array)))]
+                               [label
+                                [(first idx-list) (last idx-list)]])))
+           n-labels (count labels)]
        (->> labels
-            (map (fn [[^long idx-start ^long past-idx-end]]
+            (map (fn [[label [^long idx-start ^long past-idx-end]]]
                    ;;Tensor selection from contiguous data of a range with an increment of 1
                    ;;is guaranteed to produce contiguous data
+                   (log/infof "Training centroids for label %s" label)
                    (let [{:keys [centroids centroid-indexes iteration-scores]}
                          (-> (dtt/select data (range idx-start past-idx-end))
                              (kmeans++ n-per-label options))]
                      {:centroids centroids
-                      :centroid-indexes centroid-indexes
+                      :labels label
                       :centroid-counts (centroid-indexes->centroid-counts
                                         centroid-indexes idx-start)
-                      :iteration-scores (double-array iteration-scores)})))
+                      :iteration-scores (last iteration-scores)})))
             (concatenate-results)
-            (merge {:centroid-label-indexes centroid-label-indexes}))))))
+            (merge {:kmeans-type :n-per-label}))))))
+
+(defn- per-label-prob-dist-algo
+  [n-cols ds-dtype]
+  (let [n-rows (ast/variable "n-rows")
+        n-cols (ast-op/const n-cols :int32)
+        n-labels (ast/variable "n-labels")
+        n-centroids (ast/variable "n-centroids")
+        n-per-label (ast-op// n-centroids n-labels)
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype ds-dtype)
+        centroids (ast/placeholder [n-centroids n-cols] "centroids" :dtype :float64)
+        squared-differences-op (ast/compute
+                                [n-rows n-centroids n-cols]
+                                (ast/tvm-fn
+                                 [row-idx center-idx col-idx]
+                                 (ast/tvm-let
+                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                                (ast-op/cast :float64))
+                                   center-elem (ast/tget centroids [center-idx col-idx])
+                                   diff (ast-op/- row-elem center-elem)]
+                                  (ast-op/* diff diff)))
+                                "squared-diff")
+        squared-diff (first (ast/output-tensors squared-differences-op))
+        expanded-distances-op (ast/compute
+                               [n-rows n-centroids]
+                               (ast/tvm-fn
+                                [row-idx center-idx]
+                                (ast/commutative-reduce
+                                 (ast/tvm-fn->commutative-reducer
+                                  (ast/tvm-fn
+                                   [sum sq-elem]
+                                   (ast-op/+ sum sq-elem))
+                                  [(double 0.0)])
+                                 [{:domain [0 n-cols] :name "col-idx"}]
+                                 [(fn [col-idx]
+                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
+                               "expanded-distances")
+        expanded-distances (first (ast/output-tensors expanded-distances-op))
+        per-label-sum-op (ast/compute
+                          [n-rows n-labels]
+                          (ast/tvm-fn
+                           [row-idx label-idx]
+                           (ast/commutative-reduce
+                            (ast/tvm-fn->commutative-reducer
+                             (ast/tvm-fn
+                              [sum sq-elem]
+                              (ast-op/min sum sq-elem))
+                             [(ast-op/max-value :float64)])
+                            [{:domain [0 n-per-label] :name "per-label-idx"}]
+                            [(fn [per-label-idx]
+                               (ast/tget expanded-distances [row-idx
+                                                             (ast-op/+
+                                                              (ast-op/* label-idx n-per-label)
+                                                              per-label-idx)]))]))
+                          "per-label-sum")
+        per-label-sum (first (ast/output-tensors per-label-sum-op))
+        per-row-sum-op (ast/compute
+                        [n-rows]
+                        (ast/tvm-fn
+                         [row-idx]
+                         (ast/commutative-reduce
+                          (ast/tvm-fn->commutative-reducer
+                           (ast/tvm-fn
+                            [sum sq-elem]
+                            (ast-op/+ sum sq-elem))
+                           [(double 0.0)])
+                          [{:domain [0 n-labels] :name "label-idx"}]
+                          [(fn [label-idx]
+                             (ast/tget per-label-sum [row-idx label-idx]))]))
+                        "per-row-summation")
+        ;;We need to invert the probability distribution so the shortest distance
+        ;;gets the highest probability
+        prob-divisor (ast-op/max 1.0 (ast-op/- (ast-op/cast n-labels :float64) 1.0))
+        per-row-sums (first (ast/output-tensors per-row-sum-op))
+        prob-dist-op (ast/compute
+                      [n-rows n-labels]
+                      (ast/tvm-fn
+                       [row-idx label-idx]
+                       (ast-op//
+                        (ast-op/- 1.0
+                                  (ast-op// (ast/tget per-label-sum [row-idx label-idx])
+                                            (ast/tget per-row-sums [row-idx])))
+                        prob-divisor))
+                      "prob-dist")
+        prob-dist (first (ast/output-tensors prob-dist-op))
+        assigned-indexes-op (-> (topi-fns/argmax prob-dist -1 false)
+                                (:op)
+                                (ast/input-tensors)
+                                (first)
+                                (:op))
+        assigned-indexes (first (ast/output-tensors assigned-indexes-op))
+
+        schedule (schedule/create-schedule assigned-indexes-op)
+        stage-map (:stage_map schedule)]
+    (schedule/stage-compute-at (stage-map squared-differences-op)
+                               (stage-map expanded-distances-op)
+                               (last (:axis expanded-distances-op)))
+    (schedule/stage-compute-at (stage-map expanded-distances-op)
+                               (stage-map per-label-sum-op)
+                               (last (:axis per-label-sum-op)))
+
+    (schedule/stage-parallel (stage-map per-label-sum-op)
+                             (first (:axis per-label-sum-op)))
+    (schedule/stage-compute-at (stage-map per-row-sum-op)
+                               (stage-map prob-dist-op)
+                               (first (:axis prob-dist-op)))
+    (schedule/stage-compute-at (stage-map prob-dist-op)
+                               (stage-map assigned-indexes-op)
+                               (first (:axis assigned-indexes-op)))
+    (schedule/stage-parallel (stage-map assigned-indexes-op)
+                             (first (:axis assigned-indexes-op)))
+
+    {:schedule schedule
+     :arguments [dataset centroids n-labels prob-dist assigned-indexes]}))
+
+
+(def ^:private make-prob-dist-fn
+  (memoize
+   (fn [n-cols ds-dtype]
+     (-> (per-label-prob-dist-algo n-cols ds-dtype)
+         (compiler/ir->fn "per-label-prob-dist")))))
+
+
+(defn predict-per-label
+  "Return a probability distribution per row across each label."
+  [data model]
+  (let [prob-dist-fn (make-prob-dist-fn (last (dtype/shape data))
+                                        (dtype/elemwise-datatype data))]
+    (resource/stack-resource-context
+     (let [{:keys [centroids labels]} model
+           [n-labels n-per-label n-cols] (dtype/shape centroids)
+           [n-rows n-data-cols] (dtype/shape data)
+           _ (errors/when-not-errorf
+              (= n-cols n-data-cols)
+              "Data (%d), model (%d) have different feature counts"
+              n-data-cols n-cols)
+           data (ensure-native data)
+           n-centroids (* (long n-labels)
+                          (long n-per-label))
+           centroids (-> (dtt/reshape centroids [n-centroids n-cols])
+                         (ensure-native))
+           indexes (dtt/new-tensor [n-rows]
+                                   :datatype :int32
+                                  :container-type :native-heap
+                                  :resource-type :auto)
+           result (dtt/new-tensor [n-rows n-labels]
+                                  :datatype :float64
+                                  :container-type :native-heap
+                                  :resource-type :auto)]
+       (prob-dist-fn data centroids n-labels result indexes)
+       {:probability-distribution (dtype/clone result)
+        :label-indexes (dtype/clone indexes)}))))
 
 
 (defn tvm-assign-centroids-algo
