@@ -6,6 +6,7 @@
             [tech.v3.datatype.native-buffer :as native-buffer]
             [tech.v3.datatype.mmap :as mmap]
             [tech.v3.datatype.argops :as argops]
+            [tech.v3.datatype.functional :as dfn]
             [tech.v3.libs.buffered-image :as bufimg]
             [tvm-clj.application.kmeans :as kmeans]
             [clojure.tools.logging :as log]))
@@ -21,11 +22,11 @@
 (def ^{:tag 'long} img-size (* img-width img-height))
 
 
-(defn save-tensor-as-img
+(defn save-mnist-tensor-as-img
   ([tensor fname]
-   (let [[img-height img-width] (dtype/shape tensor)]
-     (-> (dtype/copy! tensor (bufimg/new-image img-height img-width :byte-gray))
-         (bufimg/save! fname)))))
+   (-> (dtt/reshape tensor [img-height img-width])
+       (dtype/copy! (bufimg/new-image img-height img-width :byte-gray))
+       (bufimg/save! fname))))
 
 
 (defn mmap-file
@@ -54,28 +55,8 @@
   [dataset ds-name]
   ;;Data is an [n-images height width] tensor
   (log/infof "Loading %s dataset" ds-name)
-  (let [data (load-data (dataset :data))
-        labels (load-labels (dataset :labels))
-        sorted-label-indexes (argops/argsort labels)
-        ;;Order data by label so that we can just use range
-        ;;offsets
-        data (-> (dtt/select data sorted-label-indexes)
-                 ;;One block of data all contiguous
-                 (dtt/clone :container-type :native-heap))
-        labels (dtype/indexed-buffer sorted-label-indexes labels)
-        result
-        {:data data
-         :labels (->> (argops/arggroup labels)
-                      ;;We know that idx-list is ordered (arggroup guarantees this)and that it is
-                      ;;contiguous by our sort above.
-                      (map (fn [[label idx-list]]
-                             ;;make the labels print nicely
-                             [label [(first idx-list)
-                                     (inc (last idx-list))]]))
-                      (sort-by first)
-                      (mapv second))}]
-    (log/infof "Finished loading %s dataset" ds-name)
-    result))
+  {:data (load-data (dataset :data))
+   :labels (load-labels (dataset :labels))})
 
 
 ;;Datasets are maps of class-label->tensor
@@ -83,36 +64,18 @@
 (defonce test-ds (load-dataset test-fnames "test"))
 
 
-(defn train-kmeans
-  [n-centers & [{:keys [seed n-iters] :as options}]]
-  (errors/when-not-errorf
-   (>= n-centers 10)
-   "Must train at least 10 centers: received %d" n-centers)
-  (let [{:keys [data labels]} train-ds
-        [n-images height width] (dtype/shape data)
-        dataset (dtt/reshape data [n-images (* (long height) (long width))])
-        {:keys [centers scores assigned-centers] :as result}
-        (kmeans/kmeans++ dataset n-centers (assoc options :n-iters n-iters))]
-    result))
+(defn reshape-data
+  "Reshape images to be a 2d matrix of rows where each image is one row."
+  [data]
+  (let [[n-images height width] (dtype/shape data)]
+    (dtt/reshape data [n-images (* (long height) (long width))])))
 
 
 (defn train-kmeans-per-label
   [n-per-label & [{:keys [seed n-iters] :as options}]]
-  (let [{:keys [data labels]} train-ds
-        result-seq (->> labels
-                        (mapv (fn [[idx-start past-idx-end]]
-                                ;;Tensor selection from contiguous data of a range with an increment of 1
-                                ;;is guaranteed to produce contiguous data
-                                (let [per-label-data (dtt/select data (range idx-start past-idx-end))
-                                      [n-images height width] (dtype/shape per-label-data)
-                                      train-data (dtt/reshape per-label-data [n-images (* height width)])]
-                                  (kmeans/kmeans++ train-data n-per-label options)))))
-        centers (dtype/coalesce! (dtt/new-tensor [(* n-per-label (count labels))
-                                                  (* img-height img-width)])
-                                 (map :centers result-seq))
-        scores (map-indexed vector (:scores result-seq))]
-    {:centers centers
-     :scores scores}))
+  (kmeans/train-per-label (reshape-data (:data train-ds))
+                          (:labels train-ds)
+                          n-per-label options))
 
 
 (defn save-centers-as-images!
@@ -120,8 +83,7 @@
   (let [n-centers (long (first (dtype/shape centers)))]
     (doseq [idx (range n-centers)]
       (-> (centers idx)
-          (dtt/reshape [img-height img-width])
-          (save-tensor-as-img (format "center-%d.png" idx))))))
+          (save-mnist-tensor-as-img (format "center-%d.png" idx))))))
 
 (defn kmeans->histograms
   "Takes the output of `train-kmeans` and returns a histogram of original labels for each learned center."
@@ -144,3 +106,30 @@
               (for [i (range 10)]
                 (get center i 0))))
        (dtt/ensure-tensor)))
+
+
+(defn confusion-matrix
+  [labels predictions]
+  (let [retval (dtt/new-tensor [10 10] :datatype :int64)]
+    (doseq [[label pred] (map vector labels predictions)]
+      (.ndAccumPlusLong retval label pred 1)
+      (.ndAccumPlusLong retval pred label 1))
+    retval))
+
+
+
+
+(defn test-n-center-predictors
+  [n-centers]
+  (->> (range 1 (inc n-centers))
+       (mapv (fn [idx]
+               (let [model (kmeans/train-per-label (reshape-data (:data train-ds))
+                                                   (:labels train-ds)
+                                                    idx)
+                     prediction-data (kmeans/predict-per-label (reshape-data (:data test-ds))
+                                                               model)
+                     labels (:labels test-ds)
+                     predictions (:label-indexes prediction-data)]
+                 {:accuracy (/ (dfn/sum (dfn/eq labels predictions))
+                               (dtype/ecount predictions))
+                  :confusion-matrix (confusion-matrix labels predictions)})))))
