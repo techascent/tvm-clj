@@ -1,4 +1,4 @@
-(ns tvm-clj.applications.mnist
+(ns tvm-clj.application.mnist
   (:require [tech.v3.tensor :as dtt]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.errors :as errors]

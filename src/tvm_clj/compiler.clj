@@ -14,6 +14,8 @@
             [tvm-clj.impl.fns.tir :as tir-fns]
             [tvm-clj.impl.fns.target :as target-fns]
             [tvm-clj.impl.module :as module]
+            ;;tensor bindings
+            [tvm-clj.impl.dl-tensor]
             [tech.v3.datatype.errors :as errors]
             [tech.v3.jna :as jna]
             [clojure.set :as set])
