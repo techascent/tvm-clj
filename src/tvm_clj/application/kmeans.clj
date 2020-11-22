@@ -87,10 +87,10 @@
 
 (defn- tvm-dist-sum-algo
   "Update the distances with values from the new centroid and produce a cumulative
-  summation vector we can binary search through.  This uses a special form where we just
-  add in the new centroid to our existing distance vector and recalculate our cumulative
-  summation vector.  This is similar to the distance methods below except we only calculate
-  one centroid at a time."
+  summation vector we can binary search through.  This uses a special form where we
+  just add in the new centroid to our existing distance vector and recalculate our
+  cumulative summation vector.  This is similar to the distance methods below except
+  we only calculate one centroid at a time."
   [n-cols dataset-datatype]
   (let [n-centroids (ast/variable "n_centroids")
         n-rows (ast/variable "nrows")
@@ -181,22 +181,13 @@
   it's result into distances."
   [dataset n-centroids distance-fn {:keys [seed]}]
   (let [[n-rows n-cols] (dtype/shape dataset)
-        centroids (dtt/new-tensor [n-centroids n-cols]
-                                :container-type :native-heap
-                                :datatype :float64
-                                :resource-type :auto)]
+        centroids (dtt/native-tensor [n-centroids n-cols] :float64)]
     (resource/stack-resource-context
      (let [random (seed->random seed)
            n-rows (long n-rows)
-           distances (dtt/new-tensor [n-rows]
-                                     :container-type :native-heap
-                                     :datatype :float64
-                                     :resource-type :auto)
+           distances (dtt/native-tensor [n-rows] :float64)
            ;;We use TVM to create an array
-           scan-distances (dtt/new-tensor [n-rows]
-                                          :container-type :native-heap
-                                          :datatype :float64
-                                          :resource-type :auto)
+           scan-distances (dtt/native-tensor [n-rows] :float64)
            initial-seed-idx (.nextInt random (int n-rows))
            _ (dtt/mset! centroids 0 (dtt/mget dataset initial-seed-idx))
            n-centroids (long n-centroids)
@@ -210,10 +201,12 @@
                distance-sum (double (scan-distances (dec n-rows)))
                target-amt (* next-flt distance-sum)
                next-center-idx (min last-idx
-                                    ;;You want the one just *after* where you could safely insert
-                                    ;;the distance as the next distance is likely much larger than the
-                                    ;;current distance and thus your probability of getting a vector that
-                                    ;;that is a large distance away than any known vectors is higher
+                                    ;;You want the one just *after* where you could
+                                    ;;safely insert the distance as the next distance is
+                                    ;;likely much larger than the current distance and
+                                    ;;thus your probability of getting a vector that
+                                    ;;that is a large distance away than any known
+                                    ;;vectors is higher
                                     (inc (double-binary-search scan-distances target-amt)))]
            #_(log/infof "center chosen: %d\n %e <= %e <= %e\n %s"
                         next-center-idx
@@ -227,21 +220,9 @@
 
 (comment
   (def n-rows (first (dtype/shape src-input)))
-  (def distances (dtt/new-tensor [n-rows]
-                                 :datatype :float64
-                                 :container-type :native-heap))
-  (def scan-distances (dtt/new-tensor [n-rows]
-                                      :datatype :float64
-                                      :container-type :native-heap))
-  (def sum (dtt/new-tensor [1]
-                           :datatype :float64
-                           :container-type :native-heap))
-
-  (time ((make-tvm-dist-sum-fn 3 :uint8) src-input (dtt/new-tensor [1 3] :datatype :float32 :container-type :native-heap)
-         0 distances scan-distances))
 
   (def centroids (time (choose-centroids++ src-input 5 (make-tvm-dist-sum-fn 3 :uint8)
-                                       {:seed 5})))
+                                           {:seed 5})))
 
   )
 
@@ -469,43 +450,18 @@
   (resource/stack-resource-context
    (let [[n-rows n-cols] (dtype/shape dataset)
          [n-centroids n-cols] (dtype/shape centroids)
-         centroid-indexes (dtt/new-tensor [n-rows]
-                                        :datatype :int32
-                                        :container-type :native-heap
-                                        :resource-type :auto)
-         distances (dtt/new-tensor [n-rows]
-                                   :datatype :float32
-                                   :container-type :native-heap
-                                   :resource-type :auto)
-         new-centroids (dtt/new-tensor [n-centroids n-cols]
-                                     :datatype :float64
-                                     :container-type :native-heap
-                                     :resource-type :auto)
-         new-scores (dtt/new-tensor [n-centroids n-cols]
-                                    :datatype :float64
-                                    :container-type :native-heap
-                                    :resource-type :auto)
-         new-counts (dtt/new-tensor [n-centroids n-cols]
-                                    :datatype :int32
-                                    :container-type :native-heap
-                                    :resource-type :auto)]
+         centroid-indexes (dtt/native-tensor [n-rows] :in32)
+         distances (dtt/native-tensor [n-rows] :float32)
+         new-centroids (dtt/native-tensor [n-centroids n-cols] :float64)
+         new-scores (dtt/native-tensor [n-centroids n-cols] :float64)
+         new-counts (dtt/native-tensor [n-centroids n-cols] :int32)]
      (@tvm-all-in-one* dataset centroids new-scores new-counts new-centroids)
      (let [row-counts (long-array (dtt/select new-counts :all 0))]
        {:new-centroids (dtype/clone (dfn// new-centroids
                                          (-> (dtt/reshape row-counts [n-centroids 1])
                                              (dtt/broadcast [n-centroids n-cols]))))
-
         :row-counts row-counts
         :score (dfn/sum (dfn// (dtt/select new-scores :all 0) row-counts))}))))
-
-
-(defn- ensure-native
-  [ds]
-  (if (dtype/as-native-buffer ds)
-    ds
-    (dtt/clone ds
-               :container-type :native-heap
-               :resource-type :auto)))
 
 
 (defn- tvm-score-algo
@@ -585,11 +541,12 @@
         [tvm-dist-sum-fn tvm-centroids-dist-fn score-fn]
         (precompile-kmeans-functions n-cols ds-dtype)
         n-iters (long (or n-iters 100))
-        minimal-improvement-threshold (double (or minimal-improvement-threshold 0.011))]
+        minimal-improvement-threshold (double (or minimal-improvement-threshold
+                                                  0.011))]
     (log/infof "Choosing n-centroids %d with %f improvement threshold and max %d iters"
                n-centroids minimal-improvement-threshold n-iters)
     (resource/stack-resource-context
-     (let [dataset (ensure-native dataset)
+     (let [dataset (dtt/ensure-native dataset)
            centroids (if (number? n-centroids)
                      (choose-centroids++ dataset n-centroids
                                        tvm-dist-sum-fn
@@ -598,17 +555,9 @@
                        (errors/when-not-error
                         (== 2 (count (dtype/shape n-centroids)))
                         "Centroids must be rank 2")
-                       (ensure-native n-centroids)))
-           centroid-indexes (dtt/new-tensor [n-rows]
-                                          :datatype :int32
-                                          :container-type :native-heap
-                                          :resource-type :auto)
-           distances (dtt/new-tensor [n-rows]
-                                     :datatype :float64
-                                     :container-type :native-heap
-                                     :resource-type :auto)
-
-           minimal-improvement-threshold (double minimal-improvement-threshold)
+                       (dtt/ensure-native n-centroids)))
+           centroid-indexes (dtt/native-tensor [n-rows] :int32)
+           distances (dtt/native-tensor [n-rows] :float64)
            dec-n-iters (dec n-iters)
            scores (if-not (== 0 n-iters)
                     (loop [iter-idx 0
@@ -634,10 +583,7 @@
                           (recur (unchecked-inc iter-idx) score (conj scores score))
                           scores)))
                     [])
-           score-tens (dtt/new-tensor [1]
-                                      :datatype :float64
-                                      :container-type :native-heap
-                                      :resource-type :auto)]
+           score-tens (dtt/native-tensor [1] :float64)]
        (score-fn dataset centroids score-tens)
        ;;Clone data back into jvm land to escape the resource context
        {:centroids (dtt/clone centroids)
@@ -707,18 +653,15 @@
                                  :container-type :native-heap
                                  :resource-type :auto)
         reorder-fn (reorder-tensor-fn ds-dtype)
-        data (ensure-native data)
-        result (dtt/new-tensor (dtype/shape data)
-                               :datatype ds-dtype
-                               :resource-type :auto
-                               :container-type :native-heap)]
+        data (dtt/ensure-native data)
+        result (dtt/native-tensor (dtype/shape data) ds-dtype)]
     (reorder-fn data label-indexes result)
     [result (dtype/indexed-buffer label-indexes labels)]))
 
 
 (defn train-per-label
-  "Given a dataset along with per-row integer labels, train N per-label kmeans centroids
-  returning a model which you can use can use with predict-per-label."
+  "Given a dataset along with per-row integer labels, train N per-label
+  kmeans centroids returning a model which you can use can use with predict-per-label."
   [data labels n-per-label & [{:keys [input-ordered?]
                                :as options}]]
   (when-not (empty? labels)
@@ -727,7 +670,7 @@
      (let [n-per-label (long n-per-label)
            ds-dtype (dtype/elemwise-datatype data)
            [data labels] (if input-ordered?
-                           [(ensure-native data) labels]
+                           [(dtt/ensure-native data) labels]
                            ;;Order data and labels by increasing index
                            (order-data-labels data labels))
            [n-rows n-cols] (dtype/shape data)
@@ -844,19 +787,13 @@
               (= n-cols n-data-cols)
               "Data (%d), model (%d) have different feature counts"
               n-data-cols n-cols)
-           data (ensure-native data)
+           data (dtt/ensure-native data)
            n-centroids (* (long n-labels)
                           (long n-per-label))
            centroids (-> (dtt/reshape centroids [n-centroids n-cols])
-                         (ensure-native))
-           indexes (dtt/new-tensor [n-rows]
-                                   :datatype :int32
-                                   :container-type :native-heap
-                                   :resource-type :auto)
-           result (dtt/new-tensor [n-rows n-labels]
-                                  :datatype :float64
-                                  :container-type :native-heap
-                                  :resource-type :auto)]
+                         (dtt/ensure-native))
+           indexes (dtt/native-tensor [n-rows] :int32)
+           result (dtt/native-tensor [n-rows n-labels] :float64)]
        (prob-dist-fn data centroids result indexes)
        {:probability-distribution (dtype/clone result)
         :label-indexes (dtype/clone indexes)}))))
@@ -916,17 +853,14 @@
            n-rows (long n-rows)
            n-cols (long n-cols)]
        (let [dataset (-> (dtt/reshape src-img [n-rows channels])
-                         (dtt/clone :container-type :native-heap
-                                    :resource-type :stack))
+                         (dtt/ensure-native))
              {:keys [centroids iteration-scores]} (kmeans++ dataset n-quantization
                                                             {:n-iters n-iters
                                                              :seed seed})
-             native-centroids (ensure-native centroids)
+             native-centroids (dtt/ensure-native centroids)
              result-img (bufimg/new-image height width (bufimg/image-type src-img))
-             result-tens (dtt/new-tensor (dtype/shape dataset)
-                                         :datatype (dtype/elemwise-datatype src-img)
-                                         :container-type :native-heap
-                                         :resource-type :stack)]
+             result-tens (dtt/native-tensor (dtype/shape dataset)
+                                            (dtype/elemwise-datatype src-img))]
          (assign-clusters-fn dataset native-centroids result-tens)
          (dtype/copy! result-tens result-img)
          (when dst-path

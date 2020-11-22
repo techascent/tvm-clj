@@ -1,11 +1,8 @@
 (ns tvm-clj.application.mnist
   (:require [tech.v3.tensor :as dtt]
             [tech.v3.datatype :as dtype]
-            [tech.v3.datatype.errors :as errors]
-            [tech.v3.datatype.monotonic-range :as dtype-range]
             [tech.v3.datatype.native-buffer :as native-buffer]
             [tech.v3.datatype.mmap :as mmap]
-            [tech.v3.datatype.argops :as argops]
             [tech.v3.datatype.functional :as dfn]
             [tech.v3.libs.buffered-image :as bufimg]
             [tvm-clj.application.kmeans :as kmeans]
@@ -123,14 +120,13 @@
     (let [model (kmeans/train-per-label (reshape-data (:data train-ds))
                                         (:labels train-ds)
                                         n-centers)
-          prediction-data (time (kmeans/predict-per-label (reshape-data (:data test-ds))
-                                                          model))
+          prediction-data (kmeans/predict-per-label (reshape-data (:data test-ds))
+                                                    model)
           labels (:labels test-ds)
           predictions (:label-indexes prediction-data)]
       {:accuracy (/ (dfn/sum (dfn/eq labels predictions))
                     (dtype/ecount predictions))
        :confusion-matrix (confusion-matrix labels predictions)})))
-
 
 
 (defn test-n-center-predictors

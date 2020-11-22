@@ -290,13 +290,9 @@
                                                n-chan)))]
        (fn [input output]
          (resource/stack-resource-context
-          (let [cpu-input (dtt/clone input
-                                     :container-type :native-heap
-                                     :resource-type :auto)
-                cpu-output (dtt/new-tensor (dtype/shape output)
-                                           :container-type :native-heap
-                                           :resource-type :auto
-                                           :datatype (dtype/elemwise-datatype output))
+          (let [cpu-input (dtt/ensure-native input)
+                cpu-output (dtt/native-tensor (dtype/shape output)
+                                              (dtype/elemwise-datatype output))
                 device-id 0
                 kernel-input (if (= device-type :llvm)
                                cpu-input
@@ -304,7 +300,9 @@
                                                    {:resource-type :auto}))
                 kernel-output (if (= device-type :llvm)
                                 cpu-output
-                                (device/device-tensor cpu-output device-type device-id))]
+                                (device/device-tensor cpu-output
+                                                      device-type
+                                                      device-id))]
             (tvm-fn kernel-input kernel-output)
             (when (not= device-type :llvm)
               (device/copy-tensor! kernel-output cpu-output nil)
