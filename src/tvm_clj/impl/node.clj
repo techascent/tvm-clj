@@ -125,6 +125,8 @@
   dtype-proto/PElemwiseDatatype
   (elemwise-datatype [item] (-> (.getOrDefault item :dtype "object")
                                 (keyword)))
+  dtype-proto/PShape
+  (shape [item] (:shape item))
   jna/PToPtr
   (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item] handle)

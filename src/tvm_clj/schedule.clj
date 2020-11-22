@@ -5,7 +5,10 @@
   (:require [tvm-clj.impl.protocols :refer [->node] :as bindings]
             [tvm-clj.impl.node :as jna-node]
             [tvm-clj.ast :as ast]
-            [tvm-clj.impl.fns.te :as te-fns]))
+            [tvm-clj.impl.fns.te :as te-fns]
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.errors :as errors])
+  (:import [java.util Objects]))
 
 
 (defn throw-nil
@@ -56,6 +59,42 @@
   (te-fns/StageComputeAt src-stage dst-stage dst-axis))
 
 
+(defn- resolve-rel-axis
+  [op rel-axis]
+  (let [op (ast/->operation op)]
+    (if (number? rel-axis)
+      (let [axis (:axis op)
+            n-axis (dtype/ecount axis)
+            rel-axis (long rel-axis)
+            rel-axis (if (neg? rel-axis)
+                       (max 0 (+ n-axis rel-axis))
+                       rel-axis)]
+        (errors/check-idx rel-axis n-axis)
+        (nth axis rel-axis))
+      rel-axis)))
+
+
+(defn inline-op
+  "Inline an operation on the axis given.  If axis is a number, then
+  positive numbers increment left-to-right while negative numbers increment
+  right-to-left in python semantics of the destination axis.
+
+  rel-axis defaults to -1, or the most-rapidly-changing index."
+  ([schedule src-op dst-op rel-axis]
+   (let [stage-map (:stage_map schedule)
+         src-op (ast/->operation src-op)
+         dst-op (ast/->operation dst-op)]
+     (Objects/nonNull schedule)
+     (Objects/nonNull src-op)
+     (Objects/nonNull (stage-map src-op))
+     (Objects/nonNull dst-op)
+     (Objects/nonNull (stage-map dst-op))
+     (Objects/nonNull (resolve-rel-axis dst-op rel-axis))
+     (stage-compute-at (stage-map src-op) (stage-map dst-op)
+                       (resolve-rel-axis dst-op rel-axis))
+     schedule)))
+
+
 (defn stage-fuse
   "Fuse n-axis together, returns single new axis"
   [stage axis-args]
@@ -68,7 +107,19 @@
 (defn stage-parallel
   "Indicate that this axis has complete parallelism"
   [stage axis]
+  (Objects/nonNull stage)
+  (Objects/nonNull axis)
   (te-fns/StageParallel stage axis))
+
+
+(defn parallelize-axis
+  [schedule op rel-axis]
+  (Objects/nonNull schedule)
+  (Objects/nonNull op)
+  (let [stage-map (:stage_map schedule)
+        op (ast/->operation op)]
+    (stage-parallel (stage-map op) (resolve-rel-axis op rel-axis)))
+  schedule)
 
 
 (defn stage-inline

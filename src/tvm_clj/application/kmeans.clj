@@ -1,5 +1,6 @@
 (ns tvm-clj.application.kmeans
-  "TVM/JVM comparison of the kmeans algorithm components."
+  "High performance implementation of the KMeans algorithm using kmeans++ initialization
+  and Lloyd's algorithm for convergence."
   (:require [tech.v3.datatype.functional :as dfn]
             [tech.v3.datatype.errors :as errors]
             [tech.v3.datatype :as dtype]
@@ -60,19 +61,6 @@
     (errors/throwf "Unrecognized seed type: %s" seed)))
 
 
-(defmacro row-center-distance
-  [dataset centroids row-idx center-idx n-cols]
-  `(-> (loop [col-idx# 0
-              sum# 0.0]
-         (if (< col-idx# ~n-cols)
-           (let [diff# (pmath/- (.ndReadDouble ~dataset ~row-idx col-idx#)
-                                (.ndReadDouble ~centroids ~center-idx col-idx#))]
-             (recur (unchecked-inc col-idx#)
-                    (pmath/+ sum# (pmath/* diff# diff#))))
-           sum#))
-       (double)))
-
-
 (defn- double-binary-search
   "Method copied from tech.v2.datatype"
   ^long [data target]
@@ -95,6 +83,96 @@
           (if (<= (Double/compare buf-data target) 0)
             low
             (unchecked-inc low)))))))
+
+
+(defn- tvm-dist-sum-algo
+  "Update the distances with values from the new centroid and produce a cumulative
+  summation vector we can binary search through.  This uses a special form where we just
+  add in the new centroid to our existing distance vector and recalculate our cumulative
+  summation vector.  This is similar to the distance methods below except we only calculate
+  one centroid at a time."
+  [n-cols dataset-datatype]
+  (let [n-centroids (ast/variable "n_centroids")
+        n-rows (ast/variable "nrows")
+        n-cols (ast-op/const n-cols :int32)
+        center-idx (ast/variable "center-idx")
+        ;;The distance calculation is the only real issue here.
+        ;;Everything else, sort, etc. is pretty quick and sorting
+        centroids (ast/placeholder [n-centroids n-cols] "centroids" :dtype :float64)
+        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype dataset-datatype)
+        ;;distances are doubles so summation is in double space
+        distances (ast/placeholder [n-rows] "distances" :dtype :float64)
+        ;;Single centroid squared distance calculation
+        squared-diff (-> (ast/compute
+                          [n-rows n-cols] "squared-diff" nil
+                          [row-idx col-idx]
+                          (ast/tvm-let
+                           [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                         (ast-op/cast :float64))
+                            center-elem (ast/tget centroids [center-idx col-idx])
+                            diff (ast-op/- row-elem center-elem)]
+                           (ast-op/* diff diff)))
+                         (ast/first-output))
+        squared-dist (-> (ast/compute
+                          [n-rows] "expanded-distances" nil
+                          [row-idx]
+                          (ast/commutative-reduce
+                           [:+ :float64]
+                           [{:domain [0 n-cols] :name "col-idx"}]
+                           [(fn [col-idx] (ast/tget squared-diff [row-idx col-idx]))]))
+                         (ast/first-output))
+        ;;Aggregate previous distances, new distance into result.
+        mindistances (-> (ast/compute
+                          [n-rows] "mindistances" nil
+                          [row-idx]
+                          (ast/tvm-let
+                           [prev-dist (ast-op/select (ast-op/eq center-idx 0)
+                                                     (ast-op/max-value :float64)
+                                                     (ast/tget distances [row-idx]))
+                            cur-dist (-> (ast/tget squared-dist [row-idx])
+                                         (ast-op/cast :float64))]
+                           (ast-op/min cur-dist prev-dist)))
+                         (ast/first-output))
+
+        ;;Produce the cumulative summation vector.  For this system, we define the algorithm
+        ;;in terms of timesteps.  We should have n-rows timesteps for our algorithm state.
+        scan-state (ast/placeholder [n-rows] "scan_state" :dtype :float64)
+
+        scan-result (-> (ast/scan
+                         ;;First compute op sets up initial state at timestep 0.  This could setup an arbitrary
+                         ;;amount of initial state.
+                         (ast/compute [1] "init" nil
+                                      [row-idx]
+                                      (ast/tget mindistances [row-idx]))
+                         ;;Next we describe our recursive update in terms of reading from the state
+                         ;;vector at previous timesteps and we can read from anything else at
+                         ;;the current timestep.
+                         (ast/compute [n-rows] "update" nil
+                                      [ts-idx]
+                                      (ast-op/+
+                                       ;;grab stage from ts-1
+                                       (ast/tget scan-state [(ast-op/- ts-idx (int 1))])
+                                       ;;add to incoming values
+                                       (ast/tget mindistances [ts-idx])))
+                         ;;State of scan algorithm.  Must have enough dimensions for each
+                         ;;timestep as well as result
+                         scan-state
+                         ;;incoming values
+                         [mindistances]
+                         {:name "distance_scan"})
+                        (ast/first-output))
+        schedule (-> (schedule/create-schedule scan-result)
+                     (schedule/inline-op squared-diff squared-dist -1)
+                     (schedule/inline-op squared-dist mindistances 0)
+                     (schedule/parallelize-axis mindistances 0))]
+    {:arguments [dataset centroids center-idx distances mindistances scan-result]
+     :schedule schedule}))
+
+
+(def ^:private make-tvm-dist-sum-fn
+  (memoize
+   (fn [n-cols dataset-datatype]
+     (compiler/ir->fn (tvm-dist-sum-algo n-cols dataset-datatype) "dist_sum"))))
 
 
 (defn- choose-centroids++
@@ -147,111 +225,8 @@
     centroids))
 
 
-(defn- tvm-dist-sum-algo
-  "Update the distances with values from the new centroids.
-  The recalculate the cumulative sum vector."
-  [n-cols dataset-datatype]
-  (let [n-centroids (ast/variable "n_centroids")
-        n-rows (ast/variable "nrows")
-        n-cols (ast-op/const n-cols :int32)
-        center-idx (ast/variable "center-idx")
-        ;;The distance calculation is the only real issue here.
-        ;;Everything else, sort, etc. is pretty quick and sorting
-        centroids (ast/placeholder [n-centroids n-cols] "centroids" :dtype :float64)
-        dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype dataset-datatype)
-        ;;distances are doubles so summation is in double space
-        distances (ast/placeholder [n-rows] "distances" :dtype :float64)
-        squared-differences-op (ast/compute
-                                [n-rows n-cols]
-                                (ast/tvm-fn
-                                 [row-idx col-idx]
-                                 (ast/tvm-let
-                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
-                                                (ast-op/cast :float64))
-                                   center-elem (ast/tget centroids [center-idx col-idx])
-                                   diff (ast-op/- row-elem center-elem)]
-                                  (ast-op/* diff diff)))
-                                "squared-diff")
-        squared-diff (first (ast/output-tensors squared-differences-op))
-
-        expanded-distances-op (ast/compute
-                               [n-rows]
-                               (ast/tvm-fn
-                                [row-idx]
-                                (ast/commutative-reduce
-                                 (ast/tvm-fn->commutative-reducer
-                                  (ast/tvm-fn
-                                   [sum sq-elem]
-                                   (ast-op/+ sum sq-elem))
-                                  [(double 0.0)])
-                                 [{:domain [0 n-cols] :name "col-idx"}]
-                                 [(fn [col-idx]
-                                    (ast/tget squared-diff [row-idx col-idx]))]))
-                               "expanded-distances")
-        expanded-distances (first (ast/output-tensors expanded-distances-op))
-        mindistances-op (ast/compute
-                         [n-rows]
-                         (ast/tvm-fn
-                          [row-idx]
-                          (ast/tvm-let
-                           [prev-dist (ast-op/select (ast-op/eq center-idx 0)
-                                                     (ast-op/max-value :float64)
-                                                     (ast/tget distances [row-idx]))
-                            cur-dist (-> (ast/tget expanded-distances [row-idx])
-                                         (ast-op/cast :float64))]
-                           (ast-op/select (ast-op/<= cur-dist prev-dist)
-                                          cur-dist prev-dist)))
-                         "mindistances")
-        mindistances (first (ast/output-tensors mindistances-op))
-        ;;nrows timestamps by n-rows results
-        scan-state (ast/placeholder [n-rows] "scan_state" :dtype :float64)
-        ;;Init at timestamp 0
-        scan-op (ast/scan
-                 ;;Initial op.  Outermost dim must be 1, describes the algorithm at
-                 ;;timestate 0
-                 (ast/compute [1]
-                              (ast/tvm-fn [row-idx]
-                                          (ast/tget mindistances [row-idx]))
-                              "scan_init")
-                 ;;update op, describes transition from previous timestates to current ts
-                 (ast/compute [n-rows]
-                              (ast/tvm-fn [ts-idx]
-                                          (ast-op/+
-                                           ;;grab stage from ts-1
-                                           (ast/tget scan-state [(ast-op/- ts-idx (int 1))])
-                                           ;;add to incoming values
-                                           (ast/tget mindistances [ts-idx])))
-                              "scan_update")
-                 ;;State of scan algorithm.  Must have enough dimensions for each
-                 ;;timestep as well as result
-                 scan-state
-                 ;;incoming values
-                 [mindistances]
-                 {:name "distance_scan"})
-        scan-result (first (ast/output-tensors scan-op))
-        schedule (schedule/create-schedule scan-op)
-        stage-map (:stage_map schedule)
-        sq-diff-stage (get stage-map squared-differences-op)
-        exp-diff-stage (get stage-map expanded-distances-op)
-        exp-diff-axis (last (:axis expanded-distances-op))
-        mindist-stage (get stage-map mindistances-op)
-        mindist-axis (last (:axis mindistances-op))
-        scan-stage (get stage-map scan-op)
-        scan-axis (:scan_axis scan-op)]
-    (schedule/stage-compute-at sq-diff-stage exp-diff-stage exp-diff-axis)
-    (schedule/stage-compute-at exp-diff-stage mindist-stage mindist-axis)
-    (schedule/stage-parallel mindist-stage mindist-axis)
-    {:arguments [dataset centroids center-idx distances mindistances scan-result]
-     :schedule schedule}))
-
-
-(def ^:private make-tvm-dist-sum-fn
-  (memoize
-   (fn [n-cols dataset-datatype]
-     (compiler/ir->fn (tvm-dist-sum-algo n-cols dataset-datatype) "dist_sum"))))
-
-
 (comment
+  (def n-rows (first (dtype/shape src-input)))
   (def distances (dtt/new-tensor [n-rows]
                                  :datatype :float64
                                  :container-type :native-heap))
@@ -261,7 +236,6 @@
   (def sum (dtt/new-tensor [1]
                            :datatype :float64
                            :container-type :native-heap))
-  (dtype/set-constant! scan-distances 0)
 
   (time ((make-tvm-dist-sum-fn 3 :uint8) src-input (dtt/new-tensor [1 3] :datatype :float32 :container-type :native-heap)
          0 distances scan-distances))
@@ -278,6 +252,8 @@
 
 
 (defn- jvm-agg
+  "Aggregate assigned rows into new centroids.  Works via
+  `tech.v3.datatype.argops/arggroup`."
   [^NDBuffer dataset ^NDBuffer centroid-indexes ^NDBuffer distances
    n-centroids]
   (let [n-centroids (long n-centroids)
@@ -327,11 +303,80 @@
         row-counts (long-array (mapv (comp first :n-rows) agg-map))
         scores (double-array (mapv (comp first :score) agg-map))]
     {:new-centroids (dfn// new-centroids (-> (dtt/reshape row-counts [n-centroids 1])
-                                         (dtt/broadcast  [n-centroids n-cols])))
+                                             (dtt/broadcast  [n-centroids n-cols])))
      :row-counts row-counts
      ;;Score *before* this iteration calculated during course of this iteration.
      :score (dfn// (dfn/sum scores)
                    (dfn/sum row-counts))}))
+
+
+(defn- centroid-distances
+  "Compute the full square distances matrix."
+  [dataset centroids]
+  (let [[n-rows n-cols] (dtype/shape dataset)
+        [n-centroids n-cols] (dtype/shape centroids)
+        ;;Step 1, expanded matrix without summation reductions
+        squared-differences-op (ast/compute
+                                [n-rows n-centroids n-cols] "squared-diff" nil
+                                [row-idx center-idx col-idx]
+                                (ast/tvm-let
+                                 [row-elem (-> (ast/tget dataset [row-idx col-idx])
+                                               (ast-op/cast :float64))
+                                  center-elem (ast/tget centroids
+                                                        [center-idx col-idx])
+                                  diff (ast-op/- row-elem center-elem)]
+                                 (ast-op/* diff diff)))
+        squared-diff (first (ast/output-tensors squared-differences-op))]
+    ;;Step 2, reduce doing column-wise summation into final answer.
+    (-> (ast/compute
+         [n-rows n-centroids] "expanded-distances" nil
+         [row-idx center-idx]
+         (ast/commutative-reduce
+          [:+ :float64]
+          [{:domain [0 n-cols] :name "col-idx"}]
+          [(fn [col-idx]
+             (ast/tget squared-diff [row-idx center-idx col-idx]))]))
+        (ast/output-tensors)
+        (first))))
+
+
+(defn- schedule-squared-distances
+  [schedule sq-diff-tensor]
+  (let [stage-map (:stage_map schedule)
+        sq-diff-op (:op sq-diff-tensor)
+        exp-diff-tens (first (ast/input-tensors sq-diff-op))
+        exp-diff-op (:op exp-diff-tens)]
+    (schedule/inline-op schedule exp-diff-op sq-diff-op -1)))
+
+
+(defn- topi-argmin
+  "Run argument producing tuple of [min-indexes min-values]."
+  ([input rel-axis]
+   (let [final-idxes (topi-fns/argmin input rel-axis false)
+         ;;topi by default drops the mindistances vector and performs
+         ;;an extra assignment step.  For us we wan the original op
+         ;;that has both vectors and we drop assignment step.
+         assign-op (:op final-idxes)
+         input-tens (first (ast/input-tensors assign-op))
+         cal-op (:op input-tens)]
+     (vec (ast/output-tensors cal-op))))
+  ([input]
+   (topi-argmin input -1)))
+
+
+(defn- topi-argmax
+  "Run argument producing tuple of [max-indexes max-values]."
+  ([input rel-axis]
+   (let [final-idxes (topi-fns/argmax input rel-axis false)
+         ;;topi by default drops the mindistances vector and performs
+         ;;an extra assignment step.  For us we wan the original op
+         ;;that has both vectors and we drop assignment step.
+         assign-op (:op final-idxes)
+         input-tens (first (ast/input-tensors assign-op))
+         cal-op (:op input-tens)]
+     (vec (ast/output-tensors cal-op))))
+  ([input]
+   (topi-argmax input -1)))
 
 
 (defn- tvm-centroids-distances-algo
@@ -341,49 +386,14 @@
         n-centroids (ast/variable "n-centroids")
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype dataset-datatype)
         centroids (ast/placeholder [n-centroids n-cols] :centroids :dtype :float64)
-        squared-differences-op (ast/compute
-                                [n-rows n-centroids n-cols]
-                                (ast/tvm-fn
-                                 [row-idx center-idx col-idx]
-                                 (ast/tvm-let
-                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
-                                                (ast-op/cast :float64))
-                                   center-elem (ast/tget centroids [center-idx col-idx])
-                                   diff (ast-op/- row-elem center-elem)]
-                                  (ast-op/* diff diff)))
-                                "squared-diff")
-        squared-diff (first (ast/output-tensors squared-differences-op))
-        expanded-distances-op (ast/compute
-                               [n-rows n-centroids]
-                               (ast/tvm-fn
-                                [row-idx center-idx]
-                                (ast/commutative-reduce
-                                 (ast/tvm-fn->commutative-reducer
-                                  (ast/tvm-fn
-                                   [sum sq-elem]
-                                   (ast-op/+ sum sq-elem))
-                                  [(double 0.0)])
-                                 [{:domain [0 n-cols] :name "col-idx"}]
-                                 [(fn [col-idx]
-                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
-                               "expanded-distances")
-        expanded-distances (first (ast/output-tensors expanded-distances-op))
-        centroid-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
-        mindistance-assign-op (:op centroid-indexes-assigned)
-        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
-        [centroid-indexes mindistances] (ast/output-tensors mindistance-op)
-
-        [exp-dist-rows exp-dist-cent] (:axis expanded-distances-op)
-        [mindist-rows] (get mindistance-op :axis)
-
-        schedule (schedule/create-schedule mindistance-op)
-        stage-map (:stage_map schedule)
-        sq-diff-stage (stage-map squared-differences-op)
-        exp-dist-stage (stage-map expanded-distances-op)
-        mindist-stage (stage-map mindistance-op)]
-    (schedule/stage-compute-at sq-diff-stage exp-dist-stage exp-dist-cent)
-    (schedule/stage-compute-at exp-dist-stage mindist-stage mindist-rows)
-    (schedule/stage-parallel mindist-stage mindist-rows)
+        ;;Make full centroids distance matrix.
+        sq-diff-tensor (centroid-distances dataset centroids)
+        ;;Reduce last axis to find centroid index of minimum distance.
+        [centroid-indexes mindistances] (topi-argmin sq-diff-tensor -1)
+        schedule (-> (schedule/create-schedule mindistances)
+                     (schedule-squared-distances sq-diff-tensor)
+                     (schedule/inline-op sq-diff-tensor mindistances 0)
+                     (schedule/parallelize-axis mindistances 0))]
     {:schedule schedule
      :arguments [dataset centroids centroid-indexes mindistances]}))
 
@@ -414,86 +424,36 @@
         n-centroids (ast/variable "n-centroids")
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype dataset-datatype)
         centroids (ast/placeholder [n-centroids n-cols] :centroids :dtype :float64)
-        squared-differences-op (ast/compute
-                                [n-rows n-centroids n-cols]
-                                (ast/tvm-fn
-                                 [row-idx center-idx col-idx]
-                                 (ast/tvm-let
-                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
-                                                (ast-op/cast :float64))
-                                   center-elem (ast/tget centroids [center-idx col-idx])
-                                   diff (ast-op/- row-elem center-elem)]
-                                  (ast-op/* diff diff)))
-                                "squared-diff")
-        squared-diff (first (ast/output-tensors squared-differences-op))
-        expanded-distances-op (ast/compute
-                               [n-rows n-centroids]
-                               (ast/tvm-fn
-                                [row-idx center-idx]
-                                (ast/commutative-reduce
-                                 (ast/tvm-fn->commutative-reducer
-                                  (ast/tvm-fn
-                                   [sum sq-elem]
-                                   (ast-op/+ sum sq-elem))
-                                  [(double 0.0)])
-                                 [{:domain [0 n-cols] :name "col-idx"}]
-                                 [(fn [col-idx]
-                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
-                               "expanded-distances")
-        expanded-distances (first (ast/output-tensors expanded-distances-op))
-        centroid-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
-        mindistance-assign-op (:op centroid-indexes-assigned)
-        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
-        [centroid-indexes mindistances] (ast/output-tensors mindistance-op)
+        sq-diff-tensor (centroid-distances dataset centroids)
+        [centroid-indexes mindistances] (topi-argmin sq-diff-tensor -1)
         agg-op (ast/compute
-                [n-centroids n-cols]
-                (ast/tvm-fn
-                 [center-idx col-idx]
-                 (ast/commutative-reduce
-                  (ast/tvm-fn->commutative-reducer
-                   (ast/tvm-fn
-                    [fsum count-acc score-acc sq-elem count-elem score-elem]
-                    [(ast-op/+ fsum sq-elem)
-                     (ast-op/+ count-acc count-elem)
-                     (ast-op/+ score-elem score-acc)])
-                   [(double 0.0)
-                    (int 0)
-                    (double 0.0)])
-                  [{:domain [0 n-rows] :name "row-idx"}]
-                  [(fn [row-idx]
-                     [(ast-op/cast (ast/tget dataset [row-idx col-idx])
-                                   :float64)
-                      (ast-op/const (int 1))
-                      (ast-op/cast (ast/tget mindistances [row-idx])
-                                   :float64)])]
-                  (fn [row-idx]
-                    (ast-op/eq center-idx (ast/tget centroid-indexes [row-idx])))))
-                "new-centroids-sum")
+                [n-centroids n-cols] "brute-force-summation" nil
+                [center-idx col-idx]
+                (ast/commutative-reduce
+                 (ast/tvm-fn->commutative-reducer
+                  (ast/tvm-fn
+                   [fsum count-acc score-acc sq-elem count-elem score-elem]
+                   [(ast-op/+ fsum sq-elem)
+                    (ast-op/+ count-acc count-elem)
+                    (ast-op/+ score-elem score-acc)])
+                  [(double 0.0)
+                   (int 0)
+                   (double 0.0)])
+                 [{:domain [0 n-rows] :name "row-idx"}]
+                 [(fn [row-idx]
+                    [(ast-op/cast (ast/tget dataset [row-idx col-idx])
+                                  :float64)
+                     (ast-op/const (int 1))
+                     (ast-op/cast (ast/tget mindistances [row-idx])
+                                  :float64)])]
+                 (fn [row-idx]
+                   (ast-op/eq center-idx (ast/tget centroid-indexes [row-idx])))))
         [new-centroids new-counts new-scores] (ast/output-tensors agg-op)
 
-
-        schedule (schedule/create-schedule agg-op)
-        stage-map (:stage_map schedule)
-        sq-diff-stage (stage-map squared-differences-op)
-        exp-dist-stage (stage-map expanded-distances-op)
-        mindist-copy-stage (stage-map mindistance-op)
-        ;; mindist-calc-op (:op (first (ast/input-tensors mindistance-op)))
-        ;; mindist-calc-stage (stage-map mindist-calc-op)
-        ;;[mindist-calc-rows] (get-in mindist-calc-stage [:op :axis])
-        [mindist-copy-rows] (get-in mindist-copy-stage [:op :axis])
-        [exp-dist-rows exp-dist-cent] (:axis expanded-distances-op)
-        agg-stage (get stage-map agg-op)
-        [center-axis col-axis] (:axis agg-op)]
-    (schedule/stage-compute-at sq-diff-stage exp-dist-stage exp-dist-cent)
-    (schedule/stage-compute-at exp-dist-stage mindist-copy-stage mindist-copy-rows)
-    ;; (schedule/stage-compute-at mindist-calc-stage mindist-copy-stage mindist-copy-rows)
-    ;; (schedule/stage-vectorize mindist-copy-stage mindist-copy-rows)
-
-    ;;Two parallelized passes over the data per iteration
-    (schedule/stage-parallel mindist-copy-stage mindist-copy-rows)
-
-    (schedule/stage-parallel agg-stage center-axis)
-
+        schedule (-> (schedule/create-schedule agg-op)
+                     (schedule-squared-distances sq-diff-tensor)
+                     (schedule/parallelize-axis mindistances 0)
+                     (schedule/parallelize-axis agg-op -1))]
     {:arguments [dataset centroids new-scores new-counts new-centroids]
      :schedule schedule}))
 
@@ -555,67 +515,23 @@
         n-centroids (ast/variable "n-centroids")
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype ds-dtype)
         centroids (ast/placeholder [n-centroids n-cols] :centroids :dtype :float64)
-        squared-differences-op (ast/compute
-                                [n-rows n-centroids n-cols]
-                                (ast/tvm-fn
-                                 [row-idx center-idx col-idx]
-                                 (ast/tvm-let
-                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
-                                                (ast-op/cast :float64))
-                                   center-elem (ast/tget centroids [center-idx col-idx])
-                                   diff (ast-op/- row-elem center-elem)]
-                                  (ast-op/* diff diff)))
-                                "squared-diff")
-        squared-diff (first (ast/output-tensors squared-differences-op))
-        expanded-distances-op (ast/compute
-                               [n-rows n-centroids]
-                               (ast/tvm-fn
-                                [row-idx center-idx]
-                                (ast/commutative-reduce
-                                 (ast/tvm-fn->commutative-reducer
-                                  (ast/tvm-fn
-                                   [sum sq-elem]
-                                   (ast-op/+ sum sq-elem))
-                                  [(double 0.0)])
-                                 [{:domain [0 n-cols] :name "col-idx"}]
-                                 [(fn [col-idx]
-                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
-                               "expanded-distances")
-        expanded-distances (first (ast/output-tensors expanded-distances-op))
-        centroid-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
-        mindistance-assign-op (:op centroid-indexes-assigned)
-        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
-        [centroid-indexes mindistances] (ast/output-tensors mindistance-op)
+        sq-diff-tensor (centroid-distances dataset centroids)
+        [centroid-indexes mindistances] (topi-argmin sq-diff-tensor)
         sum-op (ast/compute
-                [1]
-                (ast/tvm-fn
-                 [idx]
-                 (ast/commutative-reduce
-                  (ast/tvm-fn->commutative-reducer
-                   (ast/tvm-fn
-                    [sum sq-elem]
-                    (ast-op/+ sum sq-elem))
-                   [(double 0.0)])
-                  [{:domain [0 n-rows] :name "row-idx"}]
-                  [(fn [row-idx]
-                     (ast/tget mindistances [row-idx]))]))
-                "sum")
+                [1] "sum" nil
+                [idx]
+                (ast/commutative-reduce
+                 [:+ :float64]
+                 [{:domain [0 n-rows] :name "row-idx"}]
+                 [(fn [row-idx] (ast/tget mindistances [row-idx]))]))
         sum-tensor (first (ast/output-tensors sum-op))
-        schedule (schedule/create-schedule sum-op)
-        stage-map (:stage_map schedule)]
-    (schedule/stage-compute-at (stage-map squared-differences-op)
-                               (stage-map expanded-distances-op)
-                               (last (:axis expanded-distances-op)))
-    (schedule/stage-compute-at (stage-map expanded-distances-op)
-                               (stage-map mindistance-op)
-                               (last (:axis mindistance-op)))
-    (schedule/stage-compute-at (stage-map mindistance-op)
-                               (stage-map sum-op)
-                               (last (:axis sum-op)))
-    (schedule/stage-parallel (stage-map mindistance-op)
-                             (first (:axis mindistance-op)))
+        schedule (-> (schedule/create-schedule sum-op)
+                     (schedule-squared-distances sq-diff-tensor)
+                     (schedule/inline-op sq-diff-tensor mindistances 0)
+                     (schedule/parallelize-axis mindistances 0))]
     {:schedule schedule
      :arguments [dataset centroids sum-tensor]}))
+
 
 (def ^:private make-tvm-score-fn
   (memoize
@@ -641,6 +557,7 @@
   * `n-centroids` - How many centroids to find.
 
   Returns map of:
+
   * `:centroids` - 2d tensor of double centroids
   * `:centroid-indexes` - 1d integer vector of assigned center indexes.
   * `:iteration-scores` - n-iters+1 length array of mean squared error scores container
@@ -763,16 +680,13 @@
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype ds-dtype)
         indexes (ast/placeholder [n-rows] "indexes" :dtype :int32)
         reorder-op (ast/compute
-                    [n-rows n-cols]
-                    (ast/tvm-fn
-                     [row-idx col-idx]
-                     (ast/tget dataset [(ast/tget indexes [row-idx])
-                                        col-idx]))
-                    "result")
+                    [n-rows n-cols] "result" nil
+                    [row-idx col-idx]
+                    (ast/tget dataset [(ast/tget indexes [row-idx])
+                                       col-idx]))
         result (first (ast/output-tensors reorder-op))
-        schedule (schedule/create-schedule reorder-op)
-        stage-map (:stage_map schedule)]
-    (schedule/stage-parallel (stage-map reorder-op) (first (:axis reorder-op)))
+        schedule (-> (schedule/create-schedule reorder-op)
+                     (schedule/parallelize-axis result 0))]
     {:schedule schedule
      :arguments [dataset indexes result]}))
 
@@ -842,134 +756,83 @@
             (concatenate-results)
             (merge {:kmeans-type :n-per-label}))))))
 
+
 (defn- per-label-prob-dist-algo
-  [n-cols ds-dtype]
+  [n-cols n-labels n-per-label ds-dtype]
   (let [n-rows (ast/variable "n-rows")
         n-cols (ast-op/const n-cols :int32)
-        n-labels (ast/variable "n-labels")
-        n-centroids (ast/variable "n-centroids")
-        n-per-label (ast-op// n-centroids n-labels)
+        n-labels (ast-op/const n-labels :int32)
+        n-per-label (ast-op/const n-per-label :int32)
+        n-centroids (ast-op/* n-labels n-per-label)
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype ds-dtype)
         centroids (ast/placeholder [n-centroids n-cols] "centroids" :dtype :float64)
-        squared-differences-op (ast/compute
-                                [n-rows n-centroids n-cols]
-                                (ast/tvm-fn
-                                 [row-idx center-idx col-idx]
-                                 (ast/tvm-let
-                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
-                                                (ast-op/cast :float64))
-                                   center-elem (ast/tget centroids [center-idx col-idx])
-                                   diff (ast-op/- row-elem center-elem)]
-                                  (ast-op/* diff diff)))
-                                "squared-diff")
-        squared-diff (first (ast/output-tensors squared-differences-op))
-        expanded-distances-op (ast/compute
-                               [n-rows n-centroids]
-                               (ast/tvm-fn
-                                [row-idx center-idx]
-                                (ast/commutative-reduce
-                                 (ast/tvm-fn->commutative-reducer
-                                  (ast/tvm-fn
-                                   [sum sq-elem]
-                                   (ast-op/+ sum sq-elem))
-                                  [(double 0.0)])
-                                 [{:domain [0 n-cols] :name "col-idx"}]
-                                 [(fn [col-idx]
-                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
-                               "expanded-distances")
-        expanded-distances (first (ast/output-tensors expanded-distances-op))
-        per-label-sum-op (ast/compute
-                          [n-rows n-labels]
-                          (ast/tvm-fn
+        sq-diff-tensor (centroid-distances dataset centroids)
+        per-label-min (-> (ast/compute
+                           [n-rows n-labels] "per-label-min"
                            [row-idx label-idx]
                            (ast/commutative-reduce
-                            (ast/tvm-fn->commutative-reducer
-                             (ast/tvm-fn
-                              [sum sq-elem]
-                              (ast-op/min sum sq-elem))
-                             [(ast-op/max-value :float64)])
+                            [:min :float64]
                             [{:domain [0 n-per-label] :name "per-label-idx"}]
                             [(fn [per-label-idx]
-                               (ast/tget expanded-distances [row-idx
-                                                             (ast-op/+
-                                                              (ast-op/* label-idx n-per-label)
-                                                              per-label-idx)]))]))
-                          "per-label-sum")
-        per-label-sum (first (ast/output-tensors per-label-sum-op))
-        per-row-sum-op (ast/compute
-                        [n-rows]
-                        (ast/tvm-fn
+                               (ast/tget sq-diff-tensor [row-idx
+                                                         (ast-op/+
+                                                          (ast-op/* label-idx n-per-label)
+                                                          per-label-idx)]))]))
+                          (ast/first-output))
+        per-row-sums (-> (ast/compute
+                         [n-rows] "per-row-summation"
                          [row-idx]
                          (ast/commutative-reduce
-                          (ast/tvm-fn->commutative-reducer
-                           (ast/tvm-fn
-                            [sum sq-elem]
-                            (ast-op/+ sum sq-elem))
-                           [(double 0.0)])
+                          [:+ :float64]
                           [{:domain [0 n-labels] :name "label-idx"}]
-                          [(fn [label-idx]
-                             (ast/tget per-label-sum [row-idx label-idx]))]))
-                        "per-row-summation")
+                          [(fn [label-idx] (ast/tget per-label-min [row-idx label-idx]))]))
+                        (ast/first-output))
         ;;We need to invert the probability distribution so the shortest distance
         ;;gets the highest probability
         prob-divisor (ast-op/max 1.0 (ast-op/- (ast-op/cast n-labels :float64) 1.0))
-        per-row-sums (first (ast/output-tensors per-row-sum-op))
-        prob-dist-op (ast/compute
-                      [n-rows n-labels]
-                      (ast/tvm-fn
+        prob-dist (-> (ast/compute
+                       [n-rows n-labels] "prob-dist"
                        [row-idx label-idx]
                        (ast-op//
                         (ast-op/- 1.0
-                                  (ast-op// (ast/tget per-label-sum [row-idx label-idx])
+                                  (ast-op// (ast/tget per-label-min [row-idx label-idx])
                                             (ast/tget per-row-sums [row-idx])))
                         prob-divisor))
-                      "prob-dist")
-        prob-dist (first (ast/output-tensors prob-dist-op))
-        assigned-indexes-op (-> (topi-fns/argmax prob-dist -1 false)
-                                (:op)
-                                (ast/input-tensors)
-                                (first)
-                                (:op))
-        assigned-indexes (first (ast/output-tensors assigned-indexes-op))
+                      (ast/first-output))
+        [assigned-indexes max-probs] (topi-argmax prob-dist -1)
 
-        schedule (schedule/create-schedule assigned-indexes-op)
-        stage-map (:stage_map schedule)]
-    (schedule/stage-compute-at (stage-map squared-differences-op)
-                               (stage-map expanded-distances-op)
-                               (last (:axis expanded-distances-op)))
-    (schedule/stage-compute-at (stage-map expanded-distances-op)
-                               (stage-map per-label-sum-op)
-                               (last (:axis per-label-sum-op)))
-
-    (schedule/stage-parallel (stage-map per-label-sum-op)
-                             (first (:axis per-label-sum-op)))
-    (schedule/stage-compute-at (stage-map per-row-sum-op)
-                               (stage-map prob-dist-op)
-                               (first (:axis prob-dist-op)))
-    (schedule/stage-compute-at (stage-map prob-dist-op)
-                               (stage-map assigned-indexes-op)
-                               (first (:axis assigned-indexes-op)))
-    (schedule/stage-parallel (stage-map assigned-indexes-op)
-                             (first (:axis assigned-indexes-op)))
-
+        schedule (-> (schedule/create-schedule assigned-indexes)
+                     (schedule-squared-distances sq-diff-tensor)
+                     ;;Inline the per-label-min op at the row level.
+                     (schedule/inline-op sq-diff-tensor per-label-min 0)
+                     ;;Parallelize calculation of per-label minimums
+                     (schedule/parallelize-axis per-label-min 0)
+                     (schedule/inline-op per-row-sums prob-dist 0)
+                     (schedule/inline-op prob-dist assigned-indexes 0)
+                     (schedule/parallelize-axis assigned-indexes 0))]
     {:schedule schedule
-     :arguments [dataset centroids n-labels prob-dist assigned-indexes]}))
+     :arguments [dataset centroids prob-dist assigned-indexes]}))
 
 
 (def ^:private make-prob-dist-fn
   (memoize
-   (fn [n-cols ds-dtype]
-     (-> (per-label-prob-dist-algo n-cols ds-dtype)
+   (fn [n-cols n-labels n-per-label ds-dtype]
+     (-> (per-label-prob-dist-algo n-cols n-labels n-per-label ds-dtype)
          (compiler/ir->fn "per-label-prob-dist")))))
 
 
 (defn predict-per-label
-  "Return a probability distribution per row across each label."
+  "Return both a probability distribution per row across each label and
+  a 1d tensor of assigned label indexes."
   [data model]
-  (let [prob-dist-fn (make-prob-dist-fn (last (dtype/shape data))
+  (let [{:keys [centroids labels]} model
+        [n-labels n-per-label n-cols] (dtype/shape centroids)
+        prob-dist-fn (make-prob-dist-fn (last (dtype/shape data))
+                                        n-labels
+                                        n-per-label
                                         (dtype/elemwise-datatype data))]
     (resource/stack-resource-context
-     (let [{:keys [centroids labels]} model
+     (let [
            [n-labels n-per-label n-cols] (dtype/shape centroids)
            [n-rows n-data-cols] (dtype/shape data)
            _ (errors/when-not-errorf
@@ -983,83 +846,44 @@
                          (ensure-native))
            indexes (dtt/new-tensor [n-rows]
                                    :datatype :int32
-                                  :container-type :native-heap
-                                  :resource-type :auto)
+                                   :container-type :native-heap
+                                   :resource-type :auto)
            result (dtt/new-tensor [n-rows n-labels]
                                   :datatype :float64
                                   :container-type :native-heap
                                   :resource-type :auto)]
-       (prob-dist-fn data centroids n-labels result indexes)
+       (prob-dist-fn data centroids result indexes)
        {:probability-distribution (dtype/clone result)
         :label-indexes (dtype/clone indexes)}))))
 
 
-(defn tvm-assign-centroids-algo
+(defn- tvm-assign-centroids-algo
   [n-cols dataset-datatype]
   (let [n-cols (ast-op/const n-cols :int32)
         n-rows (ast/variable "n-rows")
         n-centroids (ast/variable "n-centroids")
         centroids (ast/placeholder [n-centroids n-cols] "centroids" :dtype :float64)
         dataset (ast/placeholder [n-rows n-cols] "dataset" :dtype dataset-datatype)
-        squared-differences-op (ast/compute
-                                [n-rows n-centroids n-cols]
-                                (ast/tvm-fn
-                                 [row-idx center-idx col-idx]
-                                 (ast/tvm-let
-                                  [row-elem (-> (ast/tget dataset [row-idx col-idx])
-                                                (ast-op/cast :float64))
-                                   center-elem (ast/tget centroids [center-idx col-idx])
-                                   diff (ast-op/- row-elem center-elem)]
-                                  (ast-op/* diff diff)))
-                                "squared-diff")
-        squared-diff (first (ast/output-tensors squared-differences-op))
-        expanded-distances-op (ast/compute
-                               [n-rows n-centroids]
-                               (ast/tvm-fn
-                                [row-idx center-idx]
-                                (ast/commutative-reduce
-                                 (ast/tvm-fn->commutative-reducer
-                                  (ast/tvm-fn
-                                   [sum sq-elem]
-                                   (ast-op/+ sum sq-elem))
-                                  [(double 0.0)])
-                                 [{:domain [0 n-cols] :name "col-idx"}]
-                                 [(fn [col-idx]
-                                    (ast/tget squared-diff [row-idx center-idx col-idx]))]))
-                               "expanded-distances")
-        expanded-distances (first (ast/output-tensors expanded-distances-op))
-        centroid-indexes-assigned (topi-fns/argmin expanded-distances -1 false)
-        mindistance-assign-op (:op centroid-indexes-assigned)
-        mindistance-op (:op (first (ast/input-tensors mindistance-assign-op)))
-        [centroid-indexes mindistances] (ast/output-tensors mindistance-op)
+        sq-diff-tensor (centroid-distances dataset centroids)
+        [centroid-indexes mindistances] (topi-argmin sq-diff-tensor -1)
         result-op (ast/compute
-                   [n-rows n-cols]
-                   (ast/tvm-fn
-                    [row-idx col-idx]
-                    (-> (ast/tget centroids
-                                  [(ast/tget centroid-indexes [row-idx])
-                                   col-idx])
-                        (ast-op/cast dataset-datatype)))
-                   "result-ds")
-        schedule (schedule/create-schedule result-op)
-        stage-map (:stage_map schedule)
-        result (first (ast/output-tensors result-op))]
-    (schedule/stage-compute-at (stage-map squared-differences-op)
-                               (stage-map expanded-distances-op)
-                               (last (:axis expanded-distances-op)))
-    (schedule/stage-compute-at (stage-map expanded-distances-op)
-                               (stage-map mindistance-op)
-                               (last (:axis mindistance-op)))
-    (schedule/stage-compute-at (stage-map mindistance-op)
-                               (stage-map result-op)
-                               (last (:axis result-op)))
-    (schedule/stage-parallel (stage-map result-op)
-                             (first (:axis result-op)))
+                   [n-rows n-cols] "result-ds"
+                   [row-idx col-idx]
+                   (-> (ast/tget centroids
+                                 [(ast/tget centroid-indexes [row-idx])
+                                  col-idx])
+                       (ast-op/cast dataset-datatype)))
+        result (first (ast/output-tensors result-op))
+        schedule (-> (schedule/create-schedule result-op)
+                     (schedule-squared-distances sq-diff-tensor)
+                     (schedule/inline-op sq-diff-tensor mindistances 0)
+                     (schedule/inline-op mindistances result-op 0)
+                     (schedule/parallelize-axis result-op 0))]
     {:schedule schedule
      :arguments [dataset centroids result]}))
 
 
-(def make-assign-clusters-fn
+(def ^:private make-assign-clusters-fn
   (memoize
    (fn [n-cols ds-type]
      (-> (tvm-assign-centroids-algo n-cols ds-type)
@@ -1081,9 +905,9 @@
        (let [dataset (-> (dtt/reshape src-img [n-rows channels])
                          (dtt/clone :container-type :native-heap
                                     :resource-type :stack))
-             {:keys [centroids scores]} (kmeans++ dataset n-quantization
-                                                {:n-iters n-iters
-                                                 :seed seed})
+             {:keys [centroids iteration-scores]} (kmeans++ dataset n-quantization
+                                                            {:n-iters n-iters
+                                                             :seed seed})
              native-centroids (ensure-native centroids)
              result-img (bufimg/new-image height width (bufimg/image-type src-img))
              result-tens (dtt/new-tensor (dtype/shape dataset)
@@ -1091,18 +915,16 @@
                                          :container-type :native-heap
                                          :resource-type :stack)]
          (assign-clusters-fn dataset native-centroids result-tens)
-         (log/infof "Scores: %s\nCentroids:\n%s" scores centroids)
          (dtype/copy! result-tens result-img)
          (when dst-path
            (bufimg/save! result-img dst-path))
          {:centroids (dtype/clone centroids)
           :result result-img
-          :scores scores})))))
-
+          :scores iteration-scores})))))
 
 
 (comment
-  (def jvm-tvm (time (jvm-tvm-iterate-kmeans src-input centroids)))
+  (def jvm-tvm (time (jvm-tvm-iterate-kmeans! src-input centroids )))
   (def tvm-allinone (time (tvm-all-in-one-iterate-kmeans src-input centroids)))
   (dotimes [iter 10]
     (let [n-quantization (* (+ iter 1) 5)]

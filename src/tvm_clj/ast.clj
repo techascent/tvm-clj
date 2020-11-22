@@ -6,11 +6,12 @@
             [tvm-clj.impl.fns.te :as te-fns]
             [tvm-clj.impl.fns.tir :as tir-fns]
             [tvm-clj.impl.fns.ir :as ir-fns]
+            [tvm-clj.ast.elemwise-op :as ast-op]
             [tech.v3.datatype :as dtype]
             [tech.v3.datatype.casting :as casting]
             [tech.v3.datatype.errors :as errors]
             [clojure.string :as s])
-  (:refer-clojure :exclude [range cast mod min max]))
+  (:refer-clojure :exclude [range]))
 
 
 (set! *warn-on-reflection* true)
@@ -230,7 +231,7 @@ proper metadata on the fn object."
                    tvm-fn)))
 
 
-(defn compute
+(defn compute-op
   "Construct a new tensor by computing over the shape domain.
 
     The compute rule is result[axis] = fcompute(axis)
@@ -256,29 +257,48 @@ proper metadata on the fn object."
     -------
     The created compute node
     "
-  [shape fcompute name & {:keys [tag attrs]
-                     :or {tag ""}}]
-  (let [fn-arglists (tvm-fn->args fcompute)]
-    (when-not-error fn-arglists
-      (ex-info "Functions passed into compute must have the arglists in their metadata"
-               {}))
-    (when-not-error (= (count shape)
-                       (count fn-arglists))
-      (ex-info "fcompute must have same number of args as rank of shape"
-               {:shape-rank (count shape)
-                :num-fn-args (count fn-arglists)}))
-    (let [compute-dim (map (fn [arg-name shape-value]
-                             (let [shape-value (if (sequential? shape-value)
-                                                 shape-value
-                                                 [0 shape-value])]
-                               (iteration-variable shape-value arg-name
-                                                   :data-parallel)))
-                           fn-arglists shape)
-          body-data (apply fcompute (map :var compute-dim))
-          body-data (if-not (instance? clojure.lang.Sequential body-data)
-                      [body-data]
-                      body-data)]
-      (te-fns/ComputeOp (safe-str name) tag attrs compute-dim body-data))))
+  ([shape name {:keys [tag attrs]
+                 :or {tag ""}}
+    fcompute]
+   (let [fn-arglists (tvm-fn->args fcompute)]
+     (when-not-error fn-arglists
+       (ex-info "Functions passed into compute must have the arglists in their metadata"
+                {}))
+     (when-not-error (= (count shape)
+                        (count fn-arglists))
+       (ex-info "fcompute must have same number of args as rank of shape"
+                {:shape-rank (count shape)
+                 :num-fn-args (count fn-arglists)}))
+     (let [compute-dim (map (fn [arg-name shape-value]
+                              (let [shape-value (if (sequential? shape-value)
+                                                  shape-value
+                                                  [0 shape-value])]
+                                (iteration-variable shape-value arg-name
+                                                    :data-parallel)))
+                            fn-arglists shape)
+           body-data (apply fcompute (map :var compute-dim))
+           body-data (if-not (instance? clojure.lang.Sequential body-data)
+                       [body-data]
+                       body-data)]
+       (te-fns/ComputeOp (safe-str name) tag attrs compute-dim body-data))))
+  ([shape name fcompute]
+   (compute-op shape name nil fcompute))
+  ([shape fcompute]
+   (compute-op shape "compute" nil fcompute)))
+
+
+(defmacro compute
+  "Compute a new tensor over this shape."
+  ([shape name options idx-varnames body]
+   `(compute-op
+     ~shape ~name ~options
+     (tvm-fn
+      ~idx-varnames
+      ~body)))
+  ([shape name idx-varnames body]
+   `(compute ~shape ~name nil ~idx-varnames ~body))
+  ([shape idx-varnames body]
+   `(compute ~shape "compute" nil ~idx-varnames ~body)))
 
 
 (defn commutative-reducer
@@ -369,6 +389,29 @@ proper metadata on the fn object."
                                      identity-values))))
 
 
+(defn- ->comm-reducer
+  [reducer-or-tuple]
+  (if (sequential? reducer-or-tuple)
+    (let [[reduce-op dtype] reducer-or-tuple]
+      (case reduce-op
+        :+ (tvm-fn->commutative-reducer
+            (tvm-fn
+             [lhs rhs]
+             (ast-op/+ lhs rhs))
+            [(ast-op/const 0 dtype)])
+        :min (tvm-fn->commutative-reducer
+              (tvm-fn
+               [lhs rhs]
+               (ast-op/min lhs rhs))
+              [(ast-op/max-value dtype)])
+        :max (tvm-fn->commutative-reducer
+              (tvm-fn
+               [lhs rhs]
+               (ast-op/max lhs rhs))
+              [(ast-op/min-value dtype)])))
+    reducer-or-tuple))
+
+
 (defn commutative-reduce
   "Create a reduce node.
 
@@ -383,7 +426,8 @@ proper metadata on the fn object."
     in `reduce-axis`.  If read-exprs are clojure 'fn?'s they will be called
     with the reduction variables created from reduce-axis."
   ([comm-reducer reduce-axis read-exprs condition]
-   (let [reduce-axis (mapv (fn [axis-entry]
+   (let [comm-reducer (->comm-reducer comm-reducer)
+         reduce-axis (mapv (fn [axis-entry]
                              (if (map? axis-entry)
                                (do
                                  (errors/when-not-errorf
@@ -424,9 +468,19 @@ proper metadata on the fn object."
        (mapv (partial te-fns/OpGetOutput compute-op))))
 
 
+(defn first-output
+  [compute-op]
+  (te-fns/OpGetOutput compute-op 0))
+
+
 (defn input-tensors
   [compute-op]
   (te-fns/OpInputTensors compute-op))
+
+
+(defn first-input
+  [compute-op]
+  (first (te-fns/OpInputTensors compute-op)))
 
 
 (defn ->operation
