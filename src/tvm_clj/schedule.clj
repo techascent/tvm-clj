@@ -6,7 +6,8 @@
             [tvm-clj.impl.node :as jna-node]
             [tvm-clj.ast :as ast]
             [tvm-clj.impl.fns.te :as te-fns]
-            [tech.v3.datatype :as dtype])
+            [tech.v3.datatype :as dtype]
+            [tech.v3.datatype.errors :as errors])
   (:import [java.util Objects]))
 
 
@@ -60,13 +61,17 @@
 
 (defn- resolve-rel-axis
   [op rel-axis]
-  (if (number? rel-axis)
-    (let [out-tens (ast/output-tensors op)
-          rel-axis (if (neg? rel-axis)
-                     (- (dtype/ecount out-tens) rel-axis)
-                     rel-axis)]
-      (nth out-tens rel-axis))
-    rel-axis))
+  (let [op (ast/->operation op)]
+    (if (number? rel-axis)
+      (let [axis (:axis op)
+            n-axis (dtype/ecount axis)
+            rel-axis (long rel-axis)
+            rel-axis (if (neg? rel-axis)
+                       (max 0 (+ n-axis rel-axis))
+                       rel-axis)]
+        (errors/check-idx rel-axis n-axis)
+        (nth axis rel-axis))
+      rel-axis)))
 
 
 (defn inline-op
@@ -76,16 +81,18 @@
 
   rel-axis defaults to -1, or the most-rapidly-changing index."
   ([schedule src-op dst-op rel-axis]
-   (let [stage-map (:stage_map schedule)]
+   (let [stage-map (:stage_map schedule)
+         src-op (ast/->operation src-op)
+         dst-op (ast/->operation dst-op)]
      (Objects/nonNull schedule)
      (Objects/nonNull src-op)
      (Objects/nonNull (stage-map src-op))
      (Objects/nonNull dst-op)
      (Objects/nonNull (stage-map dst-op))
      (Objects/nonNull (resolve-rel-axis dst-op rel-axis))
-
      (stage-compute-at (stage-map src-op) (stage-map dst-op)
-                       (resolve-rel-axis dst-op rel-axis)))))
+                       (resolve-rel-axis dst-op rel-axis))
+     schedule)))
 
 
 (defn stage-fuse
@@ -105,12 +112,14 @@
   (te-fns/StageParallel stage axis))
 
 
-(defn cpu-parallelize
+(defn parallelize-axis
   [schedule op rel-axis]
   (Objects/nonNull schedule)
   (Objects/nonNull op)
-  (let [stage-map (:stage_map schedule)]
-    (stage-parallel (stage-map op) (resolve-rel-axis op rel-axis))))
+  (let [stage-map (:stage_map schedule)
+        op (ast/->operation op)]
+    (stage-parallel (stage-map op) (resolve-rel-axis op rel-axis)))
+  schedule)
 
 
 (defn stage-inline

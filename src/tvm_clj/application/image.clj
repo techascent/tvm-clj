@@ -222,26 +222,15 @@
                        (ast-op/+ (ast-op/cast kernel-idx :float32))
                        (ast-op/- (ast-op// kernel-width (float 2.0)))
                        (ast-op/cast :int32)))
-        partial-result-op (ast/compute
-                           [out-height out-width n-chan]
-                           (ast/tvm-fn
+        partial-result (-> (ast/compute
+                            [out-height out-width n-chan] "partial-result"
                             [y x c]
                             (ast/commutative-reduce
-
                              ;;First arg is a commutative reducer.
-                             (ast/tvm-fn->commutative-reducer
-                              ;;Here is our reducing function.
-                              (ast/tvm-fn [lhs rhs] (ast-op/+ lhs rhs))
-                              ;;Zero is the identity operation for this reduction.
-                              ;;One identity value means one accumulator variable (lhs)
-                              ;;and the rest of the arguments (rhs) are interpreted as
-                              ;;input arguments
-                              [(float 0.0)])
-
+                             [:+ :float32]
                              ;;Next are the inner axis we will reduce over
                              [{:domain [0 reduce-kernel-height] :name "k-idx-y"}
                               {:domain [0 reduce-kernel-width] :name "k-idx-x"}]
-
                              ;;Finally a function from reduction axes to every input
                              ;;argument as defined by our reducer above.
                              [(fn [k-idx-y k-idx-x]
@@ -253,28 +242,22 @@
                                                c])
                                     ;;perform operation in float32 space
                                     (ast-op/cast :float32)))]))
-                           ;;Finally the name so if we want to see the intermediate representation we can
-                           ;;tell what it is.
-                           "partial_result")
-        ;;Result in floating point space.
-        partial-result (first (ast/output-tensors partial-result-op))
-        result-op (ast/compute
-                   [out-height out-width n-chan]
-                   (ast/tvm-fn
+                           (ast/first-output))
+        result (-> (ast/compute
+                    [out-height out-width n-chan] "result"
                     [y x c]
                     (-> (ast/tget partial-result [y x c])
                         (ast-op/* divisor)
                         (clamp-fn (float 0) (float 255))
                         ;;convert back to uint8 space
                         (ast-op/cast :uint8)))
-                   "result")
-        output (first (ast/output-tensors result-op))
-        schedule (schedule/create-schedule result-op)
+                   (ast/first-output))
+        schedule (schedule/create-schedule result)
 
         stage-map (:stage_map schedule)
-        partial-stage (get stage-map partial-result-op)
-        final-stage (get stage-map result-op)
-        [final-y final-x final-c] (:axis result-op)]
+        partial-stage (stage-map (ast/->operation partial-result))
+        final-stage (stage-map (ast/->operation result))
+        [final-y final-x final-c] (get-in result [:op :axis])]
     (if (= device-type :llvm)
       (let [[final-y-outer final-x-outer final-y-inner final-x-inner]
             (schedule/stage-tile final-stage
@@ -293,7 +276,7 @@
             thread-axis (schedule/stage-fuse final-stage [final-y-inner final-x-inner])]
         (schedule/stage-compute-at partial-stage final-stage final-c)
         (schedule/stage-bind-gpu final-stage [block-axis] [thread-axis])))
-    {:arguments [input output]
+    {:arguments [input result]
      :target device-type
      :schedule schedule}))
 

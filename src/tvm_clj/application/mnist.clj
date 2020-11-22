@@ -117,6 +117,20 @@
     retval))
 
 
+(defn test-kmeans
+  [& [n-centers]]
+  (let [n-centers (or n-centers 10)]
+    (let [model (kmeans/train-per-label (reshape-data (:data train-ds))
+                                        (:labels train-ds)
+                                        n-centers)
+          prediction-data (time (kmeans/predict-per-label (reshape-data (:data test-ds))
+                                                          model))
+          labels (:labels test-ds)
+          predictions (:label-indexes prediction-data)]
+      {:accuracy (/ (dfn/sum (dfn/eq labels predictions))
+                    (dtype/ecount predictions))
+       :confusion-matrix (confusion-matrix labels predictions)})))
+
 
 
 (defn test-n-center-predictors
