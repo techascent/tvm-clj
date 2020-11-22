@@ -718,7 +718,7 @@
 
 (defn train-per-label
   "Given a dataset along with per-row integer labels, train N per-label kmeans centroids
-  returning a map which use can use with predict-per-label."
+  returning a model which you can use can use with predict-per-label."
   [data labels n-per-label & [{:keys [input-ordered?]
                                :as options}]]
   (when-not (empty? labels)
@@ -823,7 +823,12 @@
 
 (defn predict-per-label
   "Return both a probability distribution per row across each label and
-  a 1d tensor of assigned label indexes."
+  a 1d tensor of assigned label indexes.
+
+  Returns:
+
+  * `:probability-distribution` - each row sums to one, max prob is the index picked.
+  * `:label-indexes` - int32 assigned indexes for each row in the dataset."
   [data model]
   (let [{:keys [centroids labels]} model
         [n-labels n-per-label n-cols] (dtype/shape centroids)
@@ -891,6 +896,14 @@
 
 
 (defn quantize-image
+  "Quantize an image using kmeans.  Copies data into a new image and, if
+  dest-path is provided, saves the image.
+
+  Returns:
+
+  * `:centroids` - result of the quantization.
+  * `:result` - resulting BufferedImage.
+  * `:scores` - Scores after each iteration including initialization."
   [src-path dst-path n-quantization & [{:keys [n-iters seed]
                                         :or {n-iters 5}}]]
   (let [src-img (bufimg/load src-path)
