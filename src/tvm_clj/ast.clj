@@ -42,7 +42,7 @@
   "Create a scalar variable.  Returns a node handle"
   [^String name & {:keys [dtype]
                    :or {dtype "int32"}}]
-  (tir-fns/Var (safe-str name) (->dtype dtype)))
+  (tir-fns/Var (safe-str name) (->dtype dtype) nil))
 
 
 (defn placeholder
