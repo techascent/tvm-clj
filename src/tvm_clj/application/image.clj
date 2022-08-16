@@ -325,6 +325,12 @@
                                         jvm-area-split-resize-algo))))
   ;;1.6 seconds
 
+  (require '[clojure.stacktrace :refer [print-cause-trace]])
+
+  (print-cause-trace *e)
+
+  (ast-op/const 3 :int32)
+
   (def tvm-cpu-fn (tvm-fns (last (dtype/shape input-img)) :llvm))
 
   (def tvm-cpu-result (time (area-resize! input-img 512 tvm-cpu-fn)))
@@ -340,5 +346,10 @@
 
   (def opencl-result (time (area-resize! input-img 512 tvm-opencl-fn)))
   ;;65ms
+
+  (def tvm-metal-fn (tvm-fns (last (dtype/shape input-img)) :metal))
+
+
+  (def metal-result (time (area-resize! input-img 512 tvm-opencl-fn)))
 
   )

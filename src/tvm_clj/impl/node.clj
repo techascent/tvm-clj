@@ -25,11 +25,13 @@
            [com.sun.jna.ptr PointerByReference IntByReference LongByReference]
            [java.util Map List RandomAccess]
            [java.io Writer]
-           [tech.v3.datatype ObjectReader ObjectWriter]
+           [tech.v3.datatype ObjectReader ObjectBuffer]
            [clojure.lang MapEntry IFn IObj]))
 
 (set! *warn-on-reflection* true)
 
+(com.sun.jna.NativeLibrary/getInstance
+   "/Users/mcdev/projects/libs/tvm/build/libtvm.dylib")
 
 (defmulti get-extended-node-value
   "Override this to enable type-specific lookups into nodes."
@@ -222,12 +224,12 @@
   ObjectReader
   (lsize [this] num-items)
   (readObject [this idx]
-    (node-fns/ArrayGetItem this idx)))
+    (runtime/ArrayGetItem this idx)))
 
 
 (defn get-map-items
   [handle]
-  (->> (node-fns/MapItems handle)
+  (->> (runtime/MapItems handle)
        (partition 2)
        (map (fn [[k v]]
               (MapEntry. k v)))))
@@ -250,7 +252,7 @@
   (is-jna-ptr-convertible? [item] true)
   (->ptr-backing-store [item] handle)
   Map
-  (containsKey [item k] (not= 0 (node-fns/MapCount item (bindings-proto/->node k))))
+  (containsKey [item k] (not= 0 (runtime/MapCount item (bindings-proto/->node k))))
   (entrySet [this]
     (->> (.iterator this)
          iterator-seq
@@ -258,7 +260,7 @@
   (get [this obj-key]
     (let [key-node (bindings-proto/->node obj-key)]
       (when (.containsKey this key-node)
-        (node-fns/MapGetItem this key-node))))
+        (runtime/MapGetItem this key-node))))
   (getOrDefault [item obj-key obj-default-value]
     (if (.containsKey item obj-key)
       (.get item obj-key)
@@ -266,7 +268,7 @@
   (isEmpty [this] (= 0 (.size this)))
   (keySet [this] (->> (map first (get-map-items this))
                       set))
-  (size [this] (int (node-fns/MapSize this)))
+  (size [this] (int (runtime/MapSize this)))
   (values [this] (map second this))
   Iterable
   (iterator [this]
@@ -323,7 +325,7 @@
 (defmethod construct-node "Array"
   [ptr]
   (let [init-handle (NodeHandle. ptr #{} nil)
-        node-size (long (node-fns/ArraySize init-handle))]
+        node-size (long (runtime/ArraySize init-handle))]
     (ArrayHandle. ptr node-size)))
 
 
@@ -337,7 +339,7 @@
 explicitly; it is done for you."
   [& args]
   (->> (map bindings-proto/->node args)
-       (apply node-fns/Array)))
+       (apply runtime/Array)))
 
 
 (defn tvm-map
@@ -348,7 +350,7 @@ explicitly; it is done for you."
     (throw (ex-info "Map fn call must have even arg count"
                     {:args args})))
   (->> (map bindings-proto/->node args)
-       (apply node-fns/Map)))
+       (apply runtime/Map)))
 
 
 (defmethod tvm-value->jvm :node-handle

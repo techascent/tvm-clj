@@ -15,3 +15,5 @@ resources/
 *.jpg
 *ubyte
 *ubyte.gz
+.idea
+*.iml

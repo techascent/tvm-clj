@@ -314,7 +314,7 @@ a different buffer type than this then you need to bind it yourself."
         compact? (schedule-fns/VerifyCompactBuffer stmt)
         [arg-list binds] (bind-arguments args compact? binds)
 
-        stmt (schedule-fns/SchedulePostProcRewriteForTensorCore stmt sch binds)
+        ; stmt (schedule-fns/SchedulePostProcRewriteForTensorCore stmt sch binds)
         func (schedule-fns/SchedulePostProcToPrimFunc arg-list stmt binds)
         func (ir-fns/BaseFuncWithAttr func
                                       (bindings/->node "global_symbol")

@@ -31,7 +31,6 @@
   (->> (base/global-function-names)
        (filter #(= prefix (fn-prefix %)))))
 
-
 (defmacro export-tvm-functions
   [prefix]
   `(do

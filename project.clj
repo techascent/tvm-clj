@@ -5,6 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.2-alpha1"]
                  [cnuernber/dtype-next "6.00-beta-5"]
+                 [net.java.dev.jna/jna "5.8.0"]
                  [techascent/tech.jna "4.05"]]
 
   :java-source-paths ["java"]
