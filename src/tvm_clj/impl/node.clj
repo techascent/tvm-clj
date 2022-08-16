@@ -429,7 +429,7 @@ explicitly; it is done for you."
   "Convert an item to a const (immediate) value"
   [numeric-value & [dtype]]
   (let [dtype (->dtype (or dtype (dtype/datatype numeric-value)))
-        [long-val _ntype] (jna-base/raw-call-function @_const-fnptr* numeric-value dtype)]
+        [long-val _ntype] (jna-base/raw-call-function @_const-fnptr* numeric-value dtype nil)]
     (construct-node (Pointer. long-val))))
 
 
