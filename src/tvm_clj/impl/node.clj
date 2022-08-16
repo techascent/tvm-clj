@@ -30,9 +30,6 @@
 
 (set! *warn-on-reflection* true)
 
-(com.sun.jna.NativeLibrary/getInstance
-   "/Users/mcdev/projects/libs/tvm/build/libtvm.dylib")
-
 (defmulti get-extended-node-value
   "Override this to enable type-specific lookups into nodes."
   (fn [node-handle item-key]
