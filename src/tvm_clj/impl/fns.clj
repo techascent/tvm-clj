@@ -44,6 +44,7 @@
 
         (.append builder (format "(tvm-ns-fns/export-tvm-functions \"%s\")"
                                  tvm-ns-name))
+        (.mkdirs (io/file (.getParent (io/file ns-path))))
         (spit ns-path (.toString builder))))))
 
 
@@ -52,4 +53,5 @@
   ;;In that case *delete* all files under tvm_clj.jna.fns/*
   ;;and then run and check changes.
   (define-tvm-fns!)
+
   )
