@@ -19,7 +19,7 @@
 (defn cast
   "Cast a node to a different value."
   [expr-node dtype]
-  (tir-fns/Cast (jna-node/->dtype dtype) expr-node))
+  (tir-fns/Cast (jna-node/->dtype dtype) expr-node nil))
 
 
 (def ^:private call-types
@@ -115,7 +115,7 @@
   [op-name op-fn]
   `(defn ~op-name
      [~'lhs ~'rhs]
-     (~op-fn (tvm-proto/->node ~'lhs) (tvm-proto/->node ~'rhs))))
+     (~op-fn (tvm-proto/->node ~'lhs) (tvm-proto/->node ~'rhs) nil)))
 
 
 (defmacro ^:no-doc def-op

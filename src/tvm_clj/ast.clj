@@ -40,9 +40,9 @@
 
 (defn variable
   "Create a scalar variable.  Returns a node handle"
-  [^String name & {:keys [dtype]
-                   :or {dtype "int32"}}]
-  (tir-fns/Var (safe-str name) (->dtype dtype) nil))
+  [^String name & {:keys [dtype span]
+                   :or {dtype "int32" span nil}}]
+  (tir-fns/Var (safe-str name) (->dtype dtype) span))
 
 
 (defn placeholder
@@ -60,8 +60,10 @@
 
 (defn- range
   "Create a range with defined start inclusive and end exclusive"
-  [start end]
-  (ir-fns/Range start end))
+  ([start end]
+    (range start end nil))
+  ([start end span]
+    (ir-fns/Range start end span)))
 
 
 
@@ -103,6 +105,7 @@
                body)))
 
 
+; https://github.com/apache/tvm/blob/4cdbf5cbfec3db5b5ef5177a7611efecaf56d8c7/include/tvm/tir/var.h#L178
 (def ^:private iteration-variable-types
   "Iteration variable types defined in tvm/include/Expr.h"
   {
@@ -189,8 +192,8 @@ expressions,
 
     thread-tag : str
         The thread tag of the iteration variable."
-  [domain name iteration-type & {:keys [thread-tag]
-                                 :or {thread-tag ""}}]
+  [domain name iteration-type & {:keys [thread-tag span]
+                                 :or {thread-tag "" span nil}}]
 
   (when-not-error (iteration-variable-type-set iteration-type)
     (ex-info "Iteration type not in allowed iteration types"
@@ -203,7 +206,7 @@ expressions,
                    domain
                    (range (first domain) (second domain))))
         v (variable name)]
-    (tir-fns/IterVar domain v (iteration-variable-types iteration-type) thread-tag)))
+    (tir-fns/IterVar domain v (iteration-variable-types iteration-type) thread-tag span)))
 
 
 (defn name->thread-axis-iterator
@@ -328,7 +331,8 @@ proper metadata on the fn object."
           incoming-args (mapv var-fn incoming-args)
           argmap (->> (concat accum-args incoming-args)
                       (map (juxt :name :variable))
-                      (into {}))]
+                      (into {}))
+          span nil]
       (tir-fns/CommReducer (mapv :variable accum-args)
                            (mapv :variable incoming-args)
                            (->> reduction-ast-fns
@@ -346,7 +350,7 @@ proper metadata on the fn object."
                                    (if (number? identity-value)
                                      (jna-node/const identity-value datatype)
                                      (tvm-proto/->node identity-value)))
-                                 accum-args)))))
+                                 accum-args) span))))
 
 
 (defn tvm-fn->commutative-reducer
