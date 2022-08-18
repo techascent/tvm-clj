@@ -1,4 +1,4 @@
-{:paths ["resources" "src" "target/classes"]
+{:paths ["src"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         org.clj-commons/primitive-math {:mvn/version "1.0.0"}
         net.java.dev.jna/jna {:mvn/version "5.7.0"}
@@ -11,5 +11,6 @@
  :aliases
  {:build {:deps {io.github.clojure/tools.build {:git/tag "v0.8.3" :git/sha "0d20256"}}
           :ns-default build}
-  :test {:extra-paths ["test"]}
-  :examples {:extra-paths ["examples/src"]}}}
+  :java {:extra-paths ["target/classes"]
+         :jvm-opts ["-Djna.library.path=incubator-tvm/build"]}
+  :test {:extra-paths ["test"]}}}
