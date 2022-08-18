@@ -335,6 +335,8 @@
   (def tvm-cpu-result (time (area-resize! input-img 512 tvm-cpu-fn)))
   ;;75ms
 
+  tvm-cpu-result
+
   (def tvm-cuda-fn (tvm-fns (last (dtype/shape input-img)) :cuda))
 
   (def cuda-result (time (area-resize! input-img 512 tvm-cuda-fn)))
@@ -349,6 +351,8 @@
   (def tvm-metal-fn (tvm-fns (last (dtype/shape input-img)) :metal))
 
 
-  (def metal-result (time (area-resize! input-img 512 tvm-opencl-fn)))
+  (def metal-result (time (area-resize! input-img 512 tvm-metal-fn)))
+
+  metal-result
 
   )

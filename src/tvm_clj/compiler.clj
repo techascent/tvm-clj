@@ -314,7 +314,6 @@ a different buffer type than this then you need to bind it yourself."
         stmt (schedule-fns/ScheduleOps sch bounds)
         compact? (schedule-fns/VerifyCompactBuffer stmt)
         [arg-list binds] (bind-arguments args compact? binds)
-
         ; stmt (schedule-fns/SchedulePostProcRewriteForTensorCore stmt sch binds)
         func (schedule-fns/SchedulePostProcToPrimFunc arg-list stmt binds)
         func (ir-fns/BaseFuncWithAttr func
@@ -325,8 +324,10 @@ a different buffer type than this then you need to bind it yourself."
                (ir-fns/BaseFuncWithAttr func
                                         (bindings/->node "tir.noalias")
                                         (bindings/->node true))
-               func)]
-    (ir-fns/IRModule {(ir-fns/GlobalVar (ast/safe-str name)) func}
+               func)
+        type-or-span nil ; TODO check what this is suposed to be
+        ]
+    (ir-fns/IRModule {(ir-fns/GlobalVar (ast/safe-str name) type-or-span) func}
                      {})))
 
 
