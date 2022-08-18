@@ -350,7 +350,6 @@
 
   (def tvm-metal-fn (tvm-fns (last (dtype/shape input-img)) :metal))
 
-
   (def metal-result (time (area-resize! input-img 512 tvm-metal-fn)))
 
   metal-result
