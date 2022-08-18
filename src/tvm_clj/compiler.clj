@@ -236,21 +236,22 @@
     for the DLTensor that is compact and aligned.
     If user pass a fully generic symbolic array to the strides,
     then the resulting function becomes fully generic."
-  [shape & {:keys [dtype name data strides elem-offset scope data-alignment]
-            :or {name "buffer" dtype "float32" scope "" data-alignment -1}}]
+  [shape & {:keys [dtype name data strides elem-offset scope data-alignment buffer-type axis-separators span]
+            :or {name "buffer" dtype "float32" scope "" data-alignment -1
+                 buffer-type "" axis-separators nil span nil}}]
   (let [shape (if (instance? java.util.RandomAccess shape)
                 shape
                 [shape])
         elem-offset (if elem-offset elem-offset 0)
         data (if data data
-                 (tir-fns/Var name (ir-fns/PointerType
-                                    (ir-fns/PrimType dtype))))
+                 (ast/variable name
+                   :dtype (ir-fns/PointerType (ir-fns/PrimType dtype) (ast/safe-str scope))))
         offset-factor 0]
     (tir-fns/Buffer
      data (ast/->dtype dtype) shape strides elem-offset
-     (ast/safe-str name) scope
+     (ast/safe-str name)
      data-alignment offset-factor
-     "")))
+     buffer-type axis-separators span)))
 
 
 (defn ^:no-doc bind-arguments

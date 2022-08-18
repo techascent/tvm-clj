@@ -229,8 +229,8 @@
                              ;;First arg is a commutative reducer.
                              [:+ :float32]
                              ;;Next are the inner axis we will reduce over
-                             [{:domain [0 reduce-kernel-height] :name "k-idx-y"}
-                              {:domain [0 reduce-kernel-width] :name "k-idx-x"}]
+                             [{:domain [0 (ast-op/cast reduce-kernel-height :int32)] :name "k-idx-y"}
+                              {:domain [0 (ast-op/cast reduce-kernel-width :int32)] :name "k-idx-x"}]
                              ;;Finally a function from reduction axes to every input
                              ;;argument as defined by our reducer above.
                              [(fn [k-idx-y k-idx-x]
@@ -282,32 +282,31 @@
 
 
 (def tvm-fns
-  (memoize
-   (fn [n-chan device-type]
-     (let [tvm-fn (-> (tvm-area-resize-algo n-chan device-type)
-                      (compiler/ir->fn (format "%s_area_resize"
-                                               (name device-type)
-                                               n-chan)))]
-       (fn [input output]
-         (resource/stack-resource-context
+  (fn [n-chan device-type]
+    (let [tvm-fn (-> (tvm-area-resize-algo n-chan device-type)
+                   (compiler/ir->fn (format "%s_area_resize"
+                                      (name device-type)
+                                      n-chan)))]
+      (fn [input output]
+        (resource/stack-resource-context
           (let [cpu-input (dtt/ensure-native input)
                 cpu-output (dtt/native-tensor (dtype/shape output)
-                                              (dtype/elemwise-datatype output))
+                             (dtype/elemwise-datatype output))
                 device-id 0
                 kernel-input (if (= device-type :llvm)
                                cpu-input
                                (device/cpu->device cpu-input device-type device-id
-                                                   {:resource-type :auto}))
+                                 {:resource-type :auto}))
                 kernel-output (if (= device-type :llvm)
                                 cpu-output
                                 (device/device-tensor cpu-output
-                                                      device-type
-                                                      device-id))]
+                                  device-type
+                                  device-id))]
             (tvm-fn kernel-input kernel-output)
             (when (not= device-type :llvm)
               (device/copy-tensor! kernel-output cpu-output nil)
               (device/sync-with-host device-type 0))
-            (dtype/copy! cpu-output output))))))))
+            (dtype/copy! cpu-output output)))))))
 
 
 (comment

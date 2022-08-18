@@ -69,24 +69,26 @@
 
 (defn tget
   "Get an item from a tensor"
-  [tensor indices]
-  (let [indices (if (number? indices)
-                  [indices]
-                  indices)]
-    (when-not-error (= (count (:shape tensor))
+  ([tensor indices]
+   (tget tensor indices nil))
+  ([tensor indices span]
+   (let [indices (if (number? indices)
+                   [indices]
+                   indices)]
+     (when-not-error (= (count (:shape tensor))
                        (count indices))
-      (ex-info "Num indices must match tensor rank"
-               {:tensor-range (count (:shape tensor))
-                :index-count (count indices)}))
-    (let [indices
-          (mapv (fn [index-val]
-                  (let [node-data (->node index-val)
-                        node-type-name (tvm-proto/node-type-name node-data)]
-                    (if (= "tir.IterVar" node-type-name)
-                      (:var node-data)
-                      node-data)))
-                indices)]
-      (tir-fns/ProducerLoad tensor indices))))
+       (ex-info "Num indices must match tensor rank"
+         {:tensor-range (count (:shape tensor))
+          :index-count (count indices)}))
+     (let [indices
+           (mapv (fn [index-val]
+                   (let [node-data (->node index-val)
+                         node-type-name (tvm-proto/node-type-name node-data)]
+                     (if (= "tir.IterVar" node-type-name)
+                       (:var node-data)
+                       node-data)))
+             indices)]
+       (tir-fns/ProducerLoad tensor indices span)))))
 
 
 (defmacro tvm-let
@@ -429,7 +431,7 @@ proper metadata on the fn object."
     inputs to `commutative-reducer` and that must be based off of the variables defined
     in `reduce-axis`.  If read-exprs are clojure 'fn?'s they will be called
     with the reduction variables created from reduce-axis."
-  ([comm-reducer reduce-axis read-exprs condition]
+  ([comm-reducer reduce-axis read-exprs condition span]
    (let [comm-reducer (->comm-reducer comm-reducer)
          reduce-axis (mapv (fn [axis-entry]
                              (if (map? axis-entry)
@@ -458,12 +460,14 @@ proper metadata on the fn object."
                                  condition)
                                true))]
      (if (== 1 (count read-exprs))
-       (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition 0 init)
+       (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition 0 init span)
        (mapv (fn [idx]
-               (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition (int idx) init))
+               (tir-fns/Reduce comm-reducer read-exprs reduce-axis condition (int idx) init span))
              (clojure.core/range (count read-exprs))))))
+  ([comm-reducer reduce-axis read-exprs span]
+   (commutative-reduce comm-reducer reduce-axis read-exprs nil span))
   ([comm-reducer reduce-axis read-exprs]
-   (commutative-reduce comm-reducer reduce-axis read-exprs nil)))
+   (commutative-reduce comm-reducer reduce-axis read-exprs nil nil)))
 
 
 (defn output-tensors
