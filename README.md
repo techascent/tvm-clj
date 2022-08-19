@@ -87,10 +87,7 @@ instructive to work with.
 
 ## Using with deps.edn
 
-Use the `:java` alias for the java classes and the `:jna` alias for the JNA path,
-
-`-Djna.library.path=incubator-tvm/build` for the tvm submodule
-
+Use the `:java` alias for the java classes and the `:jna` alias for the JNA path
 
 
 ## License
