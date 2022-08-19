@@ -11,6 +11,6 @@
  :aliases
  {:build {:deps {io.github.clojure/tools.build {:git/tag "v0.8.3" :git/sha "0d20256"}}
           :ns-default build}
-  :java {:extra-paths ["target/classes"]
-         :jvm-opts ["-Djna.library.path=incubator-tvm/build"]}
+  :java {:extra-paths ["target/classes"]}
+  :jvm  {:jvm-opts ["-Djna.library.path=incubator-tvm/build"]}
   :test {:extra-paths ["test"]}}}
