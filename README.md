@@ -87,11 +87,9 @@ instructive to work with.
 
 ## Using with deps.edn
 
-Add the `:java` alias to start your REPL for the java classes and JNA path
+Use the `:java` alias for the java classes and the `:jna` alias for the JNA path,
 
-`-Djna.library.path=incubator-tvm/build` if using the tvm submodule
-
-or use whatever `-Djna.library.path=/path/to/tvm/build` you have
+`-Djna.library.path=incubator-tvm/build` for the tvm submodule
 
 
 
