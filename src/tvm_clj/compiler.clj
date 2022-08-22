@@ -306,29 +306,29 @@ a different buffer type than this then you need to bind it yourself."
     Returns
     -------
     The body formed according to the given schedule"
-  [sch args name binds]
   ;; normalize schedule first
-  (let [config (current-pass-context-config)
-        sch (te-fns/ScheduleNormalize sch)
-        bounds (schedule-fns/InferBound sch)
-        stmt (schedule-fns/ScheduleOps sch bounds)
-        compact? (schedule-fns/VerifyCompactBuffer stmt)
-        [arg-list binds] (bind-arguments args compact? binds)
-        ; stmt (schedule-fns/SchedulePostProcRewriteForTensorCore stmt sch binds)
-        func (schedule-fns/SchedulePostProcToPrimFunc arg-list stmt binds)
-        func (ir-fns/BaseFuncWithAttr func
-                                      (bindings/->node "global_symbol")
-                                      (bindings/->node name))
+  ([sch args name binds]
+    (schedule->function sch args name binds nil))
+  ([sch args name binds span]
+     (let [config (current-pass-context-config)
+           sch (te-fns/ScheduleNormalize sch)
+           bounds (schedule-fns/InferBound sch)
+           stmt (schedule-fns/ScheduleOps sch bounds)
+           compact? (schedule-fns/VerifyCompactBuffer stmt)
+           [arg-list binds] (bind-arguments args compact? binds)
+           func (schedule-fns/SchedulePostProcToPrimFunc arg-list stmt binds)
+           func (ir-fns/BaseFuncWithAttr func
+                  (bindings/->node "global_symbol")
+                  (bindings/->node name))
 
-        func (if (get config "tir.noalias" true)
-               (ir-fns/BaseFuncWithAttr func
-                                        (bindings/->node "tir.noalias")
-                                        (bindings/->node true))
-               func)
-        type-or-span nil ; TODO check what this is suposed to be
-        ]
-    (ir-fns/IRModule {(ir-fns/GlobalVar (ast/safe-str name) type-or-span) func}
-                     {})))
+           func (if (get config "tir.noalias" true)
+                  (ir-fns/BaseFuncWithAttr func
+                    (bindings/->node "tir.noalias")
+                    (bindings/->node true))
+                  func)
+           ]
+       (ir-fns/IRModule {(ir-fns/GlobalVar (ast/safe-str name) span) func}
+         {}))))
 
 
 (defn lower
