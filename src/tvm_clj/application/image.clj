@@ -354,4 +354,6 @@
 
   metal-result
 
+  (java.time.LocalDateTime/now (java.time.ZoneId/of "UTC"))
+
   )
