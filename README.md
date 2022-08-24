@@ -69,7 +69,6 @@ cd tvm/build
 cmake ..
 make -j8
 
-
 ```
 
 This will copy the libs into a platform-specific directory that jna should find.
@@ -79,15 +78,15 @@ then the tvm libraries will work with the python bindings.  In fact, it can be w
 to install the python bindings as there are a lot of examples in python that are
 instructive to work with.
 
+## Using with deps.edn
+
+Use the `:jna` alias
+
 
 ## More Information
 
 
 * [background theoretical documentation](topics/background.md)
-
-## Using with deps.edn
-
-Use the `:java` alias for the java classes and the `:jna` alias for the JNA path
 
 
 ## License
